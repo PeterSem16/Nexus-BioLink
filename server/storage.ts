@@ -1,10 +1,12 @@
 import { 
-  users, customers, products, customerProducts, invoices,
+  users, customers, products, customerProducts, invoices, billingDetails, invoiceItems,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
   type CustomerProduct, type InsertCustomerProduct,
-  type Invoice, type InsertInvoice
+  type Invoice, type InsertInvoice,
+  type BillingDetails, type InsertBillingDetails,
+  type InvoiceItem, type InsertInvoiceItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -56,6 +58,16 @@ export interface IStorage {
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: string, data: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   getNextInvoiceNumber(): Promise<string>;
+
+  // Billing Details
+  getBillingDetails(countryCode: string): Promise<BillingDetails | undefined>;
+  getAllBillingDetails(): Promise<BillingDetails[]>;
+  upsertBillingDetails(data: InsertBillingDetails): Promise<BillingDetails>;
+
+  // Invoice Items
+  getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>;
+  createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
+  createInvoiceItems(items: InsertInvoiceItem[]): Promise<InvoiceItem[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -255,6 +267,45 @@ export class DatabaseStorage implements IStorage {
       .from(invoices);
     const count = Number(result?.count || 0) + 1;
     return `INV-${year}-${String(count).padStart(5, '0')}`;
+  }
+
+  // Billing Details
+  async getBillingDetails(countryCode: string): Promise<BillingDetails | undefined> {
+    const [details] = await db.select().from(billingDetails).where(eq(billingDetails.countryCode, countryCode));
+    return details || undefined;
+  }
+
+  async getAllBillingDetails(): Promise<BillingDetails[]> {
+    return db.select().from(billingDetails);
+  }
+
+  async upsertBillingDetails(data: InsertBillingDetails): Promise<BillingDetails> {
+    const existing = await this.getBillingDetails(data.countryCode);
+    if (existing) {
+      const [updated] = await db
+        .update(billingDetails)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(billingDetails.countryCode, data.countryCode))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(billingDetails).values(data).returning();
+    return created;
+  }
+
+  // Invoice Items
+  async getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
+    return db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+  }
+
+  async createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem> {
+    const [created] = await db.insert(invoiceItems).values(item).returning();
+    return created;
+  }
+
+  async createInvoiceItems(items: InsertInvoiceItem[]): Promise<InvoiceItem[]> {
+    if (items.length === 0) return [];
+    return db.insert(invoiceItems).values(items).returning();
   }
 }
 

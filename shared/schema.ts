@@ -54,8 +54,37 @@ export const products = pgTable("products", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("EUR"),
   category: text("category"), // cord_blood, cord_tissue, storage, processing
+  countries: text("countries").array().notNull().default(sql`ARRAY[]::text[]`), // countries where product is available
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Billing details per country
+export const billingDetails = pgTable("billing_details", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: text("country_code").notNull().unique(),
+  companyName: text("company_name").notNull(),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  postalCode: text("postal_code"),
+  taxId: text("tax_id"), // VAT ID / Tax number
+  bankName: text("bank_name"),
+  bankIban: text("bank_iban"),
+  bankSwift: text("bank_swift"),
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).notNull().default("20"), // VAT percentage
+  currency: text("currency").notNull().default("EUR"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Invoice items - individual line items in an invoice
+export const invoiceItems = pgTable("invoice_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull(),
+  productId: varchar("product_id"),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
 });
 
 // Customer products - products assigned to customers
@@ -110,10 +139,22 @@ export const customerProductsRelations = relations(customerProducts, ({ one }) =
   }),
 }));
 
-export const invoicesRelations = relations(invoices, ({ one }) => ({
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   customer: one(customers, {
     fields: [invoices.customerId],
     references: [customers.id],
+  }),
+  items: many(invoiceItems),
+}));
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+  product: one(products, {
+    fields: [invoiceItems.productId],
+    references: [products.id],
   }),
 }));
 
@@ -167,8 +208,31 @@ export const insertProductSchema = createInsertSchema(products).omit({
 }).extend({
   description: z.string().optional().nullable(),
   category: z.string().optional().nullable(),
+  countries: z.array(z.string()).optional().default([]),
   isActive: z.boolean().optional().default(true),
   currency: z.string().optional().default("EUR"),
+});
+
+// Billing details schemas
+export const insertBillingDetailsSchema = createInsertSchema(billingDetails).omit({
+  id: true,
+  updatedAt: true,
+}).extend({
+  postalCode: z.string().optional().nullable(),
+  taxId: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankIban: z.string().optional().nullable(),
+  bankSwift: z.string().optional().nullable(),
+  vatRate: z.string().optional().default("20"),
+  currency: z.string().optional().default("EUR"),
+});
+
+// Invoice item schemas
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
+  id: true,
+}).extend({
+  productId: z.string().optional().nullable(),
+  quantity: z.number().int().positive().optional().default(1),
 });
 
 // Customer product schemas
@@ -205,3 +269,7 @@ export type InsertCustomerProduct = z.infer<typeof insertCustomerProductSchema>;
 export type CustomerProduct = typeof customerProducts.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
+export type InsertBillingDetails = z.infer<typeof insertBillingDetailsSchema>;
+export type BillingDetails = typeof billingDetails.$inferSelect;
+export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;

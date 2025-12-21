@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -37,7 +36,310 @@ import { useCountryFilter } from "@/contexts/country-filter-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getCountryFlag, getCountryName } from "@/lib/countries";
-import type { Customer } from "@shared/schema";
+import type { Customer, Product, CustomerProduct, Invoice } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+
+type CustomerProductWithProduct = CustomerProduct & { product: Product };
+
+function CustomerDetailsContent({ 
+  customer, 
+  onEdit 
+}: { 
+  customer: Customer; 
+  onEdit: () => void;
+}) {
+  const { toast } = useToast();
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [quantity, setQuantity] = useState<string>("1");
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: customerProducts = [], isLoading: productsLoading } = useQuery<CustomerProductWithProduct[]>({
+    queryKey: ["/api/customers", customer.id, "products"],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customer.id}/products`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch customer products");
+      return res.json();
+    },
+  });
+
+  const { data: customerInvoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
+    queryKey: ["/api/customers", customer.id, "invoices"],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customer.id}/invoices`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch customer invoices");
+      return res.json();
+    },
+  });
+
+  const addProductMutation = useMutation({
+    mutationFn: (data: { productId: string; quantity: number }) =>
+      apiRequest("POST", `/api/customers/${customer.id}/products`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      setSelectedProductId("");
+      setQuantity("1");
+      toast({ title: "Product added to customer" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add product", variant: "destructive" });
+    },
+  });
+
+  const removeProductMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/customer-products/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Product removed from customer" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove product", variant: "destructive" });
+    },
+  });
+
+  const generateInvoiceMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/customers/${customer.id}/invoices/generate`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({ title: "Invoice generated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to generate invoice", variant: "destructive" });
+    },
+  });
+
+  const handleDownloadPdf = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/pdf`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to download PDF");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({ title: "Invoice downloaded" });
+    } catch {
+      toast({ title: "Failed to download invoice", variant: "destructive" });
+    }
+  };
+
+  const activeProducts = products.filter(p => p.isActive);
+  const assignedProductIds = customerProducts.map(cp => cp.productId);
+  const availableProducts = activeProducts.filter(p => !assignedProductIds.includes(p.id));
+
+  return (
+    <div className="mt-6 space-y-6">
+      <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold">
+          {customer.firstName[0]}{customer.lastName[0]}
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold">
+            {customer.firstName} {customer.lastName}
+          </h3>
+          <p className="text-muted-foreground">{customer.email}</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Country</p>
+            <p className="flex items-center gap-2 mt-1">
+              <span>{getCountryFlag(customer.country)}</span>
+              {getCountryName(customer.country)}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Status</p>
+            <div className="mt-1">
+              <StatusBadge status={customer.status as any} />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Phone</p>
+            <p className="mt-1">{customer.phone || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Service Type</p>
+            <p className="mt-1 capitalize">{customer.serviceType?.replace("_", " ") || "-"}</p>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Assigned Products
+          </h4>
+        </div>
+
+        {productsLoading ? (
+          <p className="text-sm text-muted-foreground">Loading products...</p>
+        ) : customerProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No products assigned yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {customerProducts.map((cp) => (
+              <div 
+                key={cp.id} 
+                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+              >
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{cp.product.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {cp.quantity} x {parseFloat(cp.priceOverride || cp.product.price).toFixed(2)} {cp.product.currency}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeProductMutation.mutate(cp.id)}
+                  disabled={removeProductMutation.isPending}
+                  data-testid={`button-remove-product-${cp.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {availableProducts.length > 0 && (
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Label className="text-xs">Add Product</Label>
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <SelectTrigger data-testid="select-add-product">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableProducts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} - {parseFloat(p.price).toFixed(2)} {p.currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-20">
+              <Label className="text-xs">Qty</Label>
+              <Input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                data-testid="input-product-quantity"
+              />
+            </div>
+            <Button
+              size="icon"
+              onClick={() => {
+                const qty = parseInt(quantity) || 0;
+                if (selectedProductId && qty > 0) {
+                  addProductMutation.mutate({ productId: selectedProductId, quantity: qty });
+                } else {
+                  toast({ title: "Please select a product and enter a valid quantity", variant: "destructive" });
+                }
+              }}
+              disabled={!selectedProductId || !quantity || parseInt(quantity) < 1 || addProductMutation.isPending}
+              data-testid="button-add-product-to-customer"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Invoices
+          </h4>
+          <Button
+            size="sm"
+            onClick={() => generateInvoiceMutation.mutate()}
+            disabled={customerProducts.length === 0 || generateInvoiceMutation.isPending}
+            data-testid="button-generate-invoice"
+          >
+            {generateInvoiceMutation.isPending ? "Generating..." : "Generate Invoice"}
+          </Button>
+        </div>
+
+        {invoicesLoading ? (
+          <p className="text-sm text-muted-foreground">Loading invoices...</p>
+        ) : customerInvoices.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No invoices generated yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {customerInvoices.map((inv) => (
+              <div 
+                key={inv.id} 
+                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+              >
+                <div>
+                  <p className="font-medium text-sm">{inv.invoiceNumber}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(inv.generatedAt), "MMM dd, yyyy")} - {parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDownloadPdf(inv.id, inv.invoiceNumber)}
+                  data-testid={`button-download-invoice-${inv.id}`}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={onEdit}
+          data-testid="button-edit-from-view"
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Customer
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function CustomersPage() {
   const { toast } = useToast();
@@ -268,82 +570,21 @@ export default function CustomersPage() {
       </Dialog>
 
       <Sheet open={!!viewingCustomer} onOpenChange={() => setViewingCustomer(null)}>
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Customer Details</SheetTitle>
             <SheetDescription>
-              View complete customer information
+              View customer information, products, and invoices
             </SheetDescription>
           </SheetHeader>
           {viewingCustomer && (
-            <div className="mt-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold">
-                  {viewingCustomer.firstName[0]}{viewingCustomer.lastName[0]}
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold">
-                    {viewingCustomer.firstName} {viewingCustomer.lastName}
-                  </h3>
-                  <p className="text-muted-foreground">{viewingCustomer.email}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Country</p>
-                    <p className="flex items-center gap-2 mt-1">
-                      <span>{getCountryFlag(viewingCustomer.country)}</span>
-                      {getCountryName(viewingCustomer.country)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <div className="mt-1">
-                      <StatusBadge status={viewingCustomer.status as any} />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <p className="mt-1">{viewingCustomer.phone || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Service Type</p>
-                    <p className="mt-1 capitalize">{viewingCustomer.serviceType?.replace("_", " ") || "-"}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium text-muted-foreground">City</p>
-                    <p className="mt-1">{viewingCustomer.city || "-"}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium text-muted-foreground">Address</p>
-                    <p className="mt-1">{viewingCustomer.address || "-"}</p>
-                  </div>
-                  {viewingCustomer.notes && (
-                    <div className="col-span-2">
-                      <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                      <p className="mt-1 whitespace-pre-wrap">{viewingCustomer.notes}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setViewingCustomer(null);
-                    setEditingCustomer(viewingCustomer);
-                  }}
-                  data-testid="button-edit-from-view"
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              </div>
-            </div>
+            <CustomerDetailsContent 
+              customer={viewingCustomer} 
+              onEdit={() => {
+                setViewingCustomer(null);
+                setEditingCustomer(viewingCustomer);
+              }}
+            />
           )}
         </SheetContent>
       </Sheet>

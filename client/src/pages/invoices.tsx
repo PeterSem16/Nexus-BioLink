@@ -180,7 +180,11 @@ export default function InvoicesPage() {
         title="Invoices"
         description="Manage and generate customer invoices"
       >
-        <Button onClick={() => setIsBulkDialogOpen(true)} data-testid="button-bulk-invoice">
+        <Button 
+          onClick={() => setIsBulkDialogOpen(true)} 
+          disabled={bulkGenerateMutation.isPending}
+          data-testid="button-bulk-invoice"
+        >
           <Users className="h-4 w-4 mr-2" />
           Bulk Generate
         </Button>

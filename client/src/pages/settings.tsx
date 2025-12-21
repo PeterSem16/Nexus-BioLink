@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,23 +62,22 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
     currency: "EUR",
   });
 
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  if (billingDetails && !isInitialized) {
-    setFormData({
-      companyName: billingDetails.companyName || "",
-      address: billingDetails.address || "",
-      city: billingDetails.city || "",
-      postalCode: billingDetails.postalCode || "",
-      taxId: billingDetails.taxId || "",
-      bankName: billingDetails.bankName || "",
-      bankIban: billingDetails.bankIban || "",
-      bankSwift: billingDetails.bankSwift || "",
-      vatRate: billingDetails.vatRate || "20",
-      currency: billingDetails.currency || "EUR",
-    });
-    setIsInitialized(true);
-  }
+  useEffect(() => {
+    if (billingDetails) {
+      setFormData({
+        companyName: billingDetails.companyName || "",
+        address: billingDetails.address || "",
+        city: billingDetails.city || "",
+        postalCode: billingDetails.postalCode || "",
+        taxId: billingDetails.taxId || "",
+        bankName: billingDetails.bankName || "",
+        bankIban: billingDetails.bankIban || "",
+        bankSwift: billingDetails.bankSwift || "",
+        vatRate: billingDetails.vatRate || "20",
+        currency: billingDetails.currency || "EUR",
+      });
+    }
+  }, [billingDetails]);
 
   const saveMutation = useMutation({
     mutationFn: (data: BillingFormData) =>

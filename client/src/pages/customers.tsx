@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -36,7 +36,7 @@ import { useCountryFilter } from "@/contexts/country-filter-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getCountryFlag, getCountryName } from "@/lib/countries";
-import type { Customer, Product, CustomerProduct, Invoice } from "@shared/schema";
+import type { Customer, Product, CustomerProduct, Invoice, BillingDetails } from "@shared/schema";
 import {
   Select,
   SelectContent,
@@ -51,6 +51,14 @@ import { format } from "date-fns";
 
 type CustomerProductWithProduct = CustomerProduct & { product: Product };
 
+interface InvoiceLineItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: string;
+  currency: string;
+}
+
 function CustomerDetailsContent({ 
   customer, 
   onEdit 
@@ -61,6 +69,11 @@ function CustomerDetailsContent({
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("1");
+  const [isManualInvoiceOpen, setIsManualInvoiceOpen] = useState(false);
+  const [invoiceLines, setInvoiceLines] = useState<InvoiceLineItem[]>([]);
+  const [newLineProductId, setNewLineProductId] = useState<string>("");
+  const [newLineQty, setNewLineQty] = useState<string>("1");
+  const [newLinePrice, setNewLinePrice] = useState<string>("");
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -80,6 +93,16 @@ function CustomerDetailsContent({
     queryFn: async () => {
       const res = await fetch(`/api/customers/${customer.id}/invoices`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch customer invoices");
+      return res.json();
+    },
+  });
+
+  const { data: billingDetails } = useQuery<BillingDetails | null>({
+    queryKey: ["/api/billing-details", customer.country],
+    queryFn: async () => {
+      const res = await fetch(`/api/billing-details/${customer.country}`, { credentials: "include" });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch billing details");
       return res.json();
     },
   });
@@ -122,6 +145,76 @@ function CustomerDetailsContent({
       toast({ title: "Failed to generate invoice", variant: "destructive" });
     },
   });
+
+  const manualInvoiceMutation = useMutation({
+    mutationFn: (data: { items: Array<{ productId?: string; description: string; quantity: number; unitPrice: string }>; currency: string }) =>
+      apiRequest("POST", `/api/customers/${customer.id}/invoices/manual`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      setIsManualInvoiceOpen(false);
+      setInvoiceLines([]);
+      toast({ title: "Invoice created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create invoice", variant: "destructive" });
+    },
+  });
+
+  const handleAddInvoiceLine = () => {
+    const product = products.find(p => p.id === newLineProductId);
+    if (!product) return;
+    
+    const qty = parseInt(newLineQty) || 1;
+    const price = newLinePrice || product.price;
+    
+    setInvoiceLines([
+      ...invoiceLines,
+      {
+        productId: product.id,
+        productName: product.name,
+        quantity: qty,
+        unitPrice: price,
+        currency: product.currency,
+      },
+    ]);
+    
+    setNewLineProductId("");
+    setNewLineQty("1");
+    setNewLinePrice("");
+  };
+
+  const handleRemoveInvoiceLine = (index: number) => {
+    setInvoiceLines(invoiceLines.filter((_, i) => i !== index));
+  };
+
+  const handleCreateManualInvoice = () => {
+    if (invoiceLines.length === 0) {
+      toast({ title: "Please add at least one item", variant: "destructive" });
+      return;
+    }
+    
+    manualInvoiceMutation.mutate({
+      items: invoiceLines.map(line => ({
+        productId: line.productId,
+        description: line.productName,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+      })),
+      currency: invoiceLines[0]?.currency || billingDetails?.currency || "EUR",
+    });
+  };
+
+  const calculateSubtotal = () => {
+    return invoiceLines.reduce((sum, line) => {
+      return sum + (parseFloat(line.unitPrice) * line.quantity);
+    }, 0);
+  };
+
+  const vatRate = billingDetails ? parseFloat(billingDetails.vatRate) : 0;
+  const subtotal = calculateSubtotal();
+  const vatAmount = subtotal * (vatRate / 100);
+  const totalAmount = subtotal + vatAmount;
 
   const handleDownloadPdf = async (invoiceId: string, invoiceNumber: string) => {
     try {
@@ -278,18 +371,18 @@ function CustomerDetailsContent({
       <Separator />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h4 className="font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Invoices
           </h4>
           <Button
             size="sm"
-            onClick={() => generateInvoiceMutation.mutate()}
-            disabled={customerProducts.length === 0 || generateInvoiceMutation.isPending}
-            data-testid="button-generate-invoice"
+            onClick={() => setIsManualInvoiceOpen(true)}
+            data-testid="button-create-invoice"
           >
-            {generateInvoiceMutation.isPending ? "Generating..." : "Generate Invoice"}
+            <Calculator className="h-4 w-4 mr-2" />
+            Create Invoice
           </Button>
         </div>
 
@@ -337,6 +430,152 @@ function CustomerDetailsContent({
           Edit Customer
         </Button>
       </div>
+
+      <Dialog open={isManualInvoiceOpen} onOpenChange={setIsManualInvoiceOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogDescription>
+              Select products and specify amounts for {customer.firstName} {customer.lastName}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {billingDetails && (
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{billingDetails.companyName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {billingDetails.address}, {billingDetails.city}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  VAT: {billingDetails.vatRate}% | Currency: {billingDetails.currency}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <h4 className="font-medium">Invoice Items</h4>
+              
+              {invoiceLines.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No items added yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {invoiceLines.map((line, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-center justify-between p-2 rounded-md bg-muted/50 gap-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{line.productName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {line.quantity} x {parseFloat(line.unitPrice).toFixed(2)} {line.currency} = {(line.quantity * parseFloat(line.unitPrice)).toFixed(2)} {line.currency}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveInvoiceLine(index)}
+                        data-testid={`button-remove-line-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-end gap-2 flex-wrap">
+                <div className="flex-1 min-w-[200px]">
+                  <Label className="text-xs">Product</Label>
+                  <Select value={newLineProductId} onValueChange={(val) => {
+                    setNewLineProductId(val);
+                    const prod = products.find(p => p.id === val);
+                    if (prod) setNewLinePrice(prod.price);
+                  }}>
+                    <SelectTrigger data-testid="select-invoice-product">
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.filter(p => p.isActive).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} - {parseFloat(p.price).toFixed(2)} {p.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-20">
+                  <Label className="text-xs">Qty</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={newLineQty}
+                    onChange={(e) => setNewLineQty(e.target.value)}
+                    data-testid="input-invoice-qty"
+                  />
+                </div>
+                <div className="w-28">
+                  <Label className="text-xs">Unit Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={newLinePrice}
+                    onChange={(e) => setNewLinePrice(e.target.value)}
+                    placeholder="Amount"
+                    data-testid="input-invoice-price"
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  onClick={handleAddInvoiceLine}
+                  disabled={!newLineProductId || !newLinePrice || parseFloat(newLinePrice) <= 0}
+                  data-testid="button-add-invoice-line"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {invoiceLines.length > 0 && (
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>{subtotal.toFixed(2)} {invoiceLines[0]?.currency}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>VAT ({vatRate}%)</span>
+                  <span>{vatAmount.toFixed(2)} {invoiceLines[0]?.currency}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total</span>
+                  <span>{totalAmount.toFixed(2)} {invoiceLines[0]?.currency}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsManualInvoiceOpen(false);
+                  setInvoiceLines([]);
+                }}
+                data-testid="button-cancel-invoice"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateManualInvoice}
+                disabled={invoiceLines.length === 0 || manualInvoiceMutation.isPending}
+                data-testid="button-submit-invoice"
+              >
+                {manualInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

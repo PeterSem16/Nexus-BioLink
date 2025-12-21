@@ -23,16 +23,27 @@ import {
 import { COUNTRIES } from "@/lib/countries";
 import type { User } from "@shared/schema";
 
-const userFormSchema = z.object({
+const createUserFormSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   fullName: z.string().min(2, "Full name is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["admin", "manager", "user"]),
   isActive: z.boolean(),
   assignedCountries: z.array(z.string()).min(1, "At least one country must be assigned"),
 });
 
-export type UserFormData = z.infer<typeof userFormSchema>;
+const updateUserFormSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Invalid email address"),
+  fullName: z.string().min(2, "Full name is required"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
+  role: z.enum(["admin", "manager", "user"]),
+  isActive: z.boolean(),
+  assignedCountries: z.array(z.string()).min(1, "At least one country must be assigned"),
+});
+
+export type UserFormData = z.infer<typeof createUserFormSchema>;
 
 interface UserFormProps {
   initialData?: User;
@@ -42,17 +53,28 @@ interface UserFormProps {
 }
 
 export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFormProps) {
+  const isEditing = !!initialData;
+  
   const form = useForm<UserFormData>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(isEditing ? updateUserFormSchema : createUserFormSchema),
     defaultValues: {
       username: initialData?.username || "",
       email: initialData?.email || "",
       fullName: initialData?.fullName || "",
+      password: "",
       role: (initialData?.role as any) || "user",
       isActive: initialData?.isActive ?? true,
       assignedCountries: initialData?.assignedCountries || [],
     },
   });
+  
+  const handleFormSubmit = (data: UserFormData) => {
+    const submitData = { ...data };
+    if (isEditing && !data.password) {
+      delete (submitData as any).password;
+    }
+    onSubmit(submitData);
+  };
 
   const handleSelectAll = () => {
     form.setValue("assignedCountries", COUNTRIES.map(c => c.code));
@@ -64,7 +86,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -114,6 +136,25 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
                     placeholder="john@example.com" 
                     {...field} 
                     data-testid="input-email"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{isEditing ? "New Password (optional)" : "Password"}</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="password" 
+                    placeholder={isEditing ? "Leave empty to keep current" : "Enter password"} 
+                    {...field} 
+                    data-testid="input-password"
                   />
                 </FormControl>
                 <FormMessage />

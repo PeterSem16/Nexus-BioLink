@@ -1,20 +1,29 @@
 import { 
   users, customers,
-  type User, type InsertUser, 
+  type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
+
+const SALT_ROUNDS = 10;
+
+function toSafeUser(user: User): SafeUser {
+  const { passwordHash, ...safeUser } = user;
+  return safeUser;
+}
 
 export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getAllUsers(): Promise<User[]>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  getAllUsers(): Promise<SafeUser[]>;
+  createUser(user: InsertUser): Promise<SafeUser>;
+  updateUser(id: string, user: UpdateUser): Promise<SafeUser | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  validatePassword(username: string, password: string): Promise<User | null>;
   
   // Customers
   getCustomer(id: string): Promise<Customer | undefined>;
@@ -42,27 +51,52 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return db.select().from(users);
+  async getAllUsers(): Promise<SafeUser[]> {
+    const allUsers = await db.select().from(users);
+    return allUsers.map(toSafeUser);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+  async createUser(insertUser: InsertUser): Promise<SafeUser> {
+    const { password, ...userData } = insertUser;
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    
+    const [user] = await db.insert(users).values({
+      ...userData,
+      passwordHash,
+    }).returning();
+    
+    return toSafeUser(user);
   }
 
-  async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(id: string, updateData: UpdateUser): Promise<SafeUser | undefined> {
+    const { password, ...userData } = updateData;
+    
+    let dataToUpdate: Partial<User> = { ...userData };
+    
+    if (password) {
+      dataToUpdate.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    }
+    
     const [user] = await db
       .update(users)
-      .set(updateData)
+      .set(dataToUpdate)
       .where(eq(users.id, id))
       .returning();
-    return user || undefined;
+    
+    return user ? toSafeUser(user) : undefined;
   }
 
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
+  }
+
+  async validatePassword(username: string, password: string): Promise<User | null> {
+    const user = await this.getUserByUsername(username);
+    if (!user) return null;
+    
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    return isValid ? user : null;
   }
 
   // Customers

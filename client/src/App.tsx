@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,55 +6,108 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CountryFilterProvider } from "@/contexts/country-filter-context";
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import Dashboard from "@/pages/dashboard";
 import UsersPage from "@/pages/users";
 import CustomersPage from "@/pages/customers";
 import SettingsPage from "@/pages/settings";
+import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
+import { Loader2 } from "lucide-react";
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/users" component={UsersPage} />
-      <Route path="/customers" component={CustomersPage} />
-      <Route path="/settings" component={SettingsPage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
+
+  return <Component />;
 }
 
-function App() {
+function AppRouter() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Switch>
+        <Route path="/login" component={LandingPage} />
+        <Route>
+          <Redirect to="/login" />
+        </Route>
+      </Switch>
+    );
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const style = {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "4rem",
   };
 
   return (
+    <CountryFilterProvider>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <header className="flex h-14 items-center justify-between gap-4 border-b px-4 shrink-0">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <ThemeToggle />
+            </header>
+            <main className="flex-1 overflow-auto p-6">
+              <div className="max-w-7xl mx-auto">
+                <Switch>
+                  <Route path="/" component={Dashboard} />
+                  <Route path="/users" component={UsersPage} />
+                  <Route path="/customers" component={CustomersPage} />
+                  <Route path="/settings" component={SettingsPage} />
+                  <Route path="/login">
+                    <Redirect to="/" />
+                  </Route>
+                  <Route component={NotFound} />
+                </Switch>
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+      <Toaster />
+    </CountryFilterProvider>
+  );
+}
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <CountryFilterProvider>
-            <SidebarProvider style={style as React.CSSProperties}>
-              <div className="flex h-screen w-full">
-                <AppSidebar />
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <header className="flex h-14 items-center justify-between gap-4 border-b px-4 shrink-0">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <ThemeToggle />
-                  </header>
-                  <main className="flex-1 overflow-auto p-6">
-                    <div className="max-w-7xl mx-auto">
-                      <Router />
-                    </div>
-                  </main>
-                </div>
-              </div>
-            </SidebarProvider>
-            <Toaster />
-          </CountryFilterProvider>
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

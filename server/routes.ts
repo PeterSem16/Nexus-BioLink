@@ -1,15 +1,93 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertCustomerSchema } from "@shared/schema";
+import { insertUserSchema, insertCustomerSchema, updateUserSchema, loginSchema, type SafeUser } from "@shared/schema";
 import { z } from "zod";
+import session from "express-session";
+import MemoryStore from "memorystore";
+
+declare module "express-session" {
+  interface SessionData {
+    user: SafeUser;
+  }
+}
+
+const MemoryStoreSession = MemoryStore(session);
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Users API
-  app.get("/api/users", async (req, res) => {
+  // Session middleware
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "nexus-biolink-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      }),
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    })
+  );
+
+  // Auth middleware
+  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+  };
+
+  // Auth routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = loginSchema.parse(req.body);
+      
+      const user = await storage.validatePassword(username, password);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+      
+      if (!user.isActive) {
+        return res.status(401).json({ error: "Account is deactivated" });
+      }
+      
+      const { passwordHash, ...safeUser } = user;
+      req.session.user = safeUser;
+      
+      res.json({ user: safeUser });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.session.user) {
+      return res.json({ user: null });
+    }
+    res.json({ user: req.session.user });
+  });
+
+  // Users API (protected)
+  app.get("/api/users", requireAuth, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -19,20 +97,21 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      res.json(user);
+      const { passwordHash, ...safeUser } = user;
+      res.json(safeUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireAuth, async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
@@ -59,10 +138,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
-      const partialSchema = insertUserSchema.partial();
-      const validatedData = partialSchema.parse(req.body);
+      const validatedData = updateUserSchema.parse(req.body);
       
       // Check for duplicate username if updating
       if (validatedData.username) {
@@ -94,7 +172,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteUser(req.params.id);
       if (!deleted) {
@@ -107,8 +185,8 @@ export async function registerRoutes(
     }
   });
 
-  // Customers API
-  app.get("/api/customers", async (req, res) => {
+  // Customers API (protected)
+  app.get("/api/customers", requireAuth, async (req, res) => {
     try {
       const customers = await storage.getAllCustomers();
       res.json(customers);
@@ -118,7 +196,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/customers/:id", async (req, res) => {
+  app.get("/api/customers/:id", requireAuth, async (req, res) => {
     try {
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
@@ -131,7 +209,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", requireAuth, async (req, res) => {
     try {
       const validatedData = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(validatedData);
@@ -145,7 +223,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/customers/:id", async (req, res) => {
+  app.patch("/api/customers/:id", requireAuth, async (req, res) => {
     try {
       const partialSchema = insertCustomerSchema.partial();
       const validatedData = partialSchema.parse(req.body);
@@ -164,7 +242,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/customers/:id", async (req, res) => {
+  app.delete("/api/customers/:id", requireAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteCustomer(req.params.id);
       if (!deleted) {

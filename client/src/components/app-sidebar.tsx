@@ -5,8 +5,11 @@ import {
   UserCog, 
   Settings,
   Activity,
-  Droplets
+  Droplets,
+  LogOut
 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -49,7 +52,13 @@ const adminNavItems = [
 ];
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
 
   return (
     <Sidebar>
@@ -120,7 +129,23 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-3">
+        {user && (
+          <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-sidebar-accent">
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium truncate">{user.fullName}</span>
+              <span className="text-xs text-muted-foreground truncate">{user.role}</span>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleLogout}
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Activity className="h-3 w-3" />
           <span>v1.0.0</span>

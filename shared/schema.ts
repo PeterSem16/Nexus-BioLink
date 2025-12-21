@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
+  passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("user"), // admin, manager, user
   isActive: boolean("is_active").notNull().default(true),
   assignedCountries: text("assigned_countries").array().notNull().default(sql`ARRAY[]::text[]`),
@@ -61,10 +62,30 @@ export const customersRelations = relations(customers, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  passwordHash: true,
 }).extend({
+  password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.string().optional().default("user"),
   isActive: z.boolean().optional().default(true),
   assignedCountries: z.array(z.string()).optional().default([]),
+});
+
+// Schema for updating user (password optional)
+export const updateUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  passwordHash: true,
+}).extend({
+  password: z.string().min(6).optional(),
+  role: z.string().optional(),
+  isActive: z.boolean().optional(),
+  assignedCountries: z.array(z.string()).optional(),
+});
+
+// Login schema
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
@@ -82,6 +103,9 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
+export type SafeUser = Omit<User, "passwordHash">;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+export type LoginInput = z.infer<typeof loginSchema>;

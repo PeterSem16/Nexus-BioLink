@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertUserSchema, insertCustomerSchema, updateUserSchema, loginSchema,
-  insertProductSchema, insertCustomerProductSchema,
-  type SafeUser, type Customer, type Product
+  insertProductSchema, insertCustomerProductSchema, insertBillingDetailsSchema,
+  type SafeUser, type Customer, type Product, type BillingDetails
 } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
@@ -577,6 +577,141 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error in bulk invoice generation:", error);
       res.status(500).json({ error: "Failed to generate invoices" });
+    }
+  });
+
+  // Billing Details API (protected)
+  app.get("/api/billing-details", requireAuth, async (req, res) => {
+    try {
+      const details = await storage.getAllBillingDetails();
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching billing details:", error);
+      res.status(500).json({ error: "Failed to fetch billing details" });
+    }
+  });
+
+  app.get("/api/billing-details/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const details = await storage.getBillingDetails(req.params.countryCode);
+      if (!details) {
+        return res.status(404).json({ error: "Billing details not found for this country" });
+      }
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching billing details:", error);
+      res.status(500).json({ error: "Failed to fetch billing details" });
+    }
+  });
+
+  app.put("/api/billing-details/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertBillingDetailsSchema.parse({
+        ...req.body,
+        countryCode: req.params.countryCode,
+      });
+      const details = await storage.upsertBillingDetails(validatedData);
+      res.json(details);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
+      console.error("Error updating billing details:", error);
+      res.status(500).json({ error: "Failed to update billing details" });
+    }
+  });
+
+  // Manual invoice creation with items
+  app.post("/api/customers/:customerId/invoices/manual", requireAuth, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.customerId);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      const { items, currency } = req.body as {
+        items: Array<{ productId?: string; description: string; quantity: number; unitPrice: string }>;
+        currency: string;
+      };
+
+      if (!items || items.length === 0) {
+        return res.status(400).json({ error: "At least one item is required" });
+      }
+
+      // Get billing details for the customer's country
+      const billingInfo = await storage.getBillingDetails(customer.country);
+      const vatRate = billingInfo ? parseFloat(billingInfo.vatRate) : 0;
+
+      // Calculate totals
+      let subtotal = 0;
+      const invoiceItems: Array<{ productId: string | null; description: string; quantity: number; unitPrice: string; lineTotal: string }> = [];
+
+      for (const item of items) {
+        const lineTotal = parseFloat(item.unitPrice) * item.quantity;
+        subtotal += lineTotal;
+        invoiceItems.push({
+          productId: item.productId || null,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: lineTotal.toFixed(2),
+        });
+      }
+
+      const vatAmount = subtotal * (vatRate / 100);
+      const totalAmount = subtotal + vatAmount;
+
+      // Create invoice
+      const invoiceNumber = await storage.getNextInvoiceNumber();
+      const invoice = await storage.createInvoice({
+        invoiceNumber,
+        customerId: customer.id,
+        totalAmount: totalAmount.toFixed(2),
+        currency: currency || billingInfo?.currency || "EUR",
+        status: "generated",
+        pdfPath: null,
+      });
+
+      // Create invoice items
+      await storage.createInvoiceItems(
+        invoiceItems.map(item => ({
+          invoiceId: invoice.id,
+          productId: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: item.lineTotal,
+        }))
+      );
+
+      res.status(201).json({ 
+        invoice,
+        subtotal: subtotal.toFixed(2),
+        vatRate,
+        vatAmount: vatAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+      });
+    } catch (error) {
+      console.error("Error creating manual invoice:", error);
+      res.status(500).json({ error: "Failed to create invoice" });
+    }
+  });
+
+  // Get invoice with items
+  app.get("/api/invoices/:id/details", requireAuth, async (req, res) => {
+    try {
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      const items = await storage.getInvoiceItems(invoice.id);
+      const customer = await storage.getCustomer(invoice.customerId);
+      const billingInfo = customer ? await storage.getBillingDetails(customer.country) : null;
+      
+      res.json({ invoice, items, customer, billingInfo });
+    } catch (error) {
+      console.error("Error fetching invoice details:", error);
+      res.status(500).json({ error: "Failed to fetch invoice details" });
     }
   });
 

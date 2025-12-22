@@ -1049,6 +1049,27 @@ export default function CustomersPage() {
       ),
     },
     {
+      key: "clientStatus",
+      header: t.customers.clientStatus,
+      cell: (customer: Customer) => {
+        const statusColors: Record<string, string> = {
+          potential: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+          acquired: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+          terminated: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+        };
+        const statusLabels: Record<string, string> = {
+          potential: t.customers.clientStatuses?.potential || "Potential",
+          acquired: t.customers.clientStatuses?.acquired || "Acquired",
+          terminated: t.customers.clientStatuses?.terminated || "Terminated",
+        };
+        return (
+          <Badge className={statusColors[customer.clientStatus] || statusColors.potential}>
+            {statusLabels[customer.clientStatus] || customer.clientStatus}
+          </Badge>
+        );
+      },
+    },
+    {
       key: "actions",
       header: "",
       className: "text-right",

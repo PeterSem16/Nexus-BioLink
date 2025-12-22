@@ -148,6 +148,12 @@ export interface Translations {
       pending: string;
       inactive: string;
     };
+    clientStatus: string;
+    clientStatuses: {
+      potential: string;
+      acquired: string;
+      terminated: string;
+    };
     none: string;
   };
   products: {
@@ -514,6 +520,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'Pending',
         inactive: 'Inactive',
       },
+      clientStatus: 'Client Status',
+      clientStatuses: {
+        potential: 'Potential',
+        acquired: 'Acquired',
+        terminated: 'Terminated',
+      },
       none: 'None',
     },
     products: {
@@ -878,6 +890,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'Čakajúci',
         inactive: 'Neaktívny',
       },
+      clientStatus: 'Status klienta',
+      clientStatuses: {
+        potential: 'Potenciálny',
+        acquired: 'Získaný',
+        terminated: 'Ukončený',
+      },
       none: 'Žiadna',
     },
     products: {
@@ -969,6 +987,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Používateľ',
       statusColumn: 'Stav',
       countriesColumn: 'Priradené krajiny',
+      roles: {
+        admin: 'Administrátor',
+        manager: 'Manažér',
+        user: 'Používateľ',
+      },
     },
     hospitals: {
       title: 'Nemocnice',
@@ -1002,11 +1025,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Dohody',
         templates: 'Šablóny',
         rewards: 'Odmeny',
-      },
-      roles: {
-        admin: 'Administrátor',
-        manager: 'Manažér',
-        user: 'Používateľ',
       },
     },
     settings: {
@@ -1242,6 +1260,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'Čekající',
         inactive: 'Neaktivní',
       },
+      clientStatus: 'Status klienta',
+      clientStatuses: {
+        potential: 'Potenciální',
+        acquired: 'Získaný',
+        terminated: 'Ukončený',
+      },
       none: 'Žádná',
     },
     products: {
@@ -1333,6 +1357,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Uživatel',
       statusColumn: 'Stav',
       countriesColumn: 'Přiřazené země',
+      roles: {
+        admin: 'Administrátor',
+        manager: 'Manažer',
+        user: 'Uživatel',
+      },
     },
     hospitals: {
       title: 'Nemocnice',
@@ -1366,11 +1395,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Dohody',
         templates: 'Šablony',
         rewards: 'Odměny',
-      },
-      roles: {
-        admin: 'Administrátor',
-        manager: 'Manažer',
-        user: 'Uživatel',
       },
     },
     settings: {
@@ -1606,6 +1630,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'Várakozó',
         inactive: 'Inaktív',
       },
+      clientStatus: 'Ügyfél státusz',
+      clientStatuses: {
+        potential: 'Potenciális',
+        acquired: 'Megszerzett',
+        terminated: 'Megszűnt',
+      },
       none: 'Nincs',
     },
     products: {
@@ -1697,6 +1727,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Felhasználó',
       statusColumn: 'Státusz',
       countriesColumn: 'Hozzárendelt országok',
+      roles: {
+        admin: 'Adminisztrátor',
+        manager: 'Menedzser',
+        user: 'Felhasználó',
+      },
     },
     hospitals: {
       title: 'Kórházak',
@@ -1730,11 +1765,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Megállapodások',
         templates: 'Sablonok',
         rewards: 'Jutalmak',
-      },
-      roles: {
-        admin: 'Adminisztrátor',
-        manager: 'Menedzser',
-        user: 'Felhasználó',
       },
     },
     settings: {
@@ -1970,6 +2000,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'În așteptare',
         inactive: 'Inactiv',
       },
+      clientStatus: 'Status client',
+      clientStatuses: {
+        potential: 'Potențial',
+        acquired: 'Achiziționat',
+        terminated: 'Terminat',
+      },
       none: 'Niciunul',
     },
     products: {
@@ -2061,6 +2097,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Utilizator',
       statusColumn: 'Status',
       countriesColumn: 'Țări alocate',
+      roles: {
+        admin: 'Administrator',
+        manager: 'Manager',
+        user: 'Utilizator',
+      },
     },
     hospitals: {
       title: 'Spitale',
@@ -2094,11 +2135,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Acorduri',
         templates: 'Șabloane',
         rewards: 'Recompense',
-      },
-      roles: {
-        admin: 'Administrator',
-        manager: 'Manager',
-        user: 'Utilizator',
       },
     },
     settings: {
@@ -2334,6 +2370,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'In attesa',
         inactive: 'Inattivo',
       },
+      clientStatus: 'Stato cliente',
+      clientStatuses: {
+        potential: 'Potenziale',
+        acquired: 'Acquisito',
+        terminated: 'Terminato',
+      },
       none: 'Nessuno',
     },
     products: {
@@ -2425,6 +2467,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Utente',
       statusColumn: 'Stato',
       countriesColumn: 'Paesi assegnati',
+      roles: {
+        admin: 'Amministratore',
+        manager: 'Manager',
+        user: 'Utente',
+      },
     },
     hospitals: {
       title: 'Ospedali',
@@ -2458,11 +2505,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Accordi',
         templates: 'Modelli',
         rewards: 'Ricompense',
-      },
-      roles: {
-        admin: 'Amministratore',
-        manager: 'Manager',
-        user: 'Utente',
       },
     },
     settings: {
@@ -2698,6 +2740,12 @@ export const translations: Record<Locale, Translations> = {
         pending: 'Ausstehend',
         inactive: 'Inaktiv',
       },
+      clientStatus: 'Kundenstatus',
+      clientStatuses: {
+        potential: 'Potenziell',
+        acquired: 'Erworben',
+        terminated: 'Beendet',
+      },
       none: 'Keine',
     },
     products: {
@@ -2789,6 +2837,11 @@ export const translations: Record<Locale, Translations> = {
       userColumn: 'Benutzer',
       statusColumn: 'Status',
       countriesColumn: 'Zugewiesene Länder',
+      roles: {
+        admin: 'Administrator',
+        manager: 'Manager',
+        user: 'Benutzer',
+      },
     },
     hospitals: {
       title: 'Krankenhäuser',
@@ -2822,11 +2875,6 @@ export const translations: Record<Locale, Translations> = {
         agreements: 'Vereinbarungen',
         templates: 'Vorlagen',
         rewards: 'Belohnungen',
-      },
-      roles: {
-        admin: 'Administrator',
-        manager: 'Manager',
-        user: 'Benutzer',
       },
     },
     settings: {

@@ -22,9 +22,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { Invoice, Customer } from "@shared/schema";
 import { format } from "date-fns";
 
+const LOCALE_MAP: Record<string, string> = {
+  en: 'en-US',
+  sk: 'sk-SK',
+  cs: 'cs-CZ',
+  hu: 'hu-HU',
+  ro: 'ro-RO',
+  it: 'it-IT',
+  de: 'de-DE',
+};
+
 export default function InvoicesPage() {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [search, setSearch] = useState("");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
@@ -40,24 +50,20 @@ export default function InvoicesPage() {
   const bulkGenerateMutation = useMutation({
     mutationFn: (customerIds: string[]) => 
       apiRequest("POST", "/api/invoices/bulk-generate", { customerIds }),
-    onSuccess: async (response) => {
-      const data = await response.json();
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setIsBulkDialogOpen(false);
       setSelectedCustomers([]);
-      toast({ 
-        title: "Bulk invoicing complete", 
-        description: data.message 
-      });
+      toast({ title: t.success.created });
     },
     onError: () => {
-      toast({ title: "Failed to generate invoices", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
   const getCustomerName = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
-    return customer ? `${customer.firstName} ${customer.lastName}` : "Unknown";
+    return customer ? `${customer.firstName} ${customer.lastName}` : t.common.noData;
   };
 
   const handleDownloadPdf = async (invoiceId: string, invoiceNumber: string) => {
@@ -80,9 +86,9 @@ export default function InvoicesPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      toast({ title: "Invoice downloaded successfully" });
+      toast({ title: t.success.saved });
     } catch (error) {
-      toast({ title: "Failed to download invoice", variant: "destructive" });
+      toast({ title: t.errors.loadFailed, variant: "destructive" });
     }
   };
 
@@ -116,10 +122,21 @@ export default function InvoicesPage() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "paid": return t.invoices.paid;
+      case "unpaid": return t.invoices.unpaid;
+      case "overdue": return t.invoices.overdue;
+      case "sent": return t.invoices.sent;
+      case "generated": return t.invoices.generated;
+      default: return status;
+    }
+  };
+
   const columns = [
     {
       key: "invoice",
-      header: "Invoice",
+      header: t.invoices.invoiceNumber,
       cell: (invoice: Invoice) => (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -128,7 +145,7 @@ export default function InvoicesPage() {
           <div>
             <p className="font-medium">{invoice.invoiceNumber}</p>
             <p className="text-sm text-muted-foreground">
-              {format(new Date(invoice.generatedAt), "MMM dd, yyyy")}
+              {new Intl.DateTimeFormat(LOCALE_MAP[locale] || 'en-US', { dateStyle: 'medium' }).format(new Date(invoice.generatedAt))}
             </p>
           </div>
         </div>
@@ -136,14 +153,14 @@ export default function InvoicesPage() {
     },
     {
       key: "customer",
-      header: "Customer",
+      header: t.invoices.customer,
       cell: (invoice: Invoice) => (
         <span>{getCustomerName(invoice.customerId)}</span>
       ),
     },
     {
       key: "amount",
-      header: "Amount",
+      header: t.invoices.amount,
       cell: (invoice: Invoice) => (
         <span className="font-medium">
           {parseFloat(invoice.totalAmount).toFixed(2)} {invoice.currency}
@@ -152,10 +169,10 @@ export default function InvoicesPage() {
     },
     {
       key: "status",
-      header: "Status",
+      header: t.invoices.status,
       cell: (invoice: Invoice) => (
         <Badge variant={getStatusColor(invoice.status)} className="capitalize">
-          {invoice.status}
+          {getStatusLabel(invoice.status)}
         </Badge>
       ),
     },
@@ -180,7 +197,7 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <PageHeader
         title={t.invoices.title}
-        description=""
+        description={t.invoices.description}
       >
         <Button 
           onClick={() => setIsBulkDialogOpen(true)} 
@@ -188,7 +205,7 @@ export default function InvoicesPage() {
           data-testid="button-bulk-invoice"
         >
           <Users className="h-4 w-4 mr-2" />
-          Bulk Generate
+          {t.invoices.bulkGenerate}
         </Button>
       </PageHeader>
 
@@ -198,7 +215,7 @@ export default function InvoicesPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search invoices..."
+                placeholder={t.invoices.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -206,7 +223,7 @@ export default function InvoicesPage() {
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              {filteredInvoices.length} invoices
+              {filteredInvoices.length} {t.invoices.title.toLowerCase()}
             </div>
           </div>
         </CardContent>
@@ -216,16 +233,16 @@ export default function InvoicesPage() {
         columns={columns}
         data={filteredInvoices}
         isLoading={invoicesLoading || customersLoading}
-        emptyMessage="No invoices found. Generate invoices from customer pages or use bulk generation."
+        emptyMessage={t.invoices.noInvoices}
         getRowKey={(i) => i.id}
       />
 
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Bulk Invoice Generation</DialogTitle>
+            <DialogTitle>{t.invoices.bulkGenerateTitle}</DialogTitle>
             <DialogDescription>
-              Select customers to generate invoices for. Only customers with assigned products will be invoiced.
+              {t.invoices.bulkGenerateDescription}
             </DialogDescription>
           </DialogHeader>
           
@@ -238,7 +255,7 @@ export default function InvoicesPage() {
                 data-testid="checkbox-select-all"
               />
               <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                Select All ({customers.length} customers)
+                {t.invoices.selectAll} ({customers.length} {t.customers.title.toLowerCase()})
               </label>
             </div>
             
@@ -267,21 +284,21 @@ export default function InvoicesPage() {
           <DialogFooter className="border-t pt-4">
             <div className="flex items-center gap-2 mr-auto text-sm text-muted-foreground">
               <CheckCircle className="h-4 w-4" />
-              {selectedCustomers.length} customers selected
+              {selectedCustomers.length} {t.customers.title.toLowerCase()}
             </div>
             <Button 
               variant="outline" 
               onClick={() => setIsBulkDialogOpen(false)}
               data-testid="button-cancel-bulk"
             >
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button 
               onClick={() => bulkGenerateMutation.mutate(selectedCustomers)}
               disabled={selectedCustomers.length === 0 || bulkGenerateMutation.isPending}
               data-testid="button-confirm-bulk"
             >
-              {bulkGenerateMutation.isPending ? "Generating..." : `Generate ${selectedCustomers.length} Invoices`}
+              {bulkGenerateMutation.isPending ? t.invoices.generating : t.invoices.generateSelected}
             </Button>
           </DialogFooter>
         </DialogContent>

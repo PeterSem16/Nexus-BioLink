@@ -1096,7 +1096,7 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <PageHeader
         title={t.customers.title}
-        description=""
+        description={t.customers.description}
       >
         <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-customer">
           <Plus className="h-4 w-4 mr-2" />
@@ -1110,7 +1110,7 @@ export default function CustomersPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search customers..."
+                placeholder={t.customers.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -1128,7 +1128,7 @@ export default function CustomersPage() {
         columns={columns}
         data={filteredCustomers}
         isLoading={isLoading}
-        emptyMessage="No customers found for selected countries"
+        emptyMessage={t.customers.noCustomers}
         getRowKey={(c) => c.id}
       />
 

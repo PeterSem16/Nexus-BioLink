@@ -447,7 +447,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <PageHeader
         title={t.products.title}
-        description=""
+        description={t.products.pageDescription}
       >
         <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-product">
           <Plus className="h-4 w-4 mr-2" />
@@ -461,7 +461,7 @@ export default function ProductsPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search products..."
+                placeholder={t.products.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -479,7 +479,7 @@ export default function ProductsPage() {
         columns={columns}
         data={filteredProducts}
         isLoading={isLoading}
-        emptyMessage="No products found. Add your first product to get started."
+        emptyMessage={t.products.noProducts}
         getRowKey={(p) => p.id}
       />
 

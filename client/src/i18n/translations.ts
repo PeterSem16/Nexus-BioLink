@@ -48,6 +48,7 @@ export interface Translations {
   };
   dashboard: {
     title: string;
+    description: string;
     totalCustomers: string;
     activeCustomers: string;
     pendingCustomers: string;
@@ -56,6 +57,7 @@ export interface Translations {
   };
   customers: {
     title: string;
+    description: string;
     addCustomer: string;
     editCustomer: string;
     deleteCustomer: string;
@@ -71,6 +73,8 @@ export interface Translations {
     city: string;
     postalCode: string;
     notes: string;
+    searchPlaceholder: string;
+    noCustomers: string;
     tabs: {
       client: string;
       marketing: string;
@@ -109,6 +113,7 @@ export interface Translations {
   };
   products: {
     title: string;
+    pageDescription: string;
     addProduct: string;
     editProduct: string;
     deleteProduct: string;
@@ -116,10 +121,14 @@ export interface Translations {
     description: string;
     price: string;
     availability: string;
+    searchPlaceholder: string;
+    noProducts: string;
   };
   invoices: {
     title: string;
+    description: string;
     addInvoice: string;
+    bulkGenerate: string;
     invoiceNumber: string;
     customer: string;
     amount: string;
@@ -128,9 +137,19 @@ export interface Translations {
     paid: string;
     unpaid: string;
     overdue: string;
+    sent: string;
+    generated: string;
+    searchPlaceholder: string;
+    noInvoices: string;
+    bulkGenerateTitle: string;
+    bulkGenerateDescription: string;
+    selectAll: string;
+    generateSelected: string;
+    generating: string;
   };
   users: {
     title: string;
+    description: string;
     addUser: string;
     editUser: string;
     deleteUser: string;
@@ -138,6 +157,8 @@ export interface Translations {
     password: string;
     role: string;
     assignedCountries: string;
+    searchPlaceholder: string;
+    noUsers: string;
     roles: {
       admin: string;
       manager: string;
@@ -146,6 +167,7 @@ export interface Translations {
   };
   settings: {
     title: string;
+    description: string;
     configuration: string;
     complaintTypes: string;
     cooperationTypes: string;
@@ -156,6 +178,12 @@ export interface Translations {
     deleteConfirm: string;
     code: string;
     noItems: string;
+    tabs: {
+      billing: string;
+      config: string;
+      insurance: string;
+      system: string;
+    };
   };
   auth: {
     login: string;
@@ -221,6 +249,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Dashboard',
+      description: 'Overview of your cord blood banking business',
       totalCustomers: 'Total Customers',
       activeCustomers: 'Active Customers',
       pendingCustomers: 'Pending Customers',
@@ -229,6 +258,7 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Customers',
+      description: 'Manage cord blood banking customers',
       addCustomer: 'Add Customer',
       editCustomer: 'Edit Customer',
       deleteCustomer: 'Delete Customer',
@@ -244,6 +274,8 @@ export const translations: Record<Locale, Translations> = {
       city: 'City',
       postalCode: 'Postal Code',
       notes: 'Notes',
+      searchPlaceholder: 'Search customers...',
+      noCustomers: 'No customers found for selected countries',
       tabs: {
         client: 'Client',
         marketing: 'Marketing',
@@ -282,6 +314,7 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Products',
+      pageDescription: 'Manage services and products for cord blood banking',
       addProduct: 'Add Product',
       editProduct: 'Edit Product',
       deleteProduct: 'Delete Product',
@@ -289,10 +322,14 @@ export const translations: Record<Locale, Translations> = {
       description: 'Description',
       price: 'Price',
       availability: 'Availability',
+      searchPlaceholder: 'Search products...',
+      noProducts: 'No products found. Add your first product to get started.',
     },
     invoices: {
       title: 'Invoices',
+      description: 'Manage and generate customer invoices',
       addInvoice: 'Add Invoice',
+      bulkGenerate: 'Bulk Generate',
       invoiceNumber: 'Invoice Number',
       customer: 'Customer',
       amount: 'Amount',
@@ -301,9 +338,19 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Paid',
       unpaid: 'Unpaid',
       overdue: 'Overdue',
+      sent: 'Sent',
+      generated: 'Generated',
+      searchPlaceholder: 'Search invoices...',
+      noInvoices: 'No invoices found. Generate invoices from customer pages or use bulk generation.',
+      bulkGenerateTitle: 'Bulk Invoice Generation',
+      bulkGenerateDescription: 'Select customers to generate invoices for. Only customers with assigned products will be invoiced.',
+      selectAll: 'Select All',
+      generateSelected: 'Generate for Selected',
+      generating: 'Generating...',
     },
     users: {
       title: 'Users',
+      description: 'Manage CRM users and their country access permissions',
       addUser: 'Add User',
       editUser: 'Edit User',
       deleteUser: 'Delete User',
@@ -311,6 +358,8 @@ export const translations: Record<Locale, Translations> = {
       password: 'Password',
       role: 'Role',
       assignedCountries: 'Assigned Countries',
+      searchPlaceholder: 'Search users...',
+      noUsers: 'No users found',
       roles: {
         admin: 'Administrator',
         manager: 'Manager',
@@ -319,6 +368,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Settings',
+      description: 'System configuration and billing details',
       configuration: 'Configuration',
       complaintTypes: 'Complaint Types',
       cooperationTypes: 'Cooperation Types',
@@ -329,6 +379,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this item?',
       code: 'Code',
       noItems: 'No items',
+      tabs: {
+        billing: 'Billing',
+        config: 'Configuration',
+        insurance: 'Insurance',
+        system: 'System',
+      },
     },
     auth: {
       login: 'Login',
@@ -392,6 +448,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Prehľad',
+      description: 'Prehľad vášho podnikania v banke pupočníkovej krvi',
       totalCustomers: 'Celkom zákazníkov',
       activeCustomers: 'Aktívni zákazníci',
       pendingCustomers: 'Čakajúci zákazníci',
@@ -400,6 +457,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Zákazníci',
+      description: 'Správa zákazníkov banky pupočníkovej krvi',
+      searchPlaceholder: 'Hľadať zákazníkov...',
+      noCustomers: 'Žiadni zákazníci nenájdení pre vybrané krajiny',
       addCustomer: 'Pridať zákazníka',
       editCustomer: 'Upraviť zákazníka',
       deleteCustomer: 'Odstrániť zákazníka',
@@ -453,6 +513,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Produkty',
+      pageDescription: 'Správa služieb a produktov pre banku pupočníkovej krvi',
+      searchPlaceholder: 'Hľadať produkty...',
+      noProducts: 'Žiadne produkty nenájdené. Pridajte svoj prvý produkt.',
       addProduct: 'Pridať produkt',
       editProduct: 'Upraviť produkt',
       deleteProduct: 'Odstrániť produkt',
@@ -463,6 +526,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Faktúry',
+      description: 'Správa a generovanie faktúr zákazníkov',
+      bulkGenerate: 'Hromadné generovanie',
+      searchPlaceholder: 'Hľadať faktúry...',
+      noInvoices: 'Žiadne faktúry nenájdené. Generujte faktúry zo stránok zákazníkov alebo použite hromadné generovanie.',
+      bulkGenerateTitle: 'Hromadné generovanie faktúr',
+      bulkGenerateDescription: 'Vyberte zákazníkov, pre ktorých chcete generovať faktúry. Fakturovaní budú iba zákazníci s priradenými produktmi.',
+      selectAll: 'Vybrať všetko',
+      generateSelected: 'Generovať pre vybraných',
+      generating: 'Generujem...',
       addInvoice: 'Vytvoriť faktúru',
       invoiceNumber: 'Číslo faktúry',
       customer: 'Zákazník',
@@ -472,9 +544,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Zaplatená',
       unpaid: 'Nezaplatená',
       overdue: 'Po splatnosti',
+      sent: 'Odoslané',
+      generated: 'Vygenerované',
     },
     users: {
       title: 'Používatelia',
+      description: 'Správa používateľov CRM a ich prístupových práv k krajinám',
+      searchPlaceholder: 'Hľadať používateľov...',
+      noUsers: 'Žiadni používatelia nenájdení',
       addUser: 'Pridať používateľa',
       editUser: 'Upraviť používateľa',
       deleteUser: 'Odstrániť používateľa',
@@ -490,6 +567,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Nastavenia',
+      description: 'Konfigurácia systému a fakturačné údaje',
       configuration: 'Konfigurácia',
       complaintTypes: 'Typy sťažností',
       cooperationTypes: 'Typy spolupráce',
@@ -500,6 +578,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Naozaj chcete odstrániť túto položku?',
       code: 'Kód',
       noItems: 'Žiadne položky',
+      tabs: {
+        billing: 'Fakturácia',
+        config: 'Konfigurácia',
+        insurance: 'Poisťovne',
+        system: 'Systém',
+      },
     },
     auth: {
       login: 'Prihlásenie',
@@ -563,6 +647,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Přehled',
+      description: 'Přehled vašeho podnikání v bance pupečníkové krve',
       totalCustomers: 'Celkem zákazníků',
       activeCustomers: 'Aktivní zákazníci',
       pendingCustomers: 'Čekající zákazníci',
@@ -571,6 +656,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Zákazníci',
+      description: 'Správa zákazníků banky pupečníkové krve',
+      searchPlaceholder: 'Hledat zákazníky...',
+      noCustomers: 'Žádní zákazníci nenalezeni pro vybrané země',
       addCustomer: 'Přidat zákazníka',
       editCustomer: 'Upravit zákazníka',
       deleteCustomer: 'Odstranit zákazníka',
@@ -624,6 +712,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Produkty',
+      pageDescription: 'Správa služeb a produktů pro banku pupečníkové krve',
+      searchPlaceholder: 'Hledat produkty...',
+      noProducts: 'Žádné produkty nenalezeny. Přidejte svůj první produkt.',
       addProduct: 'Přidat produkt',
       editProduct: 'Upravit produkt',
       deleteProduct: 'Odstranit produkt',
@@ -634,6 +725,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Faktury',
+      description: 'Správa a generování faktur zákazníků',
+      bulkGenerate: 'Hromadné generování',
+      searchPlaceholder: 'Hledat faktury...',
+      noInvoices: 'Žádné faktury nenalezeny. Generujte faktury ze stránek zákazníků nebo použijte hromadné generování.',
+      bulkGenerateTitle: 'Hromadné generování faktur',
+      bulkGenerateDescription: 'Vyberte zákazníky, pro které chcete generovat faktury. Fakturováni budou pouze zákazníci s přiřazenými produkty.',
+      selectAll: 'Vybrat vše',
+      generateSelected: 'Generovat pro vybrané',
+      generating: 'Generuji...',
       addInvoice: 'Vytvořit fakturu',
       invoiceNumber: 'Číslo faktury',
       customer: 'Zákazník',
@@ -643,9 +743,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Zaplacená',
       unpaid: 'Nezaplacená',
       overdue: 'Po splatnosti',
+      sent: 'Odoslané',
+      generated: 'Vygenerované',
     },
     users: {
       title: 'Uživatelé',
+      description: 'Správa uživatelů CRM a jejich přístupových práv k zemím',
+      searchPlaceholder: 'Hledat uživatele...',
+      noUsers: 'Žádní uživatelé nenalezeni',
       addUser: 'Přidat uživatele',
       editUser: 'Upravit uživatele',
       deleteUser: 'Odstranit uživatele',
@@ -661,6 +766,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Nastavení',
+      description: 'Konfigurace systému a fakturační údaje',
       configuration: 'Konfigurace',
       complaintTypes: 'Typy stížností',
       cooperationTypes: 'Typy spolupráce',
@@ -671,6 +777,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Opravdu chcete odstranit tuto položku?',
       code: 'Kód',
       noItems: 'Žádné položky',
+      tabs: {
+        billing: 'Fakturace',
+        config: 'Konfigurace',
+        insurance: 'Pojišťovny',
+        system: 'Systém',
+      },
     },
     auth: {
       login: 'Přihlášení',
@@ -734,6 +846,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Irányítópult',
+      description: 'Köldökzsinórvér-banki üzletének áttekintése',
       totalCustomers: 'Összes ügyfél',
       activeCustomers: 'Aktív ügyfelek',
       pendingCustomers: 'Függőben lévő ügyfelek',
@@ -742,6 +855,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Ügyfelek',
+      description: 'Köldökzsinórvér-banki ügyfelek kezelése',
+      searchPlaceholder: 'Ügyfelek keresése...',
+      noCustomers: 'Nem találhatók ügyfelek a kiválasztott országokhoz',
       addCustomer: 'Ügyfél hozzáadása',
       editCustomer: 'Ügyfél szerkesztése',
       deleteCustomer: 'Ügyfél törlése',
@@ -795,6 +911,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Termékek',
+      pageDescription: 'Szolgáltatások és termékek kezelése köldökzsinórvér-bankhoz',
+      searchPlaceholder: 'Termékek keresése...',
+      noProducts: 'Nem találhatók termékek. Adja hozzá az első termékét a kezdéshez.',
       addProduct: 'Termék hozzáadása',
       editProduct: 'Termék szerkesztése',
       deleteProduct: 'Termék törlése',
@@ -805,6 +924,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Számlák',
+      description: 'Ügyfélszámlák kezelése és létrehozása',
+      bulkGenerate: 'Tömeges létrehozás',
+      searchPlaceholder: 'Számlák keresése...',
+      noInvoices: 'Nem találhatók számlák. Hozzon létre számlákat az ügyféloldalakról vagy használja a tömeges létrehozást.',
+      bulkGenerateTitle: 'Tömeges számlakészítés',
+      bulkGenerateDescription: 'Válassza ki azokat az ügyfeleket, akiknek számlákat szeretne létrehozni. Csak a hozzárendelt termékekkel rendelkező ügyfelek lesznek számlázva.',
+      selectAll: 'Összes kiválasztása',
+      generateSelected: 'Kiválasztottak létrehozása',
+      generating: 'Létrehozás...',
       addInvoice: 'Számla létrehozása',
       invoiceNumber: 'Számlaszám',
       customer: 'Ügyfél',
@@ -814,9 +942,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Fizetve',
       unpaid: 'Fizetetlen',
       overdue: 'Lejárt',
+      sent: 'Elküldve',
+      generated: 'Generált',
     },
     users: {
       title: 'Felhasználók',
+      description: 'CRM felhasználók és országhozzáférési jogosultságok kezelése',
+      searchPlaceholder: 'Felhasználók keresése...',
+      noUsers: 'Nem találhatók felhasználók',
       addUser: 'Felhasználó hozzáadása',
       editUser: 'Felhasználó szerkesztése',
       deleteUser: 'Felhasználó törlése',
@@ -832,6 +965,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Beállítások',
+      description: 'Rendszerkonfiguráció és számlázási adatok',
       configuration: 'Konfiguráció',
       complaintTypes: 'Panasz típusok',
       cooperationTypes: 'Együttműködés típusok',
@@ -842,6 +976,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Biztosan törölni szeretné ezt az elemet?',
       code: 'Kód',
       noItems: 'Nincsenek elemek',
+      tabs: {
+        billing: 'Számlázás',
+        config: 'Konfiguráció',
+        insurance: 'Biztosítók',
+        system: 'Rendszer',
+      },
     },
     auth: {
       login: 'Bejelentkezés',
@@ -905,6 +1045,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Panou de control',
+      description: 'Prezentare generală a afacerii dvs. de banking cu sânge din cordon',
       totalCustomers: 'Total clienți',
       activeCustomers: 'Clienți activi',
       pendingCustomers: 'Clienți în așteptare',
@@ -913,6 +1054,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Clienți',
+      description: 'Gestionarea clienților băncii de sânge din cordon',
+      searchPlaceholder: 'Căutare clienți...',
+      noCustomers: 'Nu s-au găsit clienți pentru țările selectate',
       addCustomer: 'Adaugă client',
       editCustomer: 'Editează client',
       deleteCustomer: 'Șterge client',
@@ -966,6 +1110,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Produse',
+      pageDescription: 'Gestionarea serviciilor și produselor pentru banca de sânge din cordon',
+      searchPlaceholder: 'Căutare produse...',
+      noProducts: 'Nu s-au găsit produse. Adăugați primul produs pentru a începe.',
       addProduct: 'Adaugă produs',
       editProduct: 'Editează produs',
       deleteProduct: 'Șterge produs',
@@ -976,6 +1123,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Facturi',
+      description: 'Gestionarea și generarea facturilor clienților',
+      bulkGenerate: 'Generare în masă',
+      searchPlaceholder: 'Căutare facturi...',
+      noInvoices: 'Nu s-au găsit facturi. Generați facturi din paginile clienților sau folosiți generarea în masă.',
+      bulkGenerateTitle: 'Generare facturi în masă',
+      bulkGenerateDescription: 'Selectați clienții pentru care doriți să generați facturi. Vor fi facturați doar clienții cu produse alocate.',
+      selectAll: 'Selectează tot',
+      generateSelected: 'Generează pentru selectați',
+      generating: 'Se generează...',
       addInvoice: 'Creează factură',
       invoiceNumber: 'Număr factură',
       customer: 'Client',
@@ -985,9 +1141,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Plătită',
       unpaid: 'Neplătită',
       overdue: 'Întârziată',
+      sent: 'Trimis',
+      generated: 'Generat',
     },
     users: {
       title: 'Utilizatori',
+      description: 'Gestionarea utilizatorilor CRM și a permisiunilor de acces la țări',
+      searchPlaceholder: 'Căutare utilizatori...',
+      noUsers: 'Nu s-au găsit utilizatori',
       addUser: 'Adaugă utilizator',
       editUser: 'Editează utilizator',
       deleteUser: 'Șterge utilizator',
@@ -1003,6 +1164,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Setări',
+      description: 'Configurare sistem și detalii facturare',
       configuration: 'Configurare',
       complaintTypes: 'Tipuri de reclamații',
       cooperationTypes: 'Tipuri de cooperare',
@@ -1013,6 +1175,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sigur doriți să ștergeți acest element?',
       code: 'Cod',
       noItems: 'Nu există elemente',
+      tabs: {
+        billing: 'Facturare',
+        config: 'Configurare',
+        insurance: 'Asigurări',
+        system: 'Sistem',
+      },
     },
     auth: {
       login: 'Autentificare',
@@ -1076,6 +1244,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Dashboard',
+      description: 'Panoramica della tua attività di banking del sangue cordonale',
       totalCustomers: 'Clienti totali',
       activeCustomers: 'Clienti attivi',
       pendingCustomers: 'Clienti in attesa',
@@ -1084,6 +1253,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Clienti',
+      description: 'Gestione dei clienti della banca del sangue cordonale',
+      searchPlaceholder: 'Cerca clienti...',
+      noCustomers: 'Nessun cliente trovato per i paesi selezionati',
       addCustomer: 'Aggiungi cliente',
       editCustomer: 'Modifica cliente',
       deleteCustomer: 'Elimina cliente',
@@ -1137,6 +1309,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Prodotti',
+      pageDescription: 'Gestione dei servizi e prodotti per il banking del sangue cordonale',
+      searchPlaceholder: 'Cerca prodotti...',
+      noProducts: 'Nessun prodotto trovato. Aggiungi il tuo primo prodotto per iniziare.',
       addProduct: 'Aggiungi prodotto',
       editProduct: 'Modifica prodotto',
       deleteProduct: 'Elimina prodotto',
@@ -1147,6 +1322,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Fatture',
+      description: 'Gestione e generazione delle fatture clienti',
+      bulkGenerate: 'Generazione massiva',
+      searchPlaceholder: 'Cerca fatture...',
+      noInvoices: 'Nessuna fattura trovata. Genera fatture dalle pagine clienti o usa la generazione massiva.',
+      bulkGenerateTitle: 'Generazione massiva fatture',
+      bulkGenerateDescription: 'Seleziona i clienti per i quali generare le fatture. Verranno fatturati solo i clienti con prodotti assegnati.',
+      selectAll: 'Seleziona tutto',
+      generateSelected: 'Genera per selezionati',
+      generating: 'Generazione...',
       addInvoice: 'Crea fattura',
       invoiceNumber: 'Numero fattura',
       customer: 'Cliente',
@@ -1156,9 +1340,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Pagata',
       unpaid: 'Non pagata',
       overdue: 'Scaduta',
+      sent: 'Inviato',
+      generated: 'Generato',
     },
     users: {
       title: 'Utenti',
+      description: 'Gestione utenti CRM e permessi di accesso ai paesi',
+      searchPlaceholder: 'Cerca utenti...',
+      noUsers: 'Nessun utente trovato',
       addUser: 'Aggiungi utente',
       editUser: 'Modifica utente',
       deleteUser: 'Elimina utente',
@@ -1174,6 +1363,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Impostazioni',
+      description: 'Configurazione sistema e dettagli fatturazione',
       configuration: 'Configurazione',
       complaintTypes: 'Tipi di reclamo',
       cooperationTypes: 'Tipi di cooperazione',
@@ -1184,6 +1374,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sei sicuro di voler eliminare questo elemento?',
       code: 'Codice',
       noItems: 'Nessun elemento',
+      tabs: {
+        billing: 'Fatturazione',
+        config: 'Configurazione',
+        insurance: 'Assicurazioni',
+        system: 'Sistema',
+      },
     },
     auth: {
       login: 'Accesso',
@@ -1247,6 +1443,7 @@ export const translations: Record<Locale, Translations> = {
     },
     dashboard: {
       title: 'Dashboard',
+      description: 'Übersicht über Ihr Nabelschnurblut-Banking-Geschäft',
       totalCustomers: 'Gesamtkunden',
       activeCustomers: 'Aktive Kunden',
       pendingCustomers: 'Ausstehende Kunden',
@@ -1255,6 +1452,9 @@ export const translations: Record<Locale, Translations> = {
     },
     customers: {
       title: 'Kunden',
+      description: 'Verwaltung von Nabelschnurblut-Banking-Kunden',
+      searchPlaceholder: 'Kunden suchen...',
+      noCustomers: 'Keine Kunden für ausgewählte Länder gefunden',
       addCustomer: 'Kunde hinzufügen',
       editCustomer: 'Kunde bearbeiten',
       deleteCustomer: 'Kunde löschen',
@@ -1308,6 +1508,9 @@ export const translations: Record<Locale, Translations> = {
     },
     products: {
       title: 'Produkte',
+      pageDescription: 'Verwaltung von Dienstleistungen und Produkten für das Nabelschnurblut-Banking',
+      searchPlaceholder: 'Produkte suchen...',
+      noProducts: 'Keine Produkte gefunden. Fügen Sie Ihr erstes Produkt hinzu, um zu beginnen.',
       addProduct: 'Produkt hinzufügen',
       editProduct: 'Produkt bearbeiten',
       deleteProduct: 'Produkt löschen',
@@ -1318,6 +1521,15 @@ export const translations: Record<Locale, Translations> = {
     },
     invoices: {
       title: 'Rechnungen',
+      description: 'Verwaltung und Erstellung von Kundenrechnungen',
+      bulkGenerate: 'Massenerstellung',
+      searchPlaceholder: 'Rechnungen suchen...',
+      noInvoices: 'Keine Rechnungen gefunden. Erstellen Sie Rechnungen von Kundenseiten oder nutzen Sie die Massenerstellung.',
+      bulkGenerateTitle: 'Massen-Rechnungserstellung',
+      bulkGenerateDescription: 'Wählen Sie Kunden aus, für die Rechnungen erstellt werden sollen. Nur Kunden mit zugewiesenen Produkten werden abgerechnet.',
+      selectAll: 'Alle auswählen',
+      generateSelected: 'Für Ausgewählte erstellen',
+      generating: 'Wird erstellt...',
       addInvoice: 'Rechnung erstellen',
       invoiceNumber: 'Rechnungsnummer',
       customer: 'Kunde',
@@ -1327,9 +1539,14 @@ export const translations: Record<Locale, Translations> = {
       paid: 'Bezahlt',
       unpaid: 'Unbezahlt',
       overdue: 'Überfällig',
+      sent: 'Gesendet',
+      generated: 'Generiert',
     },
     users: {
       title: 'Benutzer',
+      description: 'Verwaltung von CRM-Benutzern und deren Länderzugriffsberechtigungen',
+      searchPlaceholder: 'Benutzer suchen...',
+      noUsers: 'Keine Benutzer gefunden',
       addUser: 'Benutzer hinzufügen',
       editUser: 'Benutzer bearbeiten',
       deleteUser: 'Benutzer löschen',
@@ -1345,6 +1562,7 @@ export const translations: Record<Locale, Translations> = {
     },
     settings: {
       title: 'Einstellungen',
+      description: 'Systemkonfiguration und Rechnungsdetails',
       configuration: 'Konfiguration',
       complaintTypes: 'Beschwerdetypen',
       cooperationTypes: 'Kooperationstypen',
@@ -1355,6 +1573,12 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sind Sie sicher, dass Sie dieses Element löschen möchten?',
       code: 'Code',
       noItems: 'Keine Elemente',
+      tabs: {
+        billing: 'Abrechnung',
+        config: 'Konfiguration',
+        insurance: 'Versicherungen',
+        system: 'System',
+      },
     },
     auth: {
       login: 'Anmeldung',

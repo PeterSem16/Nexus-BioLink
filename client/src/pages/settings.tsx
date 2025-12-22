@@ -526,7 +526,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title={t.settings.title}
-        description=""
+        description={t.settings.description}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

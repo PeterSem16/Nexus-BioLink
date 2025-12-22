@@ -203,7 +203,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <PageHeader 
         title={t.users.title}
-        description=""
+        description={t.users.description}
       >
         <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-user">
           <Plus className="h-4 w-4 mr-2" />
@@ -217,7 +217,7 @@ export default function UsersPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search users..."
+                placeholder={t.users.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -232,7 +232,7 @@ export default function UsersPage() {
         columns={columns}
         data={filteredUsers}
         isLoading={isLoading}
-        emptyMessage="No users found"
+        emptyMessage={t.users.noUsers}
         getRowKey={(u) => u.id}
       />
 

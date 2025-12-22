@@ -2,6 +2,7 @@ import {
   users, customers, products, customerProducts, invoices, billingDetails, invoiceItems,
   customerNotes, activityLogs, communicationMessages,
   complaintTypes, cooperationTypes, vipStatuses, healthInsuranceCompanies,
+  laboratories, hospitals,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -15,7 +16,9 @@ import {
   type ComplaintType, type InsertComplaintType,
   type CooperationType, type InsertCooperationType,
   type VipStatus, type InsertVipStatus,
-  type HealthInsurance, type InsertHealthInsurance
+  type HealthInsurance, type InsertHealthInsurance,
+  type Laboratory, type InsertLaboratory,
+  type Hospital, type InsertHospital
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc } from "drizzle-orm";
@@ -122,6 +125,21 @@ export interface IStorage {
   createHealthInsurance(data: InsertHealthInsurance): Promise<HealthInsurance>;
   updateHealthInsurance(id: string, data: Partial<InsertHealthInsurance>): Promise<HealthInsurance | undefined>;
   deleteHealthInsurance(id: string): Promise<boolean>;
+
+  // Laboratories
+  getAllLaboratories(): Promise<Laboratory[]>;
+  getLaboratoriesByCountry(countryCode: string): Promise<Laboratory[]>;
+  createLaboratory(data: InsertLaboratory): Promise<Laboratory>;
+  updateLaboratory(id: string, data: Partial<InsertLaboratory>): Promise<Laboratory | undefined>;
+  deleteLaboratory(id: string): Promise<boolean>;
+
+  // Hospitals
+  getHospital(id: string): Promise<Hospital | undefined>;
+  getAllHospitals(): Promise<Hospital[]>;
+  getHospitalsByCountry(countryCodes: string[]): Promise<Hospital[]>;
+  createHospital(data: InsertHospital): Promise<Hospital>;
+  updateHospital(id: string, data: Partial<InsertHospital>): Promise<Hospital | undefined>;
+  deleteHospital(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -547,6 +565,66 @@ export class DatabaseStorage implements IStorage {
 
   async deleteHealthInsurance(id: string): Promise<boolean> {
     const result = await db.delete(healthInsuranceCompanies).where(eq(healthInsuranceCompanies.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Laboratories
+  async getAllLaboratories(): Promise<Laboratory[]> {
+    return db.select().from(laboratories).orderBy(laboratories.name);
+  }
+
+  async getLaboratoriesByCountry(countryCode: string): Promise<Laboratory[]> {
+    return db.select().from(laboratories)
+      .where(eq(laboratories.countryCode, countryCode))
+      .orderBy(laboratories.name);
+  }
+
+  async createLaboratory(data: InsertLaboratory): Promise<Laboratory> {
+    const [created] = await db.insert(laboratories).values(data).returning();
+    return created;
+  }
+
+  async updateLaboratory(id: string, data: Partial<InsertLaboratory>): Promise<Laboratory | undefined> {
+    const [updated] = await db.update(laboratories).set(data).where(eq(laboratories.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteLaboratory(id: string): Promise<boolean> {
+    const result = await db.delete(laboratories).where(eq(laboratories.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Hospitals
+  async getHospital(id: string): Promise<Hospital | undefined> {
+    const [hospital] = await db.select().from(hospitals).where(eq(hospitals.id, id));
+    return hospital || undefined;
+  }
+
+  async getAllHospitals(): Promise<Hospital[]> {
+    return db.select().from(hospitals).orderBy(hospitals.name);
+  }
+
+  async getHospitalsByCountry(countryCodes: string[]): Promise<Hospital[]> {
+    if (countryCodes.length === 0) {
+      return this.getAllHospitals();
+    }
+    return db.select().from(hospitals)
+      .where(inArray(hospitals.countryCode, countryCodes))
+      .orderBy(hospitals.name);
+  }
+
+  async createHospital(data: InsertHospital): Promise<Hospital> {
+    const [created] = await db.insert(hospitals).values(data).returning();
+    return created;
+  }
+
+  async updateHospital(id: string, data: Partial<InsertHospital>): Promise<Hospital | undefined> {
+    const [updated] = await db.update(hospitals).set(data).where(eq(hospitals.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteHospital(id: string): Promise<boolean> {
+    const result = await db.delete(hospitals).where(eq(hospitals.id, id)).returning();
     return result.length > 0;
   }
 }

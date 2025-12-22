@@ -6,6 +6,7 @@ import {
   insertProductSchema, insertCustomerProductSchema, insertBillingDetailsSchema,
   insertCustomerNoteSchema, insertActivityLogSchema, sendEmailSchema, sendSmsSchema,
   insertComplaintTypeSchema, insertCooperationTypeSchema, insertVipStatusSchema, insertHealthInsuranceSchema,
+  insertLaboratorySchema, insertHospitalSchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog
 } from "@shared/schema";
 import { z } from "zod";
@@ -1358,6 +1359,114 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete health insurance company" });
+    }
+  });
+
+  // Laboratories
+  app.get("/api/config/laboratories", requireAuth, async (req, res) => {
+    try {
+      const countryCode = req.query.countryCode as string;
+      const laboratories = countryCode 
+        ? await storage.getLaboratoriesByCountry(countryCode)
+        : await storage.getAllLaboratories();
+      res.json(laboratories);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch laboratories" });
+    }
+  });
+
+  app.post("/api/config/laboratories", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertLaboratorySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const laboratory = await storage.createLaboratory(parsed.data);
+      await logActivity(req.session.user!.id, "create", "laboratory", laboratory.id, laboratory.name);
+      res.status(201).json(laboratory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create laboratory" });
+    }
+  });
+
+  app.put("/api/config/laboratories/:id", requireAuth, async (req, res) => {
+    try {
+      const laboratory = await storage.updateLaboratory(req.params.id, req.body);
+      if (!laboratory) return res.status(404).json({ error: "Laboratory not found" });
+      await logActivity(req.session.user!.id, "update", "laboratory", laboratory.id, laboratory.name);
+      res.json(laboratory);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update laboratory" });
+    }
+  });
+
+  app.delete("/api/config/laboratories/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteLaboratory(req.params.id);
+      if (!success) return res.status(404).json({ error: "Laboratory not found" });
+      await logActivity(req.session.user!.id, "delete", "laboratory", req.params.id, "");
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete laboratory" });
+    }
+  });
+
+  // Hospitals
+  app.get("/api/hospitals", requireAuth, async (req, res) => {
+    try {
+      const countryCodes = req.query.countries as string;
+      const hospitals = countryCodes 
+        ? await storage.getHospitalsByCountry(countryCodes.split(","))
+        : await storage.getAllHospitals();
+      res.json(hospitals);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch hospitals" });
+    }
+  });
+
+  app.get("/api/hospitals/:id", requireAuth, async (req, res) => {
+    try {
+      const hospital = await storage.getHospital(req.params.id);
+      if (!hospital) return res.status(404).json({ error: "Hospital not found" });
+      res.json(hospital);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch hospital" });
+    }
+  });
+
+  app.post("/api/hospitals", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertHospitalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const hospital = await storage.createHospital(parsed.data);
+      await logActivity(req.session.user!.id, "create", "hospital", hospital.id, hospital.name);
+      res.status(201).json(hospital);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create hospital" });
+    }
+  });
+
+  app.put("/api/hospitals/:id", requireAuth, async (req, res) => {
+    try {
+      const hospital = await storage.updateHospital(req.params.id, req.body);
+      if (!hospital) return res.status(404).json({ error: "Hospital not found" });
+      await logActivity(req.session.user!.id, "update", "hospital", hospital.id, hospital.name);
+      res.json(hospital);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update hospital" });
+    }
+  });
+
+  app.delete("/api/hospitals/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteHospital(req.params.id);
+      if (!success) return res.status(404).json({ error: "Hospital not found" });
+      await logActivity(req.session.user!.id, "delete", "hospital", req.params.id, "");
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete hospital" });
     }
   });
 

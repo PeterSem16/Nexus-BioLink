@@ -139,6 +139,28 @@ export interface Translations {
     availability: string;
     searchPlaceholder: string;
     noProducts: string;
+    createProduct: string;
+    updateProduct: string;
+    addNewProduct: string;
+    updateProductInfo: string;
+    deleteConfirm: string;
+    currency: string;
+    selectCurrency: string;
+    category: string;
+    selectCategory: string;
+    availableInCountries: string;
+    selectCountriesHint: string;
+    productActive: string;
+    productActiveHint: string;
+    saving: string;
+    categories: {
+      cordBlood: string;
+      cordTissue: string;
+      storage: string;
+      processing: string;
+      testing: string;
+      other: string;
+    };
   };
   invoices: {
     title: string;
@@ -180,6 +202,25 @@ export interface Translations {
       manager: string;
       user: string;
     };
+    fullName: string;
+    newPassword: string;
+    leaveEmptyPassword: string;
+    enterPassword: string;
+    selectRole: string;
+    activeAccount: string;
+    activeAccountHint: string;
+    selectAll: string;
+    clearAll: string;
+    selectCountriesHint: string;
+    createUser: string;
+    updateUser: string;
+    addNewUser: string;
+    updateUserInfo: string;
+    deleteConfirm: string;
+    saving: string;
+    userColumn: string;
+    statusColumn: string;
+    countriesColumn: string;
   };
   settings: {
     title: string;
@@ -244,6 +285,7 @@ export interface Translations {
     saveFailed: string;
     deleteFailed: string;
     loadFailed: string;
+    generic: string;
   };
   success: {
     saved: string;
@@ -383,6 +425,28 @@ export const translations: Record<Locale, Translations> = {
       availability: 'Availability',
       searchPlaceholder: 'Search products...',
       noProducts: 'No products found. Add your first product to get started.',
+      createProduct: 'Create Product',
+      updateProduct: 'Update Product',
+      addNewProduct: 'Add New Product',
+      updateProductInfo: 'Update product information.',
+      deleteConfirm: 'Are you sure you want to delete this product? This action cannot be undone.',
+      currency: 'Currency',
+      selectCurrency: 'Select currency',
+      category: 'Category',
+      selectCategory: 'Select category',
+      availableInCountries: 'Available in Countries',
+      selectCountriesHint: 'Select the countries where this product is available',
+      productActive: 'Active',
+      productActiveHint: 'Product is available for assignment to customers',
+      saving: 'Saving...',
+      categories: {
+        cordBlood: 'Cord Blood',
+        cordTissue: 'Cord Tissue',
+        storage: 'Storage',
+        processing: 'Processing',
+        testing: 'Testing',
+        other: 'Other',
+      },
     },
     invoices: {
       title: 'Invoices',
@@ -424,6 +488,25 @@ export const translations: Record<Locale, Translations> = {
         manager: 'Manager',
         user: 'User',
       },
+      fullName: 'Full Name',
+      newPassword: 'New Password (optional)',
+      leaveEmptyPassword: 'Leave empty to keep current',
+      enterPassword: 'Enter password',
+      selectRole: 'Select a role',
+      activeAccount: 'Active Account',
+      activeAccountHint: 'User can access the CRM system when active',
+      selectAll: 'Select All',
+      clearAll: 'Clear All',
+      selectCountriesHint: 'Select the countries this user can access customer data from',
+      createUser: 'Create User',
+      updateUser: 'Update User',
+      addNewUser: 'Add New User',
+      updateUserInfo: 'Update user information.',
+      deleteConfirm: 'Are you sure you want to delete this user? This action cannot be undone.',
+      saving: 'Saving...',
+      userColumn: 'User',
+      statusColumn: 'Status',
+      countriesColumn: 'Assigned Countries',
     },
     settings: {
       title: 'Settings',
@@ -488,6 +571,7 @@ export const translations: Record<Locale, Translations> = {
       saveFailed: 'Failed to save',
       deleteFailed: 'Failed to delete',
       loadFailed: 'Failed to load data',
+      generic: 'An error occurred',
     },
     success: {
       saved: 'Successfully saved',
@@ -618,6 +702,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Správa služieb a produktov pre banku pupočníkovej krvi',
       searchPlaceholder: 'Hľadať produkty...',
       noProducts: 'Žiadne produkty nenájdené. Pridajte svoj prvý produkt.',
+      createProduct: 'Vytvoriť produkt',
+      updateProduct: 'Aktualizovať produkt',
+      addNewProduct: 'Pridať nový produkt',
+      updateProductInfo: 'Aktualizovať informácie o produkte.',
+      deleteConfirm: 'Naozaj chcete odstrániť tento produkt? Túto akciu nie je možné vrátiť späť.',
+      currency: 'Mena',
+      selectCurrency: 'Vyberte menu',
+      category: 'Kategória',
+      selectCategory: 'Vyberte kategóriu',
+      availableInCountries: 'Dostupné v krajinách',
+      selectCountriesHint: 'Vyberte krajiny, kde je tento produkt dostupný',
+      productActive: 'Aktívny',
+      productActiveHint: 'Produkt je dostupný na priradenie zákazníkom',
+      saving: 'Ukladám...',
+      categories: {
+        cordBlood: 'Pupočníková krv',
+        cordTissue: 'Pupočníkové tkanivo',
+        storage: 'Skladovanie',
+        processing: 'Spracovanie',
+        testing: 'Testovanie',
+        other: 'Iné',
+      },
       addProduct: 'Pridať produkt',
       editProduct: 'Upraviť produkt',
       deleteProduct: 'Odstrániť produkt',
@@ -661,6 +767,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Heslo',
       role: 'Rola',
       assignedCountries: 'Priradené krajiny',
+      fullName: 'Celé meno',
+      newPassword: 'Nové heslo (voliteľné)',
+      leaveEmptyPassword: 'Nechajte prázdne pre zachovanie aktuálneho',
+      enterPassword: 'Zadajte heslo',
+      selectRole: 'Vyberte rolu',
+      activeAccount: 'Aktívny účet',
+      activeAccountHint: 'Používateľ môže pristupovať k CRM systému keď je aktívny',
+      selectAll: 'Vybrať všetko',
+      clearAll: 'Zrušiť výber',
+      selectCountriesHint: 'Vyberte krajiny, z ktorých môže tento používateľ pristupovať k údajom zákazníkov',
+      createUser: 'Vytvoriť používateľa',
+      updateUser: 'Aktualizovať používateľa',
+      addNewUser: 'Pridať nového používateľa',
+      updateUserInfo: 'Aktualizovať informácie o používateľovi.',
+      deleteConfirm: 'Naozaj chcete odstrániť tohto používateľa? Túto akciu nie je možné vrátiť späť.',
+      saving: 'Ukladám...',
+      userColumn: 'Používateľ',
+      statusColumn: 'Stav',
+      countriesColumn: 'Priradené krajiny',
       roles: {
         admin: 'Administrátor',
         manager: 'Manažér',
@@ -727,9 +852,10 @@ export const translations: Record<Locale, Translations> = {
       invalidEmail: 'Neplatná emailová adresa',
       invalidPhone: 'Neplatné telefónne číslo',
       invalidIban: 'Neplatný formát IBAN',
-      saveFailed: 'Uloženie zlyhalo',
-      deleteFailed: 'Odstránenie zlyhalo',
-      loadFailed: 'Načítanie dát zlyhalo',
+      saveFailed: 'Nepodarilo sa uložiť',
+      deleteFailed: 'Nepodarilo sa odstrániť',
+      loadFailed: 'Nepodarilo sa načítať údaje',
+      generic: 'Vyskytla sa chyba',
     },
     success: {
       saved: 'Úspešne uložené',
@@ -860,6 +986,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Správa služeb a produktů pro banku pupečníkové krve',
       searchPlaceholder: 'Hledat produkty...',
       noProducts: 'Žádné produkty nenalezeny. Přidejte svůj první produkt.',
+      createProduct: 'Vytvořit produkt',
+      updateProduct: 'Aktualizovat produkt',
+      addNewProduct: 'Přidat nový produkt',
+      updateProductInfo: 'Aktualizovat informace o produktu.',
+      deleteConfirm: 'Opravdu chcete odstranit tento produkt? Tuto akci nelze vrátit zpět.',
+      currency: 'Měna',
+      selectCurrency: 'Vyberte měnu',
+      category: 'Kategorie',
+      selectCategory: 'Vyberte kategorii',
+      availableInCountries: 'Dostupné v zemích',
+      selectCountriesHint: 'Vyberte země, kde je tento produkt dostupný',
+      productActive: 'Aktivní',
+      productActiveHint: 'Produkt je dostupný pro přiřazení zákazníkům',
+      saving: 'Ukládám...',
+      categories: {
+        cordBlood: 'Pupečníková krev',
+        cordTissue: 'Pupečníková tkáň',
+        storage: 'Skladování',
+        processing: 'Zpracování',
+        testing: 'Testování',
+        other: 'Jiné',
+      },
       addProduct: 'Přidat produkt',
       editProduct: 'Upravit produkt',
       deleteProduct: 'Odstranit produkt',
@@ -903,6 +1051,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Heslo',
       role: 'Role',
       assignedCountries: 'Přiřazené země',
+      fullName: 'Celé jméno',
+      newPassword: 'Nové heslo (volitelné)',
+      leaveEmptyPassword: 'Ponechte prázdné pro zachování stávajícího',
+      enterPassword: 'Zadejte heslo',
+      selectRole: 'Vyberte roli',
+      activeAccount: 'Aktivní účet',
+      activeAccountHint: 'Uživatel může přistupovat k CRM systému když je aktivní',
+      selectAll: 'Vybrat vše',
+      clearAll: 'Zrušit výběr',
+      selectCountriesHint: 'Vyberte země, ze kterých může tento uživatel přistupovat k údajům zákazníků',
+      createUser: 'Vytvořit uživatele',
+      updateUser: 'Aktualizovat uživatele',
+      addNewUser: 'Přidat nového uživatele',
+      updateUserInfo: 'Aktualizovat informace o uživateli.',
+      deleteConfirm: 'Opravdu chcete odstranit tohoto uživatele? Tuto akci nelze vrátit zpět.',
+      saving: 'Ukládám...',
+      userColumn: 'Uživatel',
+      statusColumn: 'Stav',
+      countriesColumn: 'Přiřazené země',
       roles: {
         admin: 'Administrátor',
         manager: 'Manažer',
@@ -969,9 +1136,10 @@ export const translations: Record<Locale, Translations> = {
       invalidEmail: 'Neplatná emailová adresa',
       invalidPhone: 'Neplatné telefonní číslo',
       invalidIban: 'Neplatný formát IBAN',
-      saveFailed: 'Uložení selhalo',
-      deleteFailed: 'Odstranění selhalo',
-      loadFailed: 'Načtení dat selhalo',
+      saveFailed: 'Nepodařilo se uložit',
+      deleteFailed: 'Nepodařilo se odstranit',
+      loadFailed: 'Nepodařilo se načíst data',
+      generic: 'Došlo k chybě',
     },
     success: {
       saved: 'Úspěšně uloženo',
@@ -1102,6 +1270,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Szolgáltatások és termékek kezelése köldökzsinórvér-bankhoz',
       searchPlaceholder: 'Termékek keresése...',
       noProducts: 'Nem találhatók termékek. Adja hozzá az első termékét a kezdéshez.',
+      createProduct: 'Termék létrehozása',
+      updateProduct: 'Termék frissítése',
+      addNewProduct: 'Új termék hozzáadása',
+      updateProductInfo: 'Termékadatok frissítése.',
+      deleteConfirm: 'Biztosan törölni szeretné ezt a terméket? Ez a művelet nem vonható vissza.',
+      currency: 'Pénznem',
+      selectCurrency: 'Válasszon pénznemet',
+      category: 'Kategória',
+      selectCategory: 'Válasszon kategóriát',
+      availableInCountries: 'Elérhető országokban',
+      selectCountriesHint: 'Válassza ki az országokat, ahol ez a termék elérhető',
+      productActive: 'Aktív',
+      productActiveHint: 'A termék hozzárendelhető ügyfelekhez',
+      saving: 'Mentés...',
+      categories: {
+        cordBlood: 'Köldökzsinórvér',
+        cordTissue: 'Köldökzsinórszövet',
+        storage: 'Tárolás',
+        processing: 'Feldolgozás',
+        testing: 'Tesztelés',
+        other: 'Egyéb',
+      },
       addProduct: 'Termék hozzáadása',
       editProduct: 'Termék szerkesztése',
       deleteProduct: 'Termék törlése',
@@ -1145,6 +1335,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Jelszó',
       role: 'Szerepkör',
       assignedCountries: 'Hozzárendelt országok',
+      fullName: 'Teljes név',
+      newPassword: 'Új jelszó (opcionális)',
+      leaveEmptyPassword: 'Hagyja üresen a jelenlegi megtartásához',
+      enterPassword: 'Adja meg a jelszót',
+      selectRole: 'Válasszon szerepkört',
+      activeAccount: 'Aktív fiók',
+      activeAccountHint: 'A felhasználó hozzáférhet a CRM rendszerhez ha aktív',
+      selectAll: 'Összes kiválasztása',
+      clearAll: 'Kijelölés törlése',
+      selectCountriesHint: 'Válassza ki az országokat, amelyekből ez a felhasználó hozzáférhet az ügyféladatokhoz',
+      createUser: 'Felhasználó létrehozása',
+      updateUser: 'Felhasználó frissítése',
+      addNewUser: 'Új felhasználó hozzáadása',
+      updateUserInfo: 'Felhasználói adatok frissítése.',
+      deleteConfirm: 'Biztosan törölni szeretné ezt a felhasználót? Ez a művelet nem vonható vissza.',
+      saving: 'Mentés...',
+      userColumn: 'Felhasználó',
+      statusColumn: 'Státusz',
+      countriesColumn: 'Hozzárendelt országok',
       roles: {
         admin: 'Adminisztrátor',
         manager: 'Menedzser',
@@ -1211,9 +1420,10 @@ export const translations: Record<Locale, Translations> = {
       invalidEmail: 'Érvénytelen email cím',
       invalidPhone: 'Érvénytelen telefonszám',
       invalidIban: 'Érvénytelen IBAN formátum',
-      saveFailed: 'Mentés sikertelen',
-      deleteFailed: 'Törlés sikertelen',
-      loadFailed: 'Adatok betöltése sikertelen',
+      saveFailed: 'A mentés sikertelen',
+      deleteFailed: 'A törlés sikertelen',
+      loadFailed: 'Az adatok betöltése sikertelen',
+      generic: 'Hiba történt',
     },
     success: {
       saved: 'Sikeresen mentve',
@@ -1344,6 +1554,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Gestionarea serviciilor și produselor pentru banca de sânge din cordon',
       searchPlaceholder: 'Căutare produse...',
       noProducts: 'Nu s-au găsit produse. Adăugați primul produs pentru a începe.',
+      createProduct: 'Creează produs',
+      updateProduct: 'Actualizează produs',
+      addNewProduct: 'Adaugă produs nou',
+      updateProductInfo: 'Actualizați informațiile produsului.',
+      deleteConfirm: 'Sigur doriți să ștergeți acest produs? Această acțiune nu poate fi anulată.',
+      currency: 'Moneda',
+      selectCurrency: 'Selectați moneda',
+      category: 'Categorie',
+      selectCategory: 'Selectați categoria',
+      availableInCountries: 'Disponibil în țări',
+      selectCountriesHint: 'Selectați țările în care acest produs este disponibil',
+      productActive: 'Activ',
+      productActiveHint: 'Produsul este disponibil pentru atribuirea clienților',
+      saving: 'Se salvează...',
+      categories: {
+        cordBlood: 'Sânge din cordon',
+        cordTissue: 'Țesut din cordon',
+        storage: 'Depozitare',
+        processing: 'Procesare',
+        testing: 'Testare',
+        other: 'Altele',
+      },
       addProduct: 'Adaugă produs',
       editProduct: 'Editează produs',
       deleteProduct: 'Șterge produs',
@@ -1387,6 +1619,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Parolă',
       role: 'Rol',
       assignedCountries: 'Țări alocate',
+      fullName: 'Nume complet',
+      newPassword: 'Parolă nouă (opțional)',
+      leaveEmptyPassword: 'Lăsați gol pentru a păstra parola actuală',
+      enterPassword: 'Introduceți parola',
+      selectRole: 'Selectați un rol',
+      activeAccount: 'Cont activ',
+      activeAccountHint: 'Utilizatorul poate accesa sistemul CRM când este activ',
+      selectAll: 'Selectează tot',
+      clearAll: 'Șterge selecția',
+      selectCountriesHint: 'Selectați țările din care acest utilizator poate accesa datele clienților',
+      createUser: 'Creează utilizator',
+      updateUser: 'Actualizează utilizator',
+      addNewUser: 'Adaugă utilizator nou',
+      updateUserInfo: 'Actualizați informațiile utilizatorului.',
+      deleteConfirm: 'Sigur doriți să ștergeți acest utilizator? Această acțiune nu poate fi anulată.',
+      saving: 'Se salvează...',
+      userColumn: 'Utilizator',
+      statusColumn: 'Status',
+      countriesColumn: 'Țări alocate',
       roles: {
         admin: 'Administrator',
         manager: 'Manager',
@@ -1456,6 +1707,7 @@ export const translations: Record<Locale, Translations> = {
       saveFailed: 'Salvarea a eșuat',
       deleteFailed: 'Ștergerea a eșuat',
       loadFailed: 'Încărcarea datelor a eșuat',
+      generic: 'A apărut o eroare',
     },
     success: {
       saved: 'Salvat cu succes',
@@ -1586,6 +1838,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Gestione dei servizi e prodotti per il banking del sangue cordonale',
       searchPlaceholder: 'Cerca prodotti...',
       noProducts: 'Nessun prodotto trovato. Aggiungi il tuo primo prodotto per iniziare.',
+      createProduct: 'Crea prodotto',
+      updateProduct: 'Aggiorna prodotto',
+      addNewProduct: 'Aggiungi nuovo prodotto',
+      updateProductInfo: 'Aggiorna le informazioni del prodotto.',
+      deleteConfirm: 'Sei sicuro di voler eliminare questo prodotto? Questa azione non può essere annullata.',
+      currency: 'Valuta',
+      selectCurrency: 'Seleziona valuta',
+      category: 'Categoria',
+      selectCategory: 'Seleziona categoria',
+      availableInCountries: 'Disponibile nei paesi',
+      selectCountriesHint: 'Seleziona i paesi in cui questo prodotto è disponibile',
+      productActive: 'Attivo',
+      productActiveHint: 'Il prodotto è disponibile per l\'assegnazione ai clienti',
+      saving: 'Salvataggio...',
+      categories: {
+        cordBlood: 'Sangue cordonale',
+        cordTissue: 'Tessuto cordonale',
+        storage: 'Conservazione',
+        processing: 'Elaborazione',
+        testing: 'Test',
+        other: 'Altro',
+      },
       addProduct: 'Aggiungi prodotto',
       editProduct: 'Modifica prodotto',
       deleteProduct: 'Elimina prodotto',
@@ -1629,6 +1903,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Password',
       role: 'Ruolo',
       assignedCountries: 'Paesi assegnati',
+      fullName: 'Nome completo',
+      newPassword: 'Nuova password (opzionale)',
+      leaveEmptyPassword: 'Lascia vuoto per mantenere la password attuale',
+      enterPassword: 'Inserisci password',
+      selectRole: 'Seleziona un ruolo',
+      activeAccount: 'Account attivo',
+      activeAccountHint: 'L\'utente può accedere al sistema CRM quando è attivo',
+      selectAll: 'Seleziona tutto',
+      clearAll: 'Cancella selezione',
+      selectCountriesHint: 'Seleziona i paesi da cui questo utente può accedere ai dati dei clienti',
+      createUser: 'Crea utente',
+      updateUser: 'Aggiorna utente',
+      addNewUser: 'Aggiungi nuovo utente',
+      updateUserInfo: 'Aggiorna le informazioni dell\'utente.',
+      deleteConfirm: 'Sei sicuro di voler eliminare questo utente? Questa azione non può essere annullata.',
+      saving: 'Salvataggio...',
+      userColumn: 'Utente',
+      statusColumn: 'Stato',
+      countriesColumn: 'Paesi assegnati',
       roles: {
         admin: 'Amministratore',
         manager: 'Manager',
@@ -1698,6 +1991,7 @@ export const translations: Record<Locale, Translations> = {
       saveFailed: 'Salvataggio fallito',
       deleteFailed: 'Eliminazione fallita',
       loadFailed: 'Caricamento dati fallito',
+      generic: 'Si è verificato un errore',
     },
     success: {
       saved: 'Salvato con successo',
@@ -1828,6 +2122,28 @@ export const translations: Record<Locale, Translations> = {
       pageDescription: 'Verwaltung von Dienstleistungen und Produkten für das Nabelschnurblut-Banking',
       searchPlaceholder: 'Produkte suchen...',
       noProducts: 'Keine Produkte gefunden. Fügen Sie Ihr erstes Produkt hinzu, um zu beginnen.',
+      createProduct: 'Produkt erstellen',
+      updateProduct: 'Produkt aktualisieren',
+      addNewProduct: 'Neues Produkt hinzufügen',
+      updateProductInfo: 'Produktinformationen aktualisieren.',
+      deleteConfirm: 'Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+      currency: 'Währung',
+      selectCurrency: 'Währung auswählen',
+      category: 'Kategorie',
+      selectCategory: 'Kategorie auswählen',
+      availableInCountries: 'Verfügbar in Ländern',
+      selectCountriesHint: 'Wählen Sie die Länder aus, in denen dieses Produkt verfügbar ist',
+      productActive: 'Aktiv',
+      productActiveHint: 'Produkt ist für die Zuweisung an Kunden verfügbar',
+      saving: 'Speichern...',
+      categories: {
+        cordBlood: 'Nabelschnurblut',
+        cordTissue: 'Nabelschnurgewebe',
+        storage: 'Lagerung',
+        processing: 'Verarbeitung',
+        testing: 'Testen',
+        other: 'Sonstiges',
+      },
       addProduct: 'Produkt hinzufügen',
       editProduct: 'Produkt bearbeiten',
       deleteProduct: 'Produkt löschen',
@@ -1871,6 +2187,25 @@ export const translations: Record<Locale, Translations> = {
       password: 'Passwort',
       role: 'Rolle',
       assignedCountries: 'Zugewiesene Länder',
+      fullName: 'Vollständiger Name',
+      newPassword: 'Neues Passwort (optional)',
+      leaveEmptyPassword: 'Leer lassen, um das aktuelle Passwort beizubehalten',
+      enterPassword: 'Passwort eingeben',
+      selectRole: 'Rolle auswählen',
+      activeAccount: 'Aktives Konto',
+      activeAccountHint: 'Benutzer kann auf das CRM-System zugreifen, wenn aktiv',
+      selectAll: 'Alle auswählen',
+      clearAll: 'Auswahl löschen',
+      selectCountriesHint: 'Wählen Sie die Länder aus, aus denen dieser Benutzer auf Kundendaten zugreifen kann',
+      createUser: 'Benutzer erstellen',
+      updateUser: 'Benutzer aktualisieren',
+      addNewUser: 'Neuen Benutzer hinzufügen',
+      updateUserInfo: 'Benutzerinformationen aktualisieren.',
+      deleteConfirm: 'Möchten Sie diesen Benutzer wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+      saving: 'Speichern...',
+      userColumn: 'Benutzer',
+      statusColumn: 'Status',
+      countriesColumn: 'Zugewiesene Länder',
       roles: {
         admin: 'Administrator',
         manager: 'Manager',
@@ -1939,7 +2274,8 @@ export const translations: Record<Locale, Translations> = {
       invalidIban: 'Ungültiges IBAN-Format',
       saveFailed: 'Speichern fehlgeschlagen',
       deleteFailed: 'Löschen fehlgeschlagen',
-      loadFailed: 'Daten laden fehlgeschlagen',
+      loadFailed: 'Daten konnten nicht geladen werden',
+      generic: 'Ein Fehler ist aufgetreten',
     },
     success: {
       saved: 'Erfolgreich gespeichert',

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { COUNTRIES } from "@/lib/countries";
+import { useI18n } from "@/i18n/I18nProvider";
 import type { User } from "@shared/schema";
 
 const createUserFormSchema = z.object({
@@ -53,6 +54,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFormProps) {
+  const { t } = useI18n();
   const isEditing = !!initialData;
   
   const form = useForm<UserFormData>({
@@ -93,10 +95,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             name="fullName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Full Name</FormLabel>
+                <FormLabel>{t.users.fullName}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="John Doe" 
+                    placeholder={t.users.fullName} 
                     {...field} 
                     data-testid="input-fullname"
                   />
@@ -111,10 +113,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Username</FormLabel>
+                <FormLabel>{t.users.username}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="johndoe" 
+                    placeholder={t.users.username} 
                     {...field} 
                     data-testid="input-username"
                   />
@@ -129,11 +131,11 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{t.common.email}</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
-                    placeholder="john@example.com" 
+                    placeholder={t.common.email} 
                     {...field} 
                     data-testid="input-email"
                   />
@@ -148,11 +150,11 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{isEditing ? "New Password (optional)" : "Password"}</FormLabel>
+                <FormLabel>{isEditing ? t.users.newPassword : t.users.password}</FormLabel>
                 <FormControl>
                   <Input 
                     type="password" 
-                    placeholder={isEditing ? "Leave empty to keep current" : "Enter password"} 
+                    placeholder={isEditing ? t.users.leaveEmptyPassword : t.users.enterPassword} 
                     {...field} 
                     data-testid="input-password"
                   />
@@ -167,17 +169,17 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             name="role"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Role</FormLabel>
+                <FormLabel>{t.users.role}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-role">
-                      <SelectValue placeholder="Select a role" />
+                      <SelectValue placeholder={t.users.selectRole} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">{t.users.roles.admin}</SelectItem>
+                    <SelectItem value="manager">{t.users.roles.manager}</SelectItem>
+                    <SelectItem value="user">{t.users.roles.user}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -199,9 +201,9 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Active Account</FormLabel>
+                <FormLabel>{t.users.activeAccount}</FormLabel>
                 <FormDescription>
-                  User can access the CRM system when active
+                  {t.users.activeAccountHint}
                 </FormDescription>
               </div>
             </FormItem>
@@ -214,7 +216,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
           render={() => (
             <FormItem>
               <div className="flex items-center justify-between mb-4">
-                <FormLabel className="text-base">Assigned Countries</FormLabel>
+                <FormLabel className="text-base">{t.users.assignedCountries}</FormLabel>
                 <div className="flex gap-2">
                   <Button 
                     type="button" 
@@ -223,7 +225,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
                     onClick={handleSelectAll}
                     data-testid="button-select-all"
                   >
-                    Select All
+                    {t.users.selectAll}
                   </Button>
                   <Button 
                     type="button" 
@@ -232,12 +234,12 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
                     onClick={handleClearAll}
                     data-testid="button-clear-all"
                   >
-                    Clear All
+                    {t.users.clearAll}
                   </Button>
                 </div>
               </div>
               <FormDescription className="mb-4">
-                Select the countries this user can access customer data from
+                {t.users.selectCountriesHint}
               </FormDescription>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {COUNTRIES.map((country) => (
@@ -288,14 +290,14 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             onClick={onCancel}
             data-testid="button-cancel"
           >
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button 
             type="submit" 
             disabled={isLoading}
             data-testid="button-submit"
           >
-            {isLoading ? "Saving..." : initialData ? "Update User" : "Create User"}
+            {isLoading ? t.users.saving : initialData ? t.users.updateUser : t.users.createUser}
           </Button>
         </div>
       </form>

@@ -20,15 +20,18 @@ export function getLocaleFromCountries(countries: string[]): Locale {
 interface I18nProviderProps {
   children: React.ReactNode;
   userCountries?: string[];
+  selectedCountries?: string[];
 }
 
-export function I18nProvider({ children, userCountries = [] }: I18nProviderProps) {
+export function I18nProvider({ children, userCountries = [], selectedCountries }: I18nProviderProps) {
   const [locale, setLocale] = useState<Locale>('en');
 
   useEffect(() => {
-    const detectedLocale = getLocaleFromCountries(userCountries);
+    // Priority: selected countries filter > user assigned countries
+    const countriesToUse = selectedCountries !== undefined ? selectedCountries : userCountries;
+    const detectedLocale = getLocaleFromCountries(countriesToUse);
     setLocale(detectedLocale);
-  }, [userCountries]);
+  }, [userCountries, selectedCountries]);
 
   const t = useMemo(() => translations[locale], [locale]);
 

@@ -63,13 +63,13 @@ const productFormSchema = z.object({
 
 type ProductFormData = z.infer<typeof productFormSchema>;
 
-const CATEGORIES = [
-  { value: "cord_blood", label: "Cord Blood" },
-  { value: "cord_tissue", label: "Cord Tissue" },
-  { value: "storage", label: "Storage" },
-  { value: "processing", label: "Processing" },
-  { value: "testing", label: "Testing" },
-  { value: "other", label: "Other" },
+const getCategoriesWithTranslations = (t: any) => [
+  { value: "cord_blood", label: t.products.categories.cordBlood },
+  { value: "cord_tissue", label: t.products.categories.cordTissue },
+  { value: "storage", label: t.products.categories.storage },
+  { value: "processing", label: t.products.categories.processing },
+  { value: "testing", label: t.products.categories.testing },
+  { value: "other", label: t.products.categories.other },
 ];
 
 const CURRENCIES = ["EUR", "USD", "CZK", "HUF", "RON"];
@@ -79,11 +79,13 @@ function ProductForm({
   onSubmit,
   isLoading,
   onCancel,
+  t,
 }: {
   initialData?: Product;
   onSubmit: (data: ProductFormData) => void;
   isLoading: boolean;
   onCancel: () => void;
+  t: any;
 }) {
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -116,9 +118,9 @@ function ProductForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Name</FormLabel>
+              <FormLabel>{t.products.productName}</FormLabel>
               <FormControl>
-                <Input placeholder="Enter product name" {...field} data-testid="input-product-name" />
+                <Input placeholder={t.products.productName} {...field} data-testid="input-product-name" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -130,10 +132,10 @@ function ProductForm({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t.products.description}</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="Enter product description" 
+                  placeholder={t.products.description} 
                   {...field} 
                   data-testid="input-product-description"
                 />
@@ -149,7 +151,7 @@ function ProductForm({
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Price</FormLabel>
+                <FormLabel>{t.products.price}</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -169,11 +171,11 @@ function ProductForm({
             name="currency"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Currency</FormLabel>
+                <FormLabel>{t.products.currency}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-product-currency">
-                      <SelectValue placeholder="Select currency" />
+                      <SelectValue placeholder={t.products.selectCurrency} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -193,26 +195,29 @@ function ProductForm({
         <FormField
           control={form.control}
           name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger data-testid="select-product-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const categories = getCategoriesWithTranslations(t);
+            return (
+              <FormItem>
+                <FormLabel>{t.products.category}</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-product-category">
+                      <SelectValue placeholder={t.products.selectCategory} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         <FormField
@@ -220,7 +225,7 @@ function ProductForm({
           name="countries"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Available in Countries</FormLabel>
+              <FormLabel>{t.products.availableInCountries}</FormLabel>
               <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
                 {COUNTRIES.map((country) => (
                   <div key={country.code} className="flex items-center gap-2">
@@ -242,7 +247,7 @@ function ProductForm({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Select the countries where this product is available
+                {t.products.selectCountriesHint}
               </p>
               <FormMessage />
             </FormItem>
@@ -255,9 +260,9 @@ function ProductForm({
           render={({ field }) => (
             <FormItem className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">Active</FormLabel>
+                <FormLabel className="text-base">{t.products.productActive}</FormLabel>
                 <p className="text-sm text-muted-foreground">
-                  Product is available for assignment to customers
+                  {t.products.productActiveHint}
                 </p>
               </div>
               <FormControl>
@@ -273,10 +278,10 @@ function ProductForm({
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} data-testid="button-cancel-product">
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" disabled={isLoading} data-testid="button-save-product">
-            {isLoading ? "Saving..." : initialData ? "Update Product" : "Create Product"}
+            {isLoading ? t.products.saving : initialData ? t.products.updateProduct : t.products.createProduct}
           </Button>
         </div>
       </form>
@@ -301,10 +306,10 @@ export default function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setIsFormOpen(false);
-      toast({ title: "Product created successfully" });
+      toast({ title: t.success.created });
     },
     onError: () => {
-      toast({ title: "Failed to create product", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
@@ -314,10 +319,10 @@ export default function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setEditingProduct(null);
-      toast({ title: "Product updated successfully" });
+      toast({ title: t.success.updated });
     },
     onError: () => {
-      toast({ title: "Failed to update product", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
@@ -326,10 +331,10 @@ export default function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setDeletingProduct(null);
-      toast({ title: "Product deleted successfully" });
+      toast({ title: t.success.deleted });
     },
     onError: () => {
-      toast({ title: "Failed to delete product", variant: "destructive" });
+      toast({ title: t.errors.deleteFailed, variant: "destructive" });
     },
   });
 
@@ -339,14 +344,15 @@ export default function ProductsPage() {
   );
 
   const getCategoryLabel = (category: string | null) => {
-    if (!category) return "Uncategorized";
-    return CATEGORIES.find(c => c.value === category)?.label || category;
+    if (!category) return t.products.categories.other;
+    const categories = getCategoriesWithTranslations(t);
+    return categories.find(c => c.value === category)?.label || category;
   };
 
   const columns = [
     {
       key: "product",
-      header: "Product",
+      header: t.products.productName,
       cell: (product: Product) => (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -355,7 +361,7 @@ export default function ProductsPage() {
           <div>
             <p className="font-medium">{product.name}</p>
             <p className="text-sm text-muted-foreground line-clamp-1">
-              {product.description || "No description"}
+              {product.description || t.common.noData}
             </p>
           </div>
         </div>
@@ -363,7 +369,7 @@ export default function ProductsPage() {
     },
     {
       key: "category",
-      header: "Category",
+      header: t.products.category,
       cell: (product: Product) => (
         <Badge variant="outline" className="capitalize">
           {getCategoryLabel(product.category)}
@@ -372,7 +378,7 @@ export default function ProductsPage() {
     },
     {
       key: "countries",
-      header: "Countries",
+      header: t.common.country,
       cell: (product: Product) => (
         <div className="flex flex-wrap gap-1">
           {product.countries && product.countries.length > 0 ? (
@@ -382,7 +388,7 @@ export default function ProductsPage() {
               </Badge>
             ))
           ) : (
-            <span className="text-muted-foreground text-sm">All</span>
+            <span className="text-muted-foreground text-sm">{t.common.allCountries}</span>
           )}
           {product.countries && product.countries.length > 3 && (
             <Badge variant="secondary" className="text-xs">
@@ -394,7 +400,7 @@ export default function ProductsPage() {
     },
     {
       key: "price",
-      header: "Price",
+      header: t.products.price,
       cell: (product: Product) => (
         <span className="font-medium">
           {parseFloat(product.price).toFixed(2)} {product.currency}
@@ -403,10 +409,10 @@ export default function ProductsPage() {
     },
     {
       key: "status",
-      header: "Status",
+      header: t.common.status,
       cell: (product: Product) => (
         <Badge variant={product.isActive ? "default" : "secondary"}>
-          {product.isActive ? "Active" : "Inactive"}
+          {product.isActive ? t.common.active : t.common.inactive}
         </Badge>
       ),
     },
@@ -469,7 +475,7 @@ export default function ProductsPage() {
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              {filteredProducts.length} products
+              {filteredProducts.length} {t.products.title.toLowerCase()}
             </div>
           </div>
         </CardContent>
@@ -486,15 +492,16 @@ export default function ProductsPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+            <DialogTitle>{t.products.addNewProduct}</DialogTitle>
             <DialogDescription>
-              Add a new service or product to the system.
+              {t.products.pageDescription}
             </DialogDescription>
           </DialogHeader>
           <ProductForm
             onSubmit={(data) => createMutation.mutate(data)}
             isLoading={createMutation.isPending}
             onCancel={() => setIsFormOpen(false)}
+            t={t}
           />
         </DialogContent>
       </Dialog>
@@ -502,9 +509,9 @@ export default function ProductsPage() {
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle>{t.products.editProduct}</DialogTitle>
             <DialogDescription>
-              Update product information.
+              {t.products.updateProductInfo}
             </DialogDescription>
           </DialogHeader>
           {editingProduct && (
@@ -513,6 +520,7 @@ export default function ProductsPage() {
               onSubmit={(data) => updateMutation.mutate({ ...data, id: editingProduct.id })}
               isLoading={updateMutation.isPending}
               onCancel={() => setEditingProduct(null)}
+              t={t}
             />
           )}
         </DialogContent>
@@ -521,20 +529,19 @@ export default function ProductsPage() {
       <AlertDialog open={!!deletingProduct} onOpenChange={() => setDeletingProduct(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogTitle>{t.products.deleteProduct}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingProduct?.name}"?
-              This action cannot be undone.
+              {t.products.deleteConfirm}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete-product">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete-product">{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingProduct && deleteMutation.mutate(deletingProduct.id)}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete-product"
             >
-              Delete
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

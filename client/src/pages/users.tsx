@@ -50,10 +50,10 @@ export default function UsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsFormOpen(false);
-      toast({ title: "User created successfully" });
+      toast({ title: t.success.created });
     },
     onError: () => {
-      toast({ title: "Failed to create user", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
@@ -63,10 +63,10 @@ export default function UsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setEditingUser(null);
-      toast({ title: "User updated successfully" });
+      toast({ title: t.success.updated });
     },
     onError: () => {
-      toast({ title: "Failed to update user", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
@@ -75,10 +75,10 @@ export default function UsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setDeletingUser(null);
-      toast({ title: "User deleted successfully" });
+      toast({ title: t.success.deleted });
     },
     onError: () => {
-      toast({ title: "Failed to delete user", variant: "destructive" });
+      toast({ title: t.errors.deleteFailed, variant: "destructive" });
     },
   });
 
@@ -87,10 +87,10 @@ export default function UsersPage() {
       apiRequest("PATCH", `/api/users/${id}`, { isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "User status updated" });
+      toast({ title: t.success.updated });
     },
     onError: () => {
-      toast({ title: "Failed to update status", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
@@ -103,7 +103,7 @@ export default function UsersPage() {
   const columns = [
     {
       key: "user",
-      header: "User",
+      header: t.users.userColumn,
       cell: (user: User) => (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-medium">
@@ -118,7 +118,7 @@ export default function UsersPage() {
     },
     {
       key: "username",
-      header: "Username",
+      header: t.users.username,
       cell: (user: User) => (
         <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
           @{user.username}
@@ -127,23 +127,30 @@ export default function UsersPage() {
     },
     {
       key: "role",
-      header: "Role",
-      cell: (user: User) => (
-        <Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">
-          {user.role}
-        </Badge>
-      ),
+      header: t.users.role,
+      cell: (user: User) => {
+        const roleLabel = user.role === "admin" 
+          ? t.users.roles.admin 
+          : user.role === "manager" 
+            ? t.users.roles.manager 
+            : t.users.roles.user;
+        return (
+          <Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">
+            {roleLabel}
+          </Badge>
+        );
+      },
     },
     {
       key: "countries",
-      header: "Assigned Countries",
+      header: t.users.countriesColumn,
       cell: (user: User) => (
         <CountryBadges countries={user.assignedCountries || []} max={4} />
       ),
     },
     {
       key: "status",
-      header: "Status",
+      header: t.users.statusColumn,
       cell: (user: User) => (
         <StatusBadge status={user.isActive ? "active" : "inactive"} />
       ),
@@ -239,9 +246,9 @@ export default function UsersPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
+            <DialogTitle>{t.users.addNewUser}</DialogTitle>
             <DialogDescription>
-              Create a new user account and assign country access permissions.
+              {t.users.description}
             </DialogDescription>
           </DialogHeader>
           <UserForm
@@ -255,9 +262,9 @@ export default function UsersPage() {
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
+            <DialogTitle>{t.users.editUser}</DialogTitle>
             <DialogDescription>
-              Update user information and country access permissions.
+              {t.users.updateUserInfo}
             </DialogDescription>
           </DialogHeader>
           {editingUser && (
@@ -274,19 +281,19 @@ export default function UsersPage() {
       <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogTitle>{t.users.deleteUser}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deletingUser?.fullName}? This action cannot be undone.
+              {t.users.deleteConfirm}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingUser && deleteMutation.mutate(deletingUser.id)}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

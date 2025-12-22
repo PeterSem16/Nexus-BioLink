@@ -533,19 +533,19 @@ export default function SettingsPage() {
         <TabsList className="flex flex-wrap gap-1 h-auto">
           <TabsTrigger value="billing" data-testid="tab-billing">
             <Building2 className="h-4 w-4 mr-2" />
-            Fakturacia
+            {t.settings.tabs.billing}
           </TabsTrigger>
           <TabsTrigger value="config" data-testid="tab-config">
             <Settings2 className="h-4 w-4 mr-2" />
-            Konfiguracia
+            {t.settings.tabs.config}
           </TabsTrigger>
           <TabsTrigger value="insurance" data-testid="tab-insurance">
             <Heart className="h-4 w-4 mr-2" />
-            Poistovne
+            {t.settings.tabs.insurance}
           </TabsTrigger>
           <TabsTrigger value="system" data-testid="tab-system">
             <Shield className="h-4 w-4 mr-2" />
-            System
+            {t.settings.tabs.system}
           </TabsTrigger>
         </TabsList>
 

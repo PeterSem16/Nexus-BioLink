@@ -930,8 +930,13 @@ function CustomerDetailsContent({
 export default function CustomersPage() {
   const { toast } = useToast();
   const { t } = useI18n();
-  const { selectedCountries } = useCountryFilter();
+  const { selectedCountries, availableCountries } = useCountryFilter();
   const [search, setSearch] = useState("");
+  const [phoneFilter, setPhoneFilter] = useState("");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("_all");
+  const [statusFilter, setStatusFilter] = useState<string>("_all");
+  const [clientStatusFilter, setClientStatusFilter] = useState<string>("_all");
+  const [countryFilter, setCountryFilter] = useState<string>("_all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
@@ -993,11 +998,31 @@ export default function CustomersPage() {
     },
   });
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.firstName.toLowerCase().includes(search.toLowerCase()) ||
-    customer.lastName.toLowerCase().includes(search.toLowerCase()) ||
-    customer.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCustomers = customers.filter(customer => {
+    // Search filter (name/email)
+    const matchesSearch = search === "" || 
+      customer.firstName.toLowerCase().includes(search.toLowerCase()) ||
+      customer.lastName.toLowerCase().includes(search.toLowerCase()) ||
+      customer.email.toLowerCase().includes(search.toLowerCase());
+    
+    // Phone filter
+    const matchesPhone = phoneFilter === "" || 
+      (customer.phone && customer.phone.toLowerCase().includes(phoneFilter.toLowerCase()));
+    
+    // Country filter
+    const matchesCountry = countryFilter === "_all" || customer.country === countryFilter;
+    
+    // Service type filter
+    const matchesServiceType = serviceTypeFilter === "_all" || customer.serviceType === serviceTypeFilter;
+    
+    // Status filter
+    const matchesStatus = statusFilter === "_all" || customer.status === statusFilter;
+    
+    // Client status filter
+    const matchesClientStatus = clientStatusFilter === "_all" || customer.clientStatus === clientStatusFilter;
+    
+    return matchesSearch && matchesPhone && matchesCountry && matchesServiceType && matchesStatus && matchesClientStatus;
+  });
 
   const columns = [
     {
@@ -1127,19 +1152,90 @@ export default function CustomersPage() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t.customers.searchPlaceholder}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-                data-testid="input-search-customers"
-              />
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t.customers.searchPlaceholder}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-search-customers"
+                />
+              </div>
+              <div className="relative min-w-[150px]">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t.customers.phone || "Phone"}
+                  value={phoneFilter}
+                  onChange={(e) => setPhoneFilter(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-filter-phone"
+                />
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredCustomers.length} of {allCustomers.length} customers
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="min-w-[150px]">
+                <Select value={countryFilter} onValueChange={setCountryFilter}>
+                  <SelectTrigger data-testid="select-filter-country">
+                    <SelectValue placeholder={t.customers.country || "Country"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All Countries</SelectItem>
+                    {availableCountries.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        <span className="flex items-center gap-2">
+                          <span>{country.flag}</span>
+                          <span>{country.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[150px]">
+                <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
+                  <SelectTrigger data-testid="select-filter-service-type">
+                    <SelectValue placeholder={t.customers.serviceType || "Service Type"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All Service Types</SelectItem>
+                    <SelectItem value="cord_blood">{t.customers.serviceTypes?.cordBlood || "Cord Blood"}</SelectItem>
+                    <SelectItem value="cord_tissue">{t.customers.serviceTypes?.cordTissue || "Cord Tissue"}</SelectItem>
+                    <SelectItem value="both">{t.customers.serviceTypes?.both || "Both"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[150px]">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger data-testid="select-filter-status">
+                    <SelectValue placeholder={t.customers.status || "Status"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All Statuses</SelectItem>
+                    <SelectItem value="active">{t.common.active || "Active"}</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="inactive">{t.common.inactive || "Inactive"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[150px]">
+                <Select value={clientStatusFilter} onValueChange={setClientStatusFilter}>
+                  <SelectTrigger data-testid="select-filter-client-status">
+                    <SelectValue placeholder={t.customers.clientStatus || "Client Status"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All Client Statuses</SelectItem>
+                    <SelectItem value="potential">{t.customers.clientStatuses?.potential || "Potential"}</SelectItem>
+                    <SelectItem value="acquired">{t.customers.clientStatuses?.acquired || "Acquired"}</SelectItem>
+                    <SelectItem value="terminated">{t.customers.clientStatuses?.terminated || "Terminated"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="ml-auto text-sm text-muted-foreground">
+                {filteredCustomers.length} / {allCustomers.length}
+              </div>
             </div>
           </div>
         </CardContent>

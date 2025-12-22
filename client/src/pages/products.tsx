@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
 import { useI18n } from "@/i18n";
+import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -292,14 +293,34 @@ function ProductForm({
 export default function ProductsPage() {
   const { toast } = useToast();
   const { t } = useI18n();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
 
+  // Filter countries based on user's assigned countries
+  const userCountryCodes = useMemo(() => {
+    if (!user?.assignedCountries || user.assignedCountries.length === 0) {
+      return null; // null means show all (for admins)
+    }
+    return user.assignedCountries;
+  }, [user?.assignedCountries]);
+
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
+
+  // Filter products by user's assigned countries
+  const userProducts = useMemo(() => {
+    if (!userCountryCodes) return products; // Admins see all
+    return products.filter(product => {
+      // Show products that have at least one country matching user's countries
+      // or products with no countries assigned (global products)
+      if (!product.countries || product.countries.length === 0) return true;
+      return product.countries.some(c => userCountryCodes.includes(c));
+    });
+  }, [products, userCountryCodes]);
 
   const createMutation = useMutation({
     mutationFn: (data: ProductFormData) => apiRequest("POST", "/api/products", data),
@@ -338,7 +359,7 @@ export default function ProductsPage() {
     },
   });
 
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = userProducts.filter(product =>
     product.name.toLowerCase().includes(search.toLowerCase()) ||
     (product.description?.toLowerCase().includes(search.toLowerCase()))
   );

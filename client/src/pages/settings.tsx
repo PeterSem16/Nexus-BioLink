@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/i18n";
+import { useAuth } from "@/contexts/auth-context";
 import { COUNTRIES, type BillingDetails, type ComplaintType, type CooperationType, type VipStatus, type HealthInsurance } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { Droplets, Globe, Shield, Building2, Save, Loader2, Plus, Trash2, Settings2, Heart, FlaskConical, Pencil, Star } from "lucide-react";
@@ -556,6 +557,7 @@ function ConfigListManager({
   queryKey,
   showCode = false,
   requireCountry = false,
+  countries = COUNTRIES as readonly { code: string; name: string; flag?: string }[],
 }: { 
   title: string; 
   description: string; 
@@ -563,6 +565,7 @@ function ConfigListManager({
   queryKey: string;
   showCode?: boolean;
   requireCountry?: boolean;
+  countries?: readonly { code: string; name: string; flag?: string }[];
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -666,9 +669,15 @@ function ConfigListManager({
 
   const getCountryName = (code: string | null | undefined) => {
     if (!code) return t.settings.global;
-    const country = COUNTRIES.find(c => c.code === code);
+    const country = countries.find(c => c.code === code);
     return country?.name || code;
   };
+  
+  // Filter items to only show those belonging to user's countries (or global items)
+  const filteredItems = useMemo(() => {
+    const countryCodes = countries.map(c => c.code);
+    return items.filter(item => !item.countryCode || countryCodes.includes(item.countryCode as string));
+  }, [items, countries]);
 
   return (
     <div className="space-y-4">
@@ -694,7 +703,7 @@ function ConfigListManager({
             </SelectTrigger>
             <SelectContent>
               {!requireCountry && <SelectItem value="__global__">{t.settings.globalAllCountries}</SelectItem>}
-              {COUNTRIES.map((c) => (
+              {countries.map((c) => (
                 <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
               ))}
             </SelectContent>
@@ -710,11 +719,11 @@ function ConfigListManager({
         <div className="flex items-center justify-center py-4">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4">{t.settings.noItems}</p>
       ) : (
         <div className="space-y-2">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <div
               key={item.id}
               className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
@@ -743,7 +752,7 @@ function ConfigListManager({
                     </SelectTrigger>
                     <SelectContent>
                       {!requireCountry && <SelectItem value="__global__">{t.settings.globalAllCountries}</SelectItem>}
-                      {COUNTRIES.map((c) => (
+                      {countries.map((c) => (
                         <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -814,7 +823,19 @@ function ConfigListManager({
 
 export default function SettingsPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("billing");
+
+  // Filter countries based on user's assigned countries
+  const userCountries = useMemo(() => {
+    if (!user?.assignedCountries || user.assignedCountries.length === 0) {
+      return COUNTRIES; // Admins with no specific countries see all
+    }
+    return COUNTRIES.filter(c => user.assignedCountries.includes(c.code));
+  }, [user?.assignedCountries]);
+
+  // Get default country code for tabs
+  const defaultCountryCode = userCountries[0]?.code || COUNTRIES[0].code;
 
   return (
     <div className="space-y-6">
@@ -856,9 +877,9 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue={COUNTRIES[0].code}>
+              <Tabs defaultValue={defaultCountryCode}>
                 <TabsList className="flex flex-wrap gap-1 h-auto">
-                  {COUNTRIES.map((country) => (
+                  {userCountries.map((country) => (
                     <TabsTrigger
                       key={country.code}
                       value={country.code}
@@ -869,7 +890,7 @@ export default function SettingsPage() {
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                {COUNTRIES.map((country) => (
+                {userCountries.map((country) => (
                   <TabsContent key={country.code} value={country.code} className="mt-6">
                     <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-muted/50">
                       <Globe className="h-5 w-5 text-primary" />
@@ -957,6 +978,7 @@ export default function SettingsPage() {
                 queryKey="/api/config/health-insurance"
                 showCode={true}
                 requireCountry={true}
+                countries={userCountries}
               />
             </CardContent>
           </Card>
@@ -977,6 +999,7 @@ export default function SettingsPage() {
                 apiPath="/api/config/laboratories"
                 queryKey="/api/config/laboratories"
                 requireCountry={true}
+                countries={userCountries}
               />
             </CardContent>
           </Card>
@@ -1022,7 +1045,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3">
-                  {COUNTRIES.map((country) => (
+                  {userCountries.map((country) => (
                     <div
                       key={country.code}
                       className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"

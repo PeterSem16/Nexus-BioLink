@@ -32,6 +32,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/I18nProvider";
 
 // Validation helpers
 function validateSlovakNationalId(id: string): boolean {
@@ -131,6 +132,7 @@ interface CustomerFormProps {
 }
 
 export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: CustomerFormProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("klientka");
   
   // Fetch configuration data
@@ -208,10 +210,10 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 gap-1">
-            <TabsTrigger value="klientka" data-testid="tab-klientka">Klientka</TabsTrigger>
-            <TabsTrigger value="marketing" data-testid="tab-marketing">Marketing</TabsTrigger>
-            <TabsTrigger value="adresy" data-testid="tab-adresy">Adresy</TabsTrigger>
-            <TabsTrigger value="ine" data-testid="tab-ine">Ine</TabsTrigger>
+            <TabsTrigger value="klientka" data-testid="tab-klientka">{t.customers.tabs.client}</TabsTrigger>
+            <TabsTrigger value="marketing" data-testid="tab-marketing">{t.customers.tabs.marketing}</TabsTrigger>
+            <TabsTrigger value="adresy" data-testid="tab-adresy">{t.customers.tabs.addresses}</TabsTrigger>
+            <TabsTrigger value="ine" data-testid="tab-ine">{t.customers.tabs.other}</TabsTrigger>
           </TabsList>
           
           {/* Tab Klientka - Personal Info */}
@@ -222,7 +224,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="titleBefore"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Titul pred menom</FormLabel>
+                    <FormLabel>{t.customers.fields.title}</FormLabel>
                     <FormControl>
                       <Input placeholder="Ing., Mgr., ..." {...field} data-testid="input-title-before" />
                     </FormControl>
@@ -235,9 +237,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Krstne meno *</FormLabel>
+                    <FormLabel>{t.customers.firstName} *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jana" {...field} data-testid="input-firstname" />
+                      <Input {...field} data-testid="input-firstname" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -248,9 +250,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Priezvisko *</FormLabel>
+                    <FormLabel>{t.customers.lastName} *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Novakova" {...field} data-testid="input-lastname" />
+                      <Input {...field} data-testid="input-lastname" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -264,9 +266,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="maidenName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rodne meno</FormLabel>
+                    <FormLabel>{t.customers.fields.maidenName}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Rodne priezvisko" {...field} data-testid="input-maiden-name" />
+                      <Input {...field} data-testid="input-maiden-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -277,7 +279,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="titleAfter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Titul za menom</FormLabel>
+                    <FormLabel>{t.customers.fields.titleAfter}</FormLabel>
                     <FormControl>
                       <Input placeholder="PhD., MBA, ..." {...field} data-testid="input-title-after" />
                     </FormControl>
@@ -290,7 +292,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Datum narodenia</FormLabel>
+                    <FormLabel>{t.customers.fields.dateOfBirth}</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -302,7 +304,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                             )}
                             data-testid="input-date-of-birth"
                           >
-                            {field.value ? format(field.value, "dd.MM.yyyy") : "Vyberte datum"}
+                            {field.value ? format(field.value, "dd.MM.yyyy") : t.customers.fields.selectDate}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -329,9 +331,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefonne cislo</FormLabel>
+                    <FormLabel>{t.customers.phone}</FormLabel>
                     <FormControl>
-                      <Input placeholder="+421 2 1234 5678" {...field} data-testid="input-phone" />
+                      <Input {...field} data-testid="input-phone" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -342,9 +344,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="mobile"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobil</FormLabel>
+                    <FormLabel>{t.customers.fields.mobile}</FormLabel>
                     <FormControl>
-                      <Input placeholder="+421 9xx xxx xxx" {...field} data-testid="input-mobile" />
+                      <Input {...field} data-testid="input-mobile" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -355,9 +357,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="mobile2"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobil 2</FormLabel>
+                    <FormLabel>{t.customers.fields.mobile2}</FormLabel>
                     <FormControl>
-                      <Input placeholder="+421 9xx xxx xxx" {...field} data-testid="input-mobile2" />
+                      <Input {...field} data-testid="input-mobile2" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -368,9 +370,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="otherContact"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Iny kontakt</FormLabel>
+                    <FormLabel>{t.customers.fields.otherContact}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Iny kontakt" {...field} data-testid="input-other-contact" />
+                      <Input {...field} data-testid="input-other-contact" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -384,9 +386,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email *</FormLabel>
+                    <FormLabel>{t.customers.email} *</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="jana@email.sk" {...field} data-testid="input-customer-email" />
+                      <Input type="email" {...field} data-testid="input-customer-email" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -397,9 +399,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="email2"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email 2</FormLabel>
+                    <FormLabel>{t.customers.fields.email2}</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="druhy@email.sk" {...field} data-testid="input-email2" />
+                      <Input type="email" {...field} data-testid="input-email2" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -413,11 +415,10 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="nationalId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rodne cislo</FormLabel>
+                    <FormLabel>{t.customers.fields.nationalId}</FormLabel>
                     <FormControl>
                       <Input placeholder="xxxxxx/xxxx" {...field} data-testid="input-national-id" />
                     </FormControl>
-                    <FormDescription>Format: xxxxxx/xxxx</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -427,9 +428,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="idCardNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cislo obcianskeho preukazu</FormLabel>
+                    <FormLabel>{t.customers.fields.idCardNumber}</FormLabel>
                     <FormControl>
-                      <Input placeholder="AB123456" {...field} data-testid="input-id-card" />
+                      <Input {...field} data-testid="input-id-card" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -450,8 +451,8 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Obeznik (newsletter)</FormLabel>
-                    <FormDescription>Suhlasi s prijmanim marketingovych materialov</FormDescription>
+                    <FormLabel>{t.customers.fields.newsletter}</FormLabel>
+                    <FormDescription>{t.customers.fields.newsletterDescription}</FormDescription>
                   </div>
                 </FormItem>
               )}
@@ -463,11 +464,11 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="clientStatus"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status klienta</FormLabel>
+                    <FormLabel>{t.customers.fields.clientStatus}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-client-status">
-                          <SelectValue placeholder="Vyberte status" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -487,17 +488,17 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>{t.customers.status}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-status">
-                          <SelectValue placeholder="Vyberte status" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="active">Aktivny</SelectItem>
-                        <SelectItem value="pending">Cakajuci</SelectItem>
-                        <SelectItem value="inactive">Neaktivny</SelectItem>
+                        <SelectItem value="active">{t.dashboard.statuses.active}</SelectItem>
+                        <SelectItem value="pending">{t.dashboard.statuses.pending}</SelectItem>
+                        <SelectItem value="inactive">{t.dashboard.statuses.inactive}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -511,17 +512,17 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
               name="serviceType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Typ sluzby</FormLabel>
+                  <FormLabel>{t.customers.serviceType}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-service-type">
-                        <SelectValue placeholder="Vyberte sluzbu" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="cord_blood">Pupocnikova krv</SelectItem>
-                      <SelectItem value="cord_tissue">Pupocnikove tkanivo</SelectItem>
-                      <SelectItem value="both">Obe</SelectItem>
+                      <SelectItem value="cord_blood">{t.customers.serviceTypes.cordBlood}</SelectItem>
+                      <SelectItem value="cord_tissue">{t.customers.serviceTypes.cordTissue}</SelectItem>
+                      <SelectItem value="both">{t.customers.serviceTypes.both}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -537,16 +538,16 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
               name="complaintTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Staznosti</FormLabel>
+                  <FormLabel>{t.customers.fields.complaintType}</FormLabel>
                   <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} defaultValue={field.value || "__none__"}>
                     <FormControl>
                       <SelectTrigger data-testid="select-complaint-type">
-                        <SelectValue placeholder="Vyberte typ staznosti" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="__none__">Ziadna</SelectItem>
-                      {complaintTypes.filter(t => t.isActive).map((type) => (
+                      <SelectItem value="__none__">{t.customers.none}</SelectItem>
+                      {complaintTypes.filter(ct => ct.isActive).map((type) => (
                         <SelectItem key={type.id} value={type.id}>
                           {type.name}
                         </SelectItem>
@@ -563,16 +564,16 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
               name="cooperationTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Spolupraca</FormLabel>
+                  <FormLabel>{t.customers.fields.cooperationType}</FormLabel>
                   <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} defaultValue={field.value || "__none__"}>
                     <FormControl>
                       <SelectTrigger data-testid="select-cooperation-type">
-                        <SelectValue placeholder="Vyberte typ spoluprace" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="__none__">Ziadna</SelectItem>
-                      {cooperationTypes.filter(t => t.isActive).map((type) => (
+                      <SelectItem value="__none__">{t.customers.none}</SelectItem>
+                      {cooperationTypes.filter(ct => ct.isActive).map((type) => (
                         <SelectItem key={type.id} value={type.id}>
                           {type.name}
                         </SelectItem>
@@ -589,15 +590,15 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
               name="vipStatusId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>VIP Status</FormLabel>
+                  <FormLabel>{t.customers.fields.vipStatus}</FormLabel>
                   <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} defaultValue={field.value || "__none__"}>
                     <FormControl>
                       <SelectTrigger data-testid="select-vip-status">
-                        <SelectValue placeholder="Vyberte VIP status" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="__none__">Ziadny</SelectItem>
+                      <SelectItem value="__none__">{t.customers.none}</SelectItem>
                       {vipStatuses.filter(s => s.isActive).map((status) => (
                         <SelectItem key={status.id} value={status.id}>
                           {status.name}
@@ -613,7 +614,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
 
           {/* Tab Adresy - Addresses */}
           <TabsContent value="adresy" className="space-y-4 mt-4">
-            <h3 className="text-lg font-medium">Trvale bydlisko</h3>
+            <h3 className="text-lg font-medium">{t.customers.fields.permanentAddress}</h3>
             
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
@@ -621,9 +622,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ulica a cislo</FormLabel>
+                    <FormLabel>{t.customers.fields.street}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Hlavna 123" {...field} data-testid="input-address" />
+                      <Input {...field} data-testid="input-address" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -634,9 +635,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mesto</FormLabel>
+                    <FormLabel>{t.customers.city}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Bratislava" {...field} data-testid="input-city" />
+                      <Input {...field} data-testid="input-city" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -650,9 +651,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="postalCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>PSC</FormLabel>
+                    <FormLabel>{t.customers.postalCode}</FormLabel>
                     <FormControl>
-                      <Input placeholder="811 01" {...field} data-testid="input-postal-code" />
+                      <Input {...field} data-testid="input-postal-code" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -663,9 +664,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="region"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Oblast</FormLabel>
+                    <FormLabel>{t.customers.fields.region}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Bratislavsky kraj" {...field} data-testid="input-region" />
+                      <Input {...field} data-testid="input-region" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -676,11 +677,11 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Krajina *</FormLabel>
+                    <FormLabel>{t.customers.country} *</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-country">
-                          <SelectValue placeholder="Vyberte krajinu" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -710,7 +711,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Pouzit inu adresu na korespondanciu</FormLabel>
+                    <FormLabel>{t.customers.fields.useCorrespondenceAddress}</FormLabel>
                   </div>
                 </FormItem>
               )}
@@ -718,16 +719,16 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
 
             {useCorrespondenceAddress && (
               <>
-                <h3 className="text-lg font-medium mt-6">Korespondencna adresa</h3>
+                <h3 className="text-lg font-medium mt-6">{t.customers.fields.correspondenceAddress}</h3>
                 
                 <FormField
                   control={form.control}
                   name="corrName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Meno</FormLabel>
+                      <FormLabel>{t.customers.fields.recipientName}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Meno prijemcu" {...field} data-testid="input-corr-name" />
+                        <Input {...field} data-testid="input-corr-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -740,9 +741,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     name="corrAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Ulica a cislo domu</FormLabel>
+                        <FormLabel>{t.customers.fields.street}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ulica 456" {...field} data-testid="input-corr-address" />
+                          <Input {...field} data-testid="input-corr-address" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -753,9 +754,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     name="corrCity"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Mesto</FormLabel>
+                        <FormLabel>{t.customers.city}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Kosice" {...field} data-testid="input-corr-city" />
+                          <Input {...field} data-testid="input-corr-city" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -769,9 +770,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     name="corrPostalCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PSC</FormLabel>
+                        <FormLabel>{t.customers.postalCode}</FormLabel>
                         <FormControl>
-                          <Input placeholder="040 01" {...field} data-testid="input-corr-postal-code" />
+                          <Input {...field} data-testid="input-corr-postal-code" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -782,9 +783,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     name="corrRegion"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Oblast</FormLabel>
+                        <FormLabel>{t.customers.fields.region}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Kosicky kraj" {...field} data-testid="input-corr-region" />
+                          <Input {...field} data-testid="input-corr-region" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -795,11 +796,11 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                     name="corrCountry"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Krajina</FormLabel>
+                        <FormLabel>{t.customers.country}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-corr-country">
-                              <SelectValue placeholder="Vyberte krajinu" />
+                              <SelectValue />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -821,7 +822,7 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
 
           {/* Tab Ine - Banking & Health Insurance */}
           <TabsContent value="ine" className="space-y-4 mt-4">
-            <h3 className="text-lg font-medium">Bankove udaje</h3>
+            <h3 className="text-lg font-medium">{t.customers.fields.bankDetails}</h3>
             
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
@@ -829,9 +830,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="bankAccount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bankovy ucet (IBAN)</FormLabel>
+                    <FormLabel>{t.customers.fields.bankAccount}</FormLabel>
                     <FormControl>
-                      <Input placeholder="SK31 1200 0000 1987 4263 7541" {...field} data-testid="input-bank-account" />
+                      <Input {...field} data-testid="input-bank-account" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -842,9 +843,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="bankCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Kod banky</FormLabel>
+                    <FormLabel>{t.customers.fields.bankCode}</FormLabel>
                     <FormControl>
-                      <Input placeholder="1200" {...field} data-testid="input-bank-code" />
+                      <Input {...field} data-testid="input-bank-code" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -858,9 +859,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="bankName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Banka</FormLabel>
+                    <FormLabel>{t.customers.fields.bankName}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Slovenska sporitelna" {...field} data-testid="input-bank-name" />
+                      <Input {...field} data-testid="input-bank-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -871,9 +872,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 name="bankSwift"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SWIFT kod</FormLabel>
+                    <FormLabel>{t.customers.fields.swift}</FormLabel>
                     <FormControl>
-                      <Input placeholder="GIBASKBX" {...field} data-testid="input-bank-swift" />
+                      <Input {...field} data-testid="input-bank-swift" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -881,22 +882,22 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
               />
             </div>
 
-            <h3 className="text-lg font-medium mt-6">Zdravotna poistovna</h3>
+            <h3 className="text-lg font-medium mt-6">{t.customers.fields.healthInsurance}</h3>
             
             <FormField
               control={form.control}
               name="healthInsuranceId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Zdravotna poistovna</FormLabel>
+                  <FormLabel>{t.customers.fields.healthInsurance}</FormLabel>
                   <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} defaultValue={field.value || "__none__"}>
                     <FormControl>
                       <SelectTrigger data-testid="select-health-insurance">
-                        <SelectValue placeholder="Vyberte poistovnu" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="__none__">Ziadna</SelectItem>
+                      <SelectItem value="__none__">{t.customers.none}</SelectItem>
                       {filteredHealthInsurance.filter(hi => hi.isActive).map((insurance) => (
                         <SelectItem key={insurance.id} value={insurance.id}>
                           {insurance.name} ({insurance.code})
@@ -906,23 +907,23 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                   </Select>
                   <FormDescription>
                     {filteredHealthInsurance.length === 0 && selectedCountry && 
-                      "Ziadne poistovne nakonfigurovane pre vybratú krajinu"}
+                      t.customers.fields.noInsuranceConfigured}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <h3 className="text-lg font-medium mt-6">Poznamky</h3>
+            <h3 className="text-lg font-medium mt-6">{t.customers.fields.notesSection}</h3>
             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Poznamky</FormLabel>
+                  <FormLabel>{t.customers.notes}</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Dalsie poznamky o klientovi..."
+                      placeholder={t.customers.fields.notesPlaceholder}
                       className="resize-none"
                       rows={3}
                       {...field} 
@@ -943,14 +944,14 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
             onClick={onCancel}
             data-testid="button-cancel-customer"
           >
-            Zrusit
+            {t.common.cancel}
           </Button>
           <Button 
             type="submit" 
             disabled={isLoading}
             data-testid="button-submit-customer"
           >
-            {isLoading ? "Uklada sa..." : initialData ? "Aktualizovat" : "Vytvorit klienta"}
+            {isLoading ? t.customers.fields.saving : initialData ? t.customers.fields.update : t.customers.fields.createClient}
           </Button>
         </div>
       </form>

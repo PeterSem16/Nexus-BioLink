@@ -197,16 +197,16 @@ function HospitalForm({
         <div className="space-y-2">
           <Label htmlFor="laboratory">{t.hospitals.laboratory}</Label>
           <Select
-            value={formData.laboratoryId}
+            value={formData.laboratoryId || "_none"}
             onValueChange={(value) =>
-              setFormData({ ...formData, laboratoryId: value })
+              setFormData({ ...formData, laboratoryId: value === "_none" ? "" : value })
             }
           >
             <SelectTrigger data-testid="select-hospital-laboratory">
               <SelectValue placeholder={t.hospitals.laboratory} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">{t.common.noData}</SelectItem>
+              <SelectItem value="_none">{t.common.noData}</SelectItem>
               {filteredLaboratories.map((lab) => (
                 <SelectItem key={lab.id} value={lab.id}>
                   {lab.name}
@@ -277,16 +277,16 @@ function HospitalForm({
         <div className="space-y-2">
           <Label htmlFor="representative">{t.hospitals.representative}</Label>
           <Select
-            value={formData.representativeId}
+            value={formData.representativeId || "_none"}
             onValueChange={(value) =>
-              setFormData({ ...formData, representativeId: value })
+              setFormData({ ...formData, representativeId: value === "_none" ? "" : value })
             }
           >
             <SelectTrigger data-testid="select-hospital-representative">
               <SelectValue placeholder={t.hospitals.representative} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">{t.common.noData}</SelectItem>
+              <SelectItem value="_none">{t.common.noData}</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.fullName}
@@ -298,16 +298,16 @@ function HospitalForm({
         <div className="space-y-2">
           <Label htmlFor="responsiblePerson">{t.hospitals.responsiblePerson}</Label>
           <Select
-            value={formData.responsiblePersonId}
+            value={formData.responsiblePersonId || "_none"}
             onValueChange={(value) =>
-              setFormData({ ...formData, responsiblePersonId: value })
+              setFormData({ ...formData, responsiblePersonId: value === "_none" ? "" : value })
             }
           >
             <SelectTrigger data-testid="select-hospital-responsible">
               <SelectValue placeholder={t.hospitals.responsiblePerson} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">{t.common.noData}</SelectItem>
+              <SelectItem value="_none">{t.common.noData}</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.fullName}

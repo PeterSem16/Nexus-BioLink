@@ -51,6 +51,7 @@ interface BillingFormData {
 const DEFAULT_PAYMENT_TERMS = [7, 14, 30, 45, 60];
 
 function BillingDetailsForm({ countryCode }: { countryCode: string }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const countryInfo = COUNTRIES.find(c => c.code === countryCode);
   
@@ -104,17 +105,17 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/billing-details"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing-details", countryCode] });
-      toast({ title: `Billing details saved for ${countryInfo?.name}` });
+      toast({ title: t.success.saved });
     },
     onError: () => {
-      toast({ title: "Failed to save billing details", variant: "destructive" });
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.companyName || !formData.address || !formData.city) {
-      toast({ title: "Please fill in required fields", variant: "destructive" });
+      toast({ title: t.errors.required, variant: "destructive" });
       return;
     }
     saveMutation.mutate(formData);
@@ -132,56 +133,56 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="companyName">Company Name *</Label>
+          <Label htmlFor="companyName">{t.settings.companyName} *</Label>
           <Input
             id="companyName"
             value={formData.companyName}
             onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-            placeholder="Enter company name"
+            placeholder={t.settings.companyName}
             data-testid={`input-billing-company-${countryCode}`}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="taxId">Tax ID / VAT Number</Label>
+          <Label htmlFor="taxId">{t.settings.taxId}</Label>
           <Input
             id="taxId"
             value={formData.taxId}
             onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-            placeholder="e.g., SK1234567890"
+            placeholder={t.settings.taxId}
             data-testid={`input-billing-taxid-${countryCode}`}
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="address">Address *</Label>
+        <Label htmlFor="address">{t.settings.address} *</Label>
         <Input
           id="address"
           value={formData.address}
           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          placeholder="Street address"
+          placeholder={t.settings.address}
           data-testid={`input-billing-address-${countryCode}`}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="city">City *</Label>
+          <Label htmlFor="city">{t.settings.city} *</Label>
           <Input
             id="city"
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            placeholder="City"
+            placeholder={t.settings.city}
             data-testid={`input-billing-city-${countryCode}`}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="postalCode">Postal Code</Label>
+          <Label htmlFor="postalCode">{t.settings.postalCode}</Label>
           <Input
             id="postalCode"
             value={formData.postalCode}
             onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-            placeholder="Postal code"
+            placeholder={t.settings.postalCode}
             data-testid={`input-billing-postal-${countryCode}`}
           />
         </div>
@@ -189,35 +190,35 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
 
       <Separator />
 
-      <h4 className="font-medium">Bank Details</h4>
+      <h4 className="font-medium">{t.settings.bankName}</h4>
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="bankName">Bank Name</Label>
+          <Label htmlFor="bankName">{t.settings.bankName}</Label>
           <Input
             id="bankName"
             value={formData.bankName}
             onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-            placeholder="Bank name"
+            placeholder={t.settings.bankName}
             data-testid={`input-billing-bank-${countryCode}`}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="bankIban">IBAN</Label>
+          <Label htmlFor="bankIban">{t.settings.iban}</Label>
           <Input
             id="bankIban"
             value={formData.bankIban}
             onChange={(e) => setFormData({ ...formData, bankIban: e.target.value })}
-            placeholder="IBAN number"
+            placeholder={t.settings.iban}
             data-testid={`input-billing-iban-${countryCode}`}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="bankSwift">SWIFT / BIC</Label>
+          <Label htmlFor="bankSwift">{t.settings.swift}</Label>
           <Input
             id="bankSwift"
             value={formData.bankSwift}
             onChange={(e) => setFormData({ ...formData, bankSwift: e.target.value })}
-            placeholder="SWIFT code"
+            placeholder={t.settings.swift}
             data-testid={`input-billing-swift-${countryCode}`}
           />
         </div>
@@ -225,10 +226,10 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
 
       <Separator />
 
-      <h4 className="font-medium">Tax Settings</h4>
+      <h4 className="font-medium">{t.settings.vatRate}</h4>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="vatRate">VAT Rate (%)</Label>
+          <Label htmlFor="vatRate">{t.settings.vatRate} (%)</Label>
           <Input
             id="vatRate"
             type="number"
@@ -242,13 +243,13 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="currency">Default Currency</Label>
+          <Label htmlFor="currency">{t.settings.currency}</Label>
           <Select
             value={formData.currency}
             onValueChange={(value) => setFormData({ ...formData, currency: value })}
           >
             <SelectTrigger data-testid={`select-billing-currency-${countryCode}`}>
-              <SelectValue placeholder="Select currency" />
+              <SelectValue placeholder={t.settings.currency} />
             </SelectTrigger>
             <SelectContent>
               {CURRENCIES.map((curr) => (
@@ -263,10 +264,10 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
 
       <Separator />
 
-      <h4 className="font-medium">Payment Terms</h4>
+      <h4 className="font-medium">{t.settings.paymentTerms}</h4>
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Available Payment Terms (days)</Label>
+          <Label>{t.settings.availablePaymentTerms}</Label>
           <div className="flex flex-wrap gap-2">
             {DEFAULT_PAYMENT_TERMS.map((days) => (
               <Button
@@ -295,28 +296,28 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
                 }}
                 data-testid={`button-payment-term-${days}-${countryCode}`}
               >
-                {days} days
+                {days} {t.settings.days}
               </Button>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Click to enable/disable payment term options for invoices
+            {t.settings.paymentTermsHint}
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="defaultPaymentTerm">Default Payment Term</Label>
+          <Label htmlFor="defaultPaymentTerm">{t.settings.defaultPaymentTerm}</Label>
           <Select
             value={formData.defaultPaymentTerm.toString()}
             onValueChange={(value) => setFormData({ ...formData, defaultPaymentTerm: parseInt(value) })}
           >
             <SelectTrigger data-testid={`select-default-payment-${countryCode}`}>
-              <SelectValue placeholder="Select default term" />
+              <SelectValue placeholder={t.settings.defaultPaymentTerm} />
             </SelectTrigger>
             <SelectContent>
               {formData.paymentTerms.map((days) => (
                 <SelectItem key={days} value={days.toString()}>
-                  {days} days
+                  {days} {t.settings.days}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -331,7 +332,7 @@ function BillingDetailsForm({ countryCode }: { countryCode: string }) {
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          Save Billing Details
+          {t.settings.saveBillingDetails}
         </Button>
       </div>
     </form>
@@ -362,6 +363,7 @@ function ConfigListManager({
   showCode?: boolean;
   requireCountry?: boolean;
 }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [newName, setNewName] = useState("");
   const [newCode, setNewCode] = useState("");
@@ -380,10 +382,10 @@ function ConfigListManager({
       setNewName("");
       setNewCode("");
       setNewCountryCode("");
-      toast({ title: `${title} pridany` });
+      toast({ title: t.settings.itemAdded });
     },
     onError: () => {
-      toast({ title: `Nepodarilo sa pridat ${title.toLowerCase()}`, variant: "destructive" });
+      toast({ title: t.settings.addFailed, variant: "destructive" });
     },
   });
 
@@ -392,24 +394,24 @@ function ConfigListManager({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] });
       setDeleteId(null);
-      toast({ title: `${title} odstraneny` });
+      toast({ title: t.settings.itemDeleted });
     },
     onError: () => {
-      toast({ title: `Nepodarilo sa odstranit ${title.toLowerCase()}`, variant: "destructive" });
+      toast({ title: t.settings.deleteFailed, variant: "destructive" });
     },
   });
 
   const handleAdd = () => {
     if (!newName.trim()) {
-      toast({ title: "Nazov je povinny", variant: "destructive" });
+      toast({ title: t.settings.nameRequired, variant: "destructive" });
       return;
     }
     if (showCode && !newCode.trim()) {
-      toast({ title: "Kod je povinny", variant: "destructive" });
+      toast({ title: t.settings.codeRequired, variant: "destructive" });
       return;
     }
     if (requireCountry && (!newCountryCode || newCountryCode === "__global__")) {
-      toast({ title: "Krajina je povinna", variant: "destructive" });
+      toast({ title: t.settings.countryRequired, variant: "destructive" });
       return;
     }
     createMutation.mutate({
@@ -420,7 +422,7 @@ function ConfigListManager({
   };
 
   const getCountryName = (code: string | null | undefined) => {
-    if (!code) return "Globalne";
+    if (!code) return t.settings.global;
     const country = COUNTRIES.find(c => c.code === code);
     return country?.name || code;
   };
@@ -430,14 +432,14 @@ function ConfigListManager({
       <div className="flex flex-col gap-2">
         <div className="grid gap-2 sm:grid-cols-4">
           <Input
-            placeholder="Nazov"
+            placeholder={t.settings.namePlaceholder}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             data-testid={`input-new-${queryKey}`}
           />
           {showCode && (
             <Input
-              placeholder="Kod"
+              placeholder={t.settings.codePlaceholder}
               value={newCode}
               onChange={(e) => setNewCode(e.target.value)}
               data-testid={`input-new-code-${queryKey}`}
@@ -445,10 +447,10 @@ function ConfigListManager({
           )}
           <Select value={newCountryCode} onValueChange={setNewCountryCode}>
             <SelectTrigger data-testid={`select-country-${queryKey}`}>
-              <SelectValue placeholder={requireCountry ? "Vyberte krajinu" : "Globalne"} />
+              <SelectValue placeholder={requireCountry ? t.settings.selectCountry : t.settings.global} />
             </SelectTrigger>
             <SelectContent>
-              {!requireCountry && <SelectItem value="__global__">Globalne (vsetky krajiny)</SelectItem>}
+              {!requireCountry && <SelectItem value="__global__">{t.settings.globalAllCountries}</SelectItem>}
               {COUNTRIES.map((c) => (
                 <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
               ))}
@@ -456,7 +458,7 @@ function ConfigListManager({
           </Select>
           <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid={`button-add-${queryKey}`}>
             {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-            Pridat
+            {t.common.add}
           </Button>
         </div>
       </div>
@@ -466,7 +468,7 @@ function ConfigListManager({
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">Ziadne polozky.</p>
+        <p className="text-sm text-muted-foreground py-4">{t.settings.noItems}</p>
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
@@ -498,18 +500,18 @@ function ConfigListManager({
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Potvrdit odstranenie</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.confirmDeleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Naozaj chcete odstranit tuto polozku? Tato akcia sa neda vratit spat.
+              {t.settings.confirmDeleteMessage}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Zrusit</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
               data-testid="button-confirm-delete"
             >
-              Odstranit
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -552,9 +554,9 @@ export default function SettingsPage() {
         <TabsContent value="billing" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Billing Details by Country</CardTitle>
+              <CardTitle>{t.settings.billingDetails}</CardTitle>
               <CardDescription>
-                Configure company billing information and VAT rates for each country
+                {t.settings.description}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -578,7 +580,7 @@ export default function SettingsPage() {
                       <div>
                         <h3 className="font-medium">{country.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          Billing configuration for {country.code}
+                          {t.settings.billingConfigFor} {country.name}
                         </p>
                       </div>
                     </div>
@@ -593,15 +595,15 @@ export default function SettingsPage() {
         <TabsContent value="config" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Typy staznosti</CardTitle>
+              <CardTitle>{t.settings.complaintTypes}</CardTitle>
               <CardDescription>
-                Konfigurovatelne typy staznosti pre klientov
+                {t.settings.complaintTypesDesc}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ConfigListManager
-                title="Typ staznosti"
-                description="Typy staznosti"
+                title={t.settings.complaintTypes}
+                description={t.settings.complaintTypesDesc}
                 apiPath="/api/config/complaint-types"
                 queryKey="/api/config/complaint-types"
               />
@@ -610,15 +612,15 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Typy spoluprace</CardTitle>
+              <CardTitle>{t.settings.cooperationTypes}</CardTitle>
               <CardDescription>
-                Konfigurovatelne typy spoluprace pre klientov
+                {t.settings.cooperationTypesDesc}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ConfigListManager
-                title="Typ spoluprace"
-                description="Typy spoluprace"
+                title={t.settings.cooperationTypes}
+                description={t.settings.cooperationTypesDesc}
                 apiPath="/api/config/cooperation-types"
                 queryKey="/api/config/cooperation-types"
               />
@@ -627,15 +629,15 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>VIP Statusy</CardTitle>
+              <CardTitle>{t.settings.vipStatuses}</CardTitle>
               <CardDescription>
-                Konfigurovatelne VIP statusy pre klientov
+                {t.settings.cooperationTypesDesc}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ConfigListManager
-                title="VIP Status"
-                description="VIP statusy"
+                title={t.settings.vipStatuses}
+                description={t.settings.vipStatuses}
                 apiPath="/api/config/vip-statuses"
                 queryKey="/api/config/vip-statuses"
               />
@@ -646,15 +648,15 @@ export default function SettingsPage() {
         <TabsContent value="insurance" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Zdravotne poistovne</CardTitle>
+              <CardTitle>{t.settings.healthInsurance}</CardTitle>
               <CardDescription>
-                Konfigurovatelne zdravotne poistovne pre kazdu krajinu
+                {t.settings.insuranceDesc}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ConfigListManager
-                title="Poistovna"
-                description="Zdravotne poistovne"
+                title={t.settings.healthInsurance}
+                description={t.settings.insuranceDesc}
                 apiPath="/api/config/health-insurance"
                 queryKey="/api/config/health-insurance"
                 showCode={true}

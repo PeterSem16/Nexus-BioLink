@@ -64,7 +64,7 @@ export default function Dashboard() {
   const customerColumns = [
     {
       key: "name",
-      header: "Customer",
+      header: t.customers.title,
       cell: (customer: Customer) => (
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
@@ -135,7 +135,7 @@ export default function Dashboard() {
           icon={<Activity className="h-6 w-6" />}
         />
         <StatsCard
-          title="Active Countries"
+          title={t.dashboard.activeCountries}
           value={selectedCountries.length}
           icon={<Globe className="h-6 w-6" />}
         />
@@ -143,27 +143,27 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title="Total Invoices"
+          title={t.dashboard.totalInvoices}
           value={totalInvoices}
-          description={`${totalInvoiceAmount.toFixed(0)} EUR total`}
+          description={`${totalInvoiceAmount.toFixed(0)} EUR ${t.dashboard.totalAmount}`}
           icon={<FileText className="h-6 w-6" />}
         />
         <StatsCard
-          title="Paid Invoices"
+          title={t.dashboard.paidInvoices}
           value={paidInvoices.length}
-          description={`${paidAmount.toFixed(0)} EUR received`}
+          description={`${paidAmount.toFixed(0)} EUR ${t.dashboard.received}`}
           icon={<CheckCircle2 className="h-6 w-6" />}
         />
         <StatsCard
-          title="Unpaid Invoices"
+          title={t.dashboard.unpaidInvoices}
           value={unpaidInvoices.length}
-          description={`${unpaidAmount.toFixed(0)} EUR pending`}
+          description={`${unpaidAmount.toFixed(0)} EUR ${t.dashboard.pendingAmount}`}
           icon={<Clock className="h-6 w-6" />}
         />
         <StatsCard
-          title="Overdue"
+          title={t.dashboard.overdueInvoices}
           value={overdueInvoices.length}
-          description="Past due date"
+          description={t.dashboard.pastDueDate}
           icon={<AlertCircle className="h-6 w-6" />}
         />
       </div>
@@ -171,7 +171,7 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-            <CardTitle className="text-lg font-medium">Recent Customers</CardTitle>
+            <CardTitle className="text-lg font-medium">{t.dashboard.recentCustomers}</CardTitle>
             <Droplets className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -179,7 +179,7 @@ export default function Dashboard() {
               columns={customerColumns}
               data={recentCustomers}
               isLoading={customersLoading}
-              emptyMessage="No customers found"
+              emptyMessage={t.dashboard.noCustomersFound}
               getRowKey={(c) => c.id}
             />
           </CardContent>
@@ -187,20 +187,20 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-            <CardTitle className="text-lg font-medium">Team Overview</CardTitle>
+            <CardTitle className="text-lg font-medium">{t.dashboard.teamOverview}</CardTitle>
             <Users className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between border-b pb-4">
-              <span className="text-sm text-muted-foreground">Total Users</span>
+              <span className="text-sm text-muted-foreground">{t.dashboard.totalUsers}</span>
               <span className="text-2xl font-bold">{users.length}</span>
             </div>
             <div className="flex items-center justify-between border-b pb-4">
-              <span className="text-sm text-muted-foreground">Active Users</span>
+              <span className="text-sm text-muted-foreground">{t.dashboard.activeUsers}</span>
               <span className="text-2xl font-bold text-green-600 dark:text-green-400">{activeUsers}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Inactive Users</span>
+              <span className="text-sm text-muted-foreground">{t.dashboard.inactiveUsers}</span>
               <span className="text-2xl font-bold text-gray-400">{users.length - activeUsers}</span>
             </div>
           </CardContent>
@@ -209,7 +209,7 @@ export default function Dashboard() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-          <CardTitle className="text-lg font-medium">Customers by Country</CardTitle>
+          <CardTitle className="text-lg font-medium">{t.dashboard.customersByCountry}</CardTitle>
           <TrendingUp className="h-5 w-5 text-muted-foreground" />
         </CardHeader>
         <CardContent>

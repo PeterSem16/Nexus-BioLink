@@ -672,23 +672,22 @@ export default function SettingsPage() {
                   <Droplets className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>O Nexus BioLink</CardTitle>
-                  <CardDescription>CRM System pre pupocnikove banky</CardDescription>
+                  <CardTitle>{t.settings.aboutNexus}</CardTitle>
+                  <CardDescription>{t.settings.crmDescription}</CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Version</span>
+                  <span className="text-sm text-muted-foreground">{t.settings.version}</span>
                   <Badge variant="secondary">v1.0.0</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Environment</span>
-                  <Badge>Production</Badge>
+                  <span className="text-sm text-muted-foreground">{t.settings.environment}</span>
+                  <Badge>{t.settings.production}</Badge>
                 </div>
                 <Separator />
                 <p className="text-sm text-muted-foreground">
-                  Nexus BioLink is a comprehensive CRM system designed specifically for cord blood banking companies.
-                  It provides multi-country support, customer management, and user access control.
+                  {t.settings.nexusDescription}
                 </p>
               </CardContent>
             </Card>
@@ -699,8 +698,8 @@ export default function SettingsPage() {
                   <Globe className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Supported Countries</CardTitle>
-                  <CardDescription>Regions available in the system</CardDescription>
+                  <CardTitle>{t.settings.supportedCountries}</CardTitle>
+                  <CardDescription>{t.settings.regionsAvailable}</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
@@ -726,28 +725,28 @@ export default function SettingsPage() {
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>User Roles</CardTitle>
-                  <CardDescription>Access levels in the system</CardDescription>
+                  <CardTitle>{t.settings.userRoles}</CardTitle>
+                  <CardDescription>{t.settings.accessLevels}</CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <Badge>Admin</Badge>
+                    <Badge>{t.users.roles.admin}</Badge>
                     <p className="text-sm text-muted-foreground">
-                      Full access to all features, user management, and system settings
+                      {t.settings.adminDescription}
                     </p>
                   </div>
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <Badge variant="secondary">Manager</Badge>
+                    <Badge variant="secondary">{t.users.roles.manager}</Badge>
                     <p className="text-sm text-muted-foreground">
-                      Can manage customers and view reports for assigned countries
+                      {t.settings.managerDescription}
                     </p>
                   </div>
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <Badge variant="outline">User</Badge>
+                    <Badge variant="outline">{t.users.roles.user}</Badge>
                     <p className="text-sm text-muted-foreground">
-                      Basic access to view and edit customers in assigned countries
+                      {t.settings.userDescription}
                     </p>
                   </div>
                 </div>

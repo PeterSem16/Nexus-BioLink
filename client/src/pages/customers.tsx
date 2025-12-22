@@ -123,15 +123,21 @@ function CustomerDetailsContent({
     },
   });
 
-  const { data: billingDetails } = useQuery<BillingDetails | null>({
-    queryKey: ["/api/billing-details", customer.country],
+  const { data: billingCompanies = [] } = useQuery<BillingDetails[]>({
+    queryKey: ["/api/billing-details", "country", customer.country],
     queryFn: async () => {
-      const res = await fetch(`/api/billing-details/${customer.country}`, { credentials: "include" });
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch billing details");
+      const res = await fetch(`/api/billing-details?country=${customer.country}`, { credentials: "include" });
+      if (!res.ok) return [];
       return res.json();
     },
   });
+
+  const [selectedBillingCompanyId, setSelectedBillingCompanyId] = useState<string>("");
+  
+  // Get the currently selected billing company or use the default one
+  const billingDetails = selectedBillingCompanyId 
+    ? billingCompanies.find(bc => bc.id === selectedBillingCompanyId) || null
+    : billingCompanies.find(bc => bc.isDefault) || billingCompanies[0] || null;
 
   const { data: communicationMessages = [], isLoading: messagesLoading } = useQuery<CommunicationMessage[]>({
     queryKey: ["/api/customers", customer.id, "messages"],
@@ -766,15 +772,35 @@ function CustomerDetailsContent({
           </DialogHeader>
 
           <div className="space-y-6">
-            {billingDetails && (
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-sm font-medium">{billingDetails.companyName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {billingDetails.address}, {billingDetails.city}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  VAT: {billingDetails.vatRate}% | Currency: {billingDetails.currency}
-                </p>
+            {billingCompanies.length > 0 && (
+              <div className="space-y-2">
+                <Label>Billing Company</Label>
+                <Select
+                  value={selectedBillingCompanyId || billingDetails?.id || ""}
+                  onValueChange={setSelectedBillingCompanyId}
+                >
+                  <SelectTrigger data-testid="select-billing-company">
+                    <SelectValue placeholder="Select billing company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {billingCompanies.map((bc) => (
+                      <SelectItem key={bc.id} value={bc.id}>
+                        {bc.companyName} {bc.isDefault && "(Default)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {billingDetails && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">{billingDetails.companyName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {billingDetails.address}, {billingDetails.city}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      VAT: {billingDetails.vatRate}% | Currency: {billingDetails.currency}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

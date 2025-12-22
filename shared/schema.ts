@@ -284,10 +284,10 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
-// Billing details per country
+// Billing details (billing companies) - multiple per country allowed
 export const billingDetails = pgTable("billing_details", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  countryCode: text("country_code").notNull().unique(),
+  countryCode: text("country_code").notNull(),
   companyName: text("company_name").notNull(),
   address: text("address").notNull(),
   city: text("city").notNull(),
@@ -300,6 +300,8 @@ export const billingDetails = pgTable("billing_details", {
   currency: text("currency").notNull().default("EUR"),
   paymentTerms: integer("payment_terms").array().notNull().default(sql`ARRAY[7,14,30]::integer[]`), // Payment term options in days
   defaultPaymentTerm: integer("default_payment_term").notNull().default(14), // Default payment term in days
+  isDefault: boolean("is_default").notNull().default(false), // Default billing company for this country
+  isActive: boolean("is_active").notNull().default(true),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
@@ -632,6 +634,8 @@ export const insertBillingDetailsSchema = createInsertSchema(billingDetails).omi
   currency: z.string().optional().default("EUR"),
   paymentTerms: z.array(z.number().int().positive()).optional().default([7, 14, 30]),
   defaultPaymentTerm: z.number().int().positive().optional().default(14),
+  isDefault: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
 });
 
 // Invoice item schemas

@@ -21,7 +21,7 @@ import {
   type Hospital, type InsertHospital
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, inArray, sql, desc } from "drizzle-orm";
+import { eq, inArray, sql, desc, and } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
@@ -71,9 +71,14 @@ export interface IStorage {
   updateInvoice(id: string, data: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   getNextInvoiceNumber(): Promise<string>;
 
-  // Billing Details
+  // Billing Details (Billing Companies)
   getBillingDetails(countryCode: string): Promise<BillingDetails | undefined>;
+  getBillingDetailsByCountry(countryCode: string): Promise<BillingDetails[]>;
+  getBillingDetailsById(id: string): Promise<BillingDetails | undefined>;
   getAllBillingDetails(): Promise<BillingDetails[]>;
+  createBillingDetails(data: InsertBillingDetails): Promise<BillingDetails>;
+  updateBillingDetails(id: string, data: Partial<InsertBillingDetails>): Promise<BillingDetails>;
+  deleteBillingDetails(id: string): Promise<boolean>;
   upsertBillingDetails(data: InsertBillingDetails): Promise<BillingDetails>;
 
   // Invoice Items
@@ -341,9 +346,25 @@ export class DatabaseStorage implements IStorage {
     return `INV-${year}-${String(count).padStart(5, '0')}`;
   }
 
-  // Billing Details
+  // Billing Details (Billing Companies)
   async getBillingDetails(countryCode: string): Promise<BillingDetails | undefined> {
-    const [details] = await db.select().from(billingDetails).where(eq(billingDetails.countryCode, countryCode));
+    // Get the default billing company for a country, or the first one if no default
+    const [defaultDetails] = await db.select().from(billingDetails)
+      .where(and(eq(billingDetails.countryCode, countryCode), eq(billingDetails.isDefault, true)));
+    if (defaultDetails) return defaultDetails;
+    
+    const [firstDetails] = await db.select().from(billingDetails)
+      .where(eq(billingDetails.countryCode, countryCode));
+    return firstDetails || undefined;
+  }
+
+  async getBillingDetailsByCountry(countryCode: string): Promise<BillingDetails[]> {
+    return db.select().from(billingDetails)
+      .where(eq(billingDetails.countryCode, countryCode));
+  }
+
+  async getBillingDetailsById(id: string): Promise<BillingDetails | undefined> {
+    const [details] = await db.select().from(billingDetails).where(eq(billingDetails.id, id));
     return details || undefined;
   }
 
@@ -351,18 +372,43 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(billingDetails);
   }
 
-  async upsertBillingDetails(data: InsertBillingDetails): Promise<BillingDetails> {
-    const existing = await this.getBillingDetails(data.countryCode);
-    if (existing) {
-      const [updated] = await db
-        .update(billingDetails)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(billingDetails.countryCode, data.countryCode))
-        .returning();
-      return updated;
+  async createBillingDetails(data: InsertBillingDetails): Promise<BillingDetails> {
+    // If this is marked as default, unset other defaults for this country
+    if (data.isDefault) {
+      await db.update(billingDetails)
+        .set({ isDefault: false })
+        .where(eq(billingDetails.countryCode, data.countryCode));
     }
     const [created] = await db.insert(billingDetails).values(data).returning();
     return created;
+  }
+
+  async updateBillingDetails(id: string, data: Partial<InsertBillingDetails>): Promise<BillingDetails> {
+    // If setting as default, unset other defaults for this country
+    if (data.isDefault) {
+      const existing = await this.getBillingDetailsById(id);
+      if (existing) {
+        await db.update(billingDetails)
+          .set({ isDefault: false })
+          .where(and(eq(billingDetails.countryCode, existing.countryCode), sql`id != ${id}`));
+      }
+    }
+    const [updated] = await db
+      .update(billingDetails)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(billingDetails.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBillingDetails(id: string): Promise<boolean> {
+    const result = await db.delete(billingDetails).where(eq(billingDetails.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async upsertBillingDetails(data: InsertBillingDetails): Promise<BillingDetails> {
+    // Legacy method - creates new billing company
+    return this.createBillingDetails(data);
   }
 
   // Invoice Items

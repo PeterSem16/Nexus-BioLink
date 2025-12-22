@@ -712,9 +712,14 @@ export async function registerRoutes(
     }
   });
 
-  // Billing Details API (protected)
+  // Billing Details (Billing Companies) API (protected)
   app.get("/api/billing-details", requireAuth, async (req, res) => {
     try {
+      const { country } = req.query;
+      if (country && typeof country === 'string') {
+        const details = await storage.getBillingDetailsByCountry(country);
+        return res.json(details);
+      }
       const details = await storage.getAllBillingDetails();
       res.json(details);
     } catch (error) {
@@ -723,11 +728,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/billing-details/:countryCode", requireAuth, async (req, res) => {
+  app.get("/api/billing-details/:id", requireAuth, async (req, res) => {
     try {
-      const details = await storage.getBillingDetails(req.params.countryCode);
+      // Check if it's an ID (UUID) or a country code
+      const param = req.params.id;
+      if (param.length === 2) {
+        // Country code - get all for that country
+        const details = await storage.getBillingDetailsByCountry(param);
+        return res.json(details);
+      }
+      // Otherwise it's an ID
+      const details = await storage.getBillingDetailsById(param);
       if (!details) {
-        return res.status(404).json({ error: "Billing details not found for this country" });
+        return res.status(404).json({ error: "Billing company not found" });
       }
       res.json(details);
     } catch (error) {
@@ -736,6 +749,44 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/billing-details", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertBillingDetailsSchema.parse(req.body);
+      const details = await storage.createBillingDetails(validatedData);
+      res.status(201).json(details);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
+      console.error("Error creating billing company:", error);
+      res.status(500).json({ error: "Failed to create billing company" });
+    }
+  });
+
+  app.patch("/api/billing-details/:id", requireAuth, async (req, res) => {
+    try {
+      const details = await storage.updateBillingDetails(req.params.id, req.body);
+      res.json(details);
+    } catch (error) {
+      console.error("Error updating billing company:", error);
+      res.status(500).json({ error: "Failed to update billing company" });
+    }
+  });
+
+  app.delete("/api/billing-details/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteBillingDetails(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Billing company not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting billing company:", error);
+      res.status(500).json({ error: "Failed to delete billing company" });
+    }
+  });
+
+  // Legacy endpoint for backwards compatibility
   app.put("/api/billing-details/:countryCode", requireAuth, async (req, res) => {
     try {
       const validatedData = insertBillingDetailsSchema.parse({

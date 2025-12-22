@@ -261,8 +261,11 @@ export interface Translations {
       billing: string;
       config: string;
       insurance: string;
+      laboratories: string;
       system: string;
     };
+    laboratories: string;
+    laboratoriesDesc: string;
     aboutNexus: string;
     crmDescription: string;
     version: string;
@@ -589,8 +592,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Billing',
         config: 'Configuration',
         insurance: 'Insurance',
+        laboratories: 'Laboratories',
         system: 'System',
       },
+      laboratories: 'Laboratories',
+      laboratoriesDesc: 'Manage laboratories for each country',
       aboutNexus: 'About Nexus BioLink',
       crmDescription: 'CRM System for cord blood banks',
       version: 'Version',
@@ -915,8 +921,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Fakturácia',
         config: 'Konfigurácia',
         insurance: 'Poisťovne',
+        laboratories: 'Laboratóriá',
         system: 'Systém',
       },
+      laboratories: 'Laboratóriá',
+      laboratoriesDesc: 'Spravujte laboratóriá pre jednotlivé krajiny',
       aboutNexus: 'O Nexus BioLink',
       crmDescription: 'CRM systém pre banky pupočníkovej krvi',
       version: 'Verzia',
@@ -1241,8 +1250,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Fakturace',
         config: 'Konfigurace',
         insurance: 'Pojišťovny',
+        laboratories: 'Laboratoře',
         system: 'Systém',
       },
+      laboratories: 'Laboratoře',
+      laboratoriesDesc: 'Spravujte laboratoře pro jednotlivé země',
       aboutNexus: 'O Nexus BioLink',
       crmDescription: 'CRM systém pro banky pupečníkové krve',
       version: 'Verze',
@@ -1567,8 +1579,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Számlázás',
         config: 'Konfiguráció',
         insurance: 'Biztosítók',
+        laboratories: 'Laboratóriumok',
         system: 'Rendszer',
       },
+      laboratories: 'Laboratóriumok',
+      laboratoriesDesc: 'Laboratóriumok kezelése országonként',
       aboutNexus: 'A Nexus BioLink-ről',
       crmDescription: 'CRM rendszer köldökzsinórvér-bankoknak',
       version: 'Verzió',
@@ -1893,8 +1908,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Facturare',
         config: 'Configurare',
         insurance: 'Asigurări',
+        laboratories: 'Laboratoare',
         system: 'Sistem',
       },
+      laboratories: 'Laboratoare',
+      laboratoriesDesc: 'Gestionați laboratoarele pentru fiecare țară',
       aboutNexus: 'Despre Nexus BioLink',
       crmDescription: 'Sistem CRM pentru băncile de sânge din cordon',
       version: 'Versiune',
@@ -2219,8 +2237,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Fatturazione',
         config: 'Configurazione',
         insurance: 'Assicurazioni',
+        laboratories: 'Laboratori',
         system: 'Sistema',
       },
+      laboratories: 'Laboratori',
+      laboratoriesDesc: 'Gestisci i laboratori per ogni paese',
       aboutNexus: 'Informazioni su Nexus BioLink',
       crmDescription: 'Sistema CRM per banche del sangue cordonale',
       version: 'Versione',
@@ -2545,8 +2566,11 @@ export const translations: Record<Locale, Translations> = {
         billing: 'Abrechnung',
         config: 'Konfiguration',
         insurance: 'Versicherungen',
+        laboratories: 'Labore',
         system: 'System',
       },
+      laboratories: 'Labore',
+      laboratoriesDesc: 'Labore für jedes Land verwalten',
       aboutNexus: 'Über Nexus BioLink',
       crmDescription: 'CRM-System für Nabelschnurblut-Banken',
       version: 'Version',

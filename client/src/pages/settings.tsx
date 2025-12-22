@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/i18n";
 import { COUNTRIES, type BillingDetails, type ComplaintType, type CooperationType, type VipStatus, type HealthInsurance } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
-import { Droplets, Globe, Shield, Building2, Save, Loader2, Plus, Trash2, Settings2, Heart } from "lucide-react";
+import { Droplets, Globe, Shield, Building2, Save, Loader2, Plus, Trash2, Settings2, Heart, FlaskConical } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -545,6 +545,10 @@ export default function SettingsPage() {
             <Heart className="h-4 w-4 mr-2" />
             {t.settings.tabs.insurance}
           </TabsTrigger>
+          <TabsTrigger value="laboratories" data-testid="tab-laboratories">
+            <FlaskConical className="h-4 w-4 mr-2" />
+            {t.settings.tabs.laboratories}
+          </TabsTrigger>
           <TabsTrigger value="system" data-testid="tab-system">
             <Shield className="h-4 w-4 mr-2" />
             {t.settings.tabs.system}
@@ -660,6 +664,26 @@ export default function SettingsPage() {
                 apiPath="/api/config/health-insurance"
                 queryKey="/api/config/health-insurance"
                 showCode={true}
+                requireCountry={true}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="laboratories" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t.settings.laboratories}</CardTitle>
+              <CardDescription>
+                {t.settings.laboratoriesDesc}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ConfigListManager
+                title={t.settings.laboratories}
+                description={t.settings.laboratoriesDesc}
+                apiPath="/api/config/laboratories"
+                queryKey="/api/config/laboratories"
                 requireCountry={true}
               />
             </CardContent>

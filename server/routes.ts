@@ -16,6 +16,51 @@ import MemoryStore from "memorystore";
 import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
+import multer from "multer";
+
+// Configure multer for agreement file uploads
+const agreementStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads", "agreements");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `agreement-${uniqueSuffix}${ext}`);
+  },
+});
+
+const uploadAgreement = multer({
+  storage: agreementStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "application/msword", 
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only PDF, JPEG, PNG, DOC, DOCX are allowed."));
+    }
+  },
+});
+
+// Extract text from PDF
+async function extractPdfText(filePath: string): Promise<string> {
+  try {
+    const dataBuffer = fs.readFileSync(filePath);
+    // Dynamic import for pdf-parse which doesn't have proper ESM exports
+    const pdfParse = (await import("pdf-parse")).default;
+    const data = await pdfParse(dataBuffer);
+    return data.text || "";
+  } catch (error) {
+    console.error("PDF text extraction failed:", error);
+    return "";
+  }
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -1699,6 +1744,91 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete agreement" });
+    }
+  });
+
+  // File upload for agreements
+  app.post("/api/collaborators/:id/agreements/:agreementId/upload", requireAuth, uploadAgreement.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const filePath = req.file.path;
+      const fileName = req.file.originalname;
+      const fileSize = req.file.size;
+      const fileContentType = req.file.mimetype;
+
+      // Extract text from PDF if applicable
+      let extractedText = "";
+      if (fileContentType === "application/pdf") {
+        extractedText = await extractPdfText(filePath);
+      }
+
+      // Update agreement with file info
+      const agreement = await storage.updateCollaboratorAgreement(req.params.agreementId, {
+        fileName,
+        filePath,
+        fileSize,
+        fileContentType,
+        extractedText,
+      });
+
+      if (!agreement) {
+        // Clean up uploaded file if agreement not found
+        fs.unlinkSync(filePath);
+        return res.status(404).json({ error: "Agreement not found" });
+      }
+
+      res.json(agreement);
+    } catch (error) {
+      console.error("File upload failed:", error);
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+
+  // Download/view agreement file
+  app.get("/api/collaborators/:id/agreements/:agreementId/file", requireAuth, async (req, res) => {
+    try {
+      const agreements = await storage.getCollaboratorAgreements(req.params.id);
+      const agreement = agreements.find(a => a.id === req.params.agreementId);
+      
+      if (!agreement || !agreement.filePath) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      if (!fs.existsSync(agreement.filePath)) {
+        return res.status(404).json({ error: "File not found on disk" });
+      }
+
+      const contentType = agreement.fileContentType || "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `inline; filename="${agreement.fileName}"`);
+      
+      const fileStream = fs.createReadStream(agreement.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to download file" });
+    }
+  });
+
+  // Download agreement file (force download)
+  app.get("/api/collaborators/:id/agreements/:agreementId/download", requireAuth, async (req, res) => {
+    try {
+      const agreements = await storage.getCollaboratorAgreements(req.params.id);
+      const agreement = agreements.find(a => a.id === req.params.agreementId);
+      
+      if (!agreement || !agreement.filePath) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      if (!fs.existsSync(agreement.filePath)) {
+        return res.status(404).json({ error: "File not found on disk" });
+      }
+
+      res.download(agreement.filePath, agreement.fileName || "agreement.pdf");
+    } catch (error) {
+      res.status(500).json({ error: "Failed to download file" });
     }
   });
 

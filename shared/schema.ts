@@ -926,15 +926,35 @@ export const collaboratorAgreements = pgTable("collaborator_agreements", {
   fileName: text("file_name"),
   filePath: text("file_path"),
   fileSize: integer("file_size"),
+  fileContentType: text("file_content_type"),
+  extractedText: text("extracted_text"),
   
   // Agreement details
   billingCompanyId: varchar("billing_company_id"),
   contractNumber: text("contract_number"),
-  validFrom: timestamp("valid_from"),
-  validTo: timestamp("valid_to"),
+  
+  // Valid from (day/month/year)
+  validFromDay: integer("valid_from_day"),
+  validFromMonth: integer("valid_from_month"),
+  validFromYear: integer("valid_from_year"),
+  
+  // Valid to (day/month/year)
+  validToDay: integer("valid_to_day"),
+  validToMonth: integer("valid_to_month"),
+  validToYear: integer("valid_to_year"),
+  
   isValid: boolean("is_valid").notNull().default(true),
-  agreementSentAt: timestamp("agreement_sent_at"),
-  agreementReturnedAt: timestamp("agreement_returned_at"),
+  
+  // Agreement sent (day/month/year)
+  agreementSentDay: integer("agreement_sent_day"),
+  agreementSentMonth: integer("agreement_sent_month"),
+  agreementSentYear: integer("agreement_sent_year"),
+  
+  // Agreement returned (day/month/year)
+  agreementReturnedDay: integer("agreement_returned_day"),
+  agreementReturnedMonth: integer("agreement_returned_month"),
+  agreementReturnedYear: integer("agreement_returned_year"),
+  
   agreementForm: text("agreement_form"),
   rewardTypes: text("reward_types").array().default(sql`ARRAY[]::text[]`),
   

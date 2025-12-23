@@ -47,6 +47,9 @@ export interface Translations {
     pending: string;
     global: string;
     required: string;
+    all: string;
+    activeFilters: string;
+    clearAll: string;
   };
   dashboard: {
     title: string;
@@ -555,6 +558,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'Pending',
       global: 'Global',
       required: 'Required',
+      all: 'All',
+      activeFilters: 'Active Filters',
+      clearAll: 'Clear All',
     },
     dashboard: {
       title: 'Dashboard',
@@ -1061,6 +1067,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'Čakajúci',
       global: 'Globálne',
       required: 'Povinné',
+      all: 'Všetky',
+      activeFilters: 'Aktívne filtre',
+      clearAll: 'Vymazať všetko',
     },
     dashboard: {
       title: 'Prehľad',
@@ -1567,6 +1576,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'Čekající',
       global: 'Globální',
       required: 'Povinné',
+      all: 'Všechny',
+      activeFilters: 'Aktivní filtry',
+      clearAll: 'Vymazat vše',
     },
     dashboard: {
       title: 'Přehled',
@@ -2073,6 +2085,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'Függőben',
       global: 'Globális',
       required: 'Kötelező',
+      all: 'Összes',
+      activeFilters: 'Aktív szűrők',
+      clearAll: 'Összes törlése',
     },
     dashboard: {
       title: 'Irányítópult',
@@ -2579,6 +2594,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'În așteptare',
       global: 'Global',
       required: 'Obligatoriu',
+      all: 'Toate',
+      activeFilters: 'Filtre active',
+      clearAll: 'Șterge tot',
     },
     dashboard: {
       title: 'Panou de control',
@@ -3085,6 +3103,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'In attesa',
       global: 'Globale',
       required: 'Obbligatorio',
+      all: 'Tutti',
+      activeFilters: 'Filtri attivi',
+      clearAll: 'Cancella tutto',
     },
     dashboard: {
       title: 'Dashboard',
@@ -3591,6 +3612,9 @@ export const translations: Record<Locale, Translations> = {
       pending: 'Ausstehend',
       global: 'Global',
       required: 'Erforderlich',
+      all: 'Alle',
+      activeFilters: 'Aktive Filter',
+      clearAll: 'Alles löschen',
     },
     dashboard: {
       title: 'Dashboard',

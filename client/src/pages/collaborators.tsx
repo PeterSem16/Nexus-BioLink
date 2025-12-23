@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, User, MapPin, FileText, Award, Gift, Activity, ClipboardList, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, User, MapPin, FileText, Award, Gift, Activity, ClipboardList, Upload, Download, Eye, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -486,14 +486,23 @@ function AgreementsTab({
   const { toast } = useToast();
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [formData, setFormData] = useState({
     billingCompanyId: "",
     contractNumber: "",
-    validFrom: "",
-    validTo: "",
+    validFromDay: null as number | null,
+    validFromMonth: null as number | null,
+    validFromYear: null as number | null,
+    validToDay: null as number | null,
+    validToMonth: null as number | null,
+    validToYear: null as number | null,
     isValid: true,
-    agreementSentAt: "",
-    agreementReturnedAt: "",
+    agreementSentDay: null as number | null,
+    agreementSentMonth: null as number | null,
+    agreementSentYear: null as number | null,
+    agreementReturnedDay: null as number | null,
+    agreementReturnedMonth: null as number | null,
+    agreementReturnedYear: null as number | null,
     agreementForm: "",
     rewardTypes: [] as string[],
   });
@@ -520,17 +529,10 @@ function AgreementsTab({
 
   const saveMutation = useMutation({
     mutationFn: (data: typeof formData) => {
-      const payload = {
-        ...data,
-        validFrom: data.validFrom ? new Date(data.validFrom) : null,
-        validTo: data.validTo ? new Date(data.validTo) : null,
-        agreementSentAt: data.agreementSentAt ? new Date(data.agreementSentAt) : null,
-        agreementReturnedAt: data.agreementReturnedAt ? new Date(data.agreementReturnedAt) : null,
-      };
       if (editingId) {
-        return apiRequest("PUT", `/api/collaborators/${collaboratorId}/agreements/${editingId}`, payload);
+        return apiRequest("PUT", `/api/collaborators/${collaboratorId}/agreements/${editingId}`, data);
       }
-      return apiRequest("POST", `/api/collaborators/${collaboratorId}/agreements`, payload);
+      return apiRequest("POST", `/api/collaborators/${collaboratorId}/agreements`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "agreements"] });
@@ -561,11 +563,19 @@ function AgreementsTab({
     setFormData({
       billingCompanyId: "",
       contractNumber: "",
-      validFrom: "",
-      validTo: "",
+      validFromDay: null,
+      validFromMonth: null,
+      validFromYear: null,
+      validToDay: null,
+      validToMonth: null,
+      validToYear: null,
       isValid: true,
-      agreementSentAt: "",
-      agreementReturnedAt: "",
+      agreementSentDay: null,
+      agreementSentMonth: null,
+      agreementSentYear: null,
+      agreementReturnedDay: null,
+      agreementReturnedMonth: null,
+      agreementReturnedYear: null,
       agreementForm: "",
       rewardTypes: [],
     });
@@ -576,15 +586,51 @@ function AgreementsTab({
     setFormData({
       billingCompanyId: agreement.billingCompanyId || "",
       contractNumber: agreement.contractNumber || "",
-      validFrom: agreement.validFrom ? new Date(agreement.validFrom).toISOString().split("T")[0] : "",
-      validTo: agreement.validTo ? new Date(agreement.validTo).toISOString().split("T")[0] : "",
+      validFromDay: agreement.validFromDay,
+      validFromMonth: agreement.validFromMonth,
+      validFromYear: agreement.validFromYear,
+      validToDay: agreement.validToDay,
+      validToMonth: agreement.validToMonth,
+      validToYear: agreement.validToYear,
       isValid: agreement.isValid,
-      agreementSentAt: agreement.agreementSentAt ? new Date(agreement.agreementSentAt).toISOString().split("T")[0] : "",
-      agreementReturnedAt: agreement.agreementReturnedAt ? new Date(agreement.agreementReturnedAt).toISOString().split("T")[0] : "",
+      agreementSentDay: agreement.agreementSentDay,
+      agreementSentMonth: agreement.agreementSentMonth,
+      agreementSentYear: agreement.agreementSentYear,
+      agreementReturnedDay: agreement.agreementReturnedDay,
+      agreementReturnedMonth: agreement.agreementReturnedMonth,
+      agreementReturnedYear: agreement.agreementReturnedYear,
       agreementForm: agreement.agreementForm || "",
       rewardTypes: agreement.rewardTypes || [],
     });
     setIsAddingNew(true);
+  };
+
+  const handleFileUpload = async (agreementId: string, file: File) => {
+    setUploadingFile(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      
+      const response = await fetch(`/api/collaborators/${collaboratorId}/agreements/${agreementId}/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formDataUpload,
+      });
+      
+      if (!response.ok) throw new Error("Upload failed");
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "agreements"] });
+      toast({ title: t.success.saved });
+    } catch (error) {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const formatDate = (day: number | null, month: number | null, year: number | null) => {
+    if (!day || !month || !year) return "-";
+    return `${day}.${month}.${year}`;
   };
 
   const toggleRewardType = (value: string) => {
@@ -634,44 +680,52 @@ function AgreementsTab({
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>{t.collaborators.fields.validFrom}</Label>
-            <Input
-              type="date"
-              value={formData.validFrom}
-              onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
-              data-testid="input-agreement-valid-from"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t.collaborators.fields.validTo}</Label>
-            <Input
-              type="date"
-              value={formData.validTo}
-              onChange={(e) => setFormData({ ...formData, validTo: e.target.value })}
-              data-testid="input-agreement-valid-to"
-            />
-          </div>
+          <DateFields
+            label={t.collaborators.fields.validFrom}
+            dayValue={formData.validFromDay}
+            monthValue={formData.validFromMonth}
+            yearValue={formData.validFromYear}
+            onDayChange={(val) => setFormData({ ...formData, validFromDay: val })}
+            onMonthChange={(val) => setFormData({ ...formData, validFromMonth: val })}
+            onYearChange={(val) => setFormData({ ...formData, validFromYear: val })}
+            testIdPrefix="validFrom"
+            t={t}
+          />
+          <DateFields
+            label={t.collaborators.fields.validTo}
+            dayValue={formData.validToDay}
+            monthValue={formData.validToMonth}
+            yearValue={formData.validToYear}
+            onDayChange={(val) => setFormData({ ...formData, validToDay: val })}
+            onMonthChange={(val) => setFormData({ ...formData, validToMonth: val })}
+            onYearChange={(val) => setFormData({ ...formData, validToYear: val })}
+            testIdPrefix="validTo"
+            t={t}
+          />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>{t.collaborators.fields.agreementSent}</Label>
-            <Input
-              type="date"
-              value={formData.agreementSentAt}
-              onChange={(e) => setFormData({ ...formData, agreementSentAt: e.target.value })}
-              data-testid="input-agreement-sent"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t.collaborators.fields.agreementReturned}</Label>
-            <Input
-              type="date"
-              value={formData.agreementReturnedAt}
-              onChange={(e) => setFormData({ ...formData, agreementReturnedAt: e.target.value })}
-              data-testid="input-agreement-returned"
-            />
-          </div>
+          <DateFields
+            label={t.collaborators.fields.agreementSent}
+            dayValue={formData.agreementSentDay}
+            monthValue={formData.agreementSentMonth}
+            yearValue={formData.agreementSentYear}
+            onDayChange={(val) => setFormData({ ...formData, agreementSentDay: val })}
+            onMonthChange={(val) => setFormData({ ...formData, agreementSentMonth: val })}
+            onYearChange={(val) => setFormData({ ...formData, agreementSentYear: val })}
+            testIdPrefix="agreementSent"
+            t={t}
+          />
+          <DateFields
+            label={t.collaborators.fields.agreementReturned}
+            dayValue={formData.agreementReturnedDay}
+            monthValue={formData.agreementReturnedMonth}
+            yearValue={formData.agreementReturnedYear}
+            onDayChange={(val) => setFormData({ ...formData, agreementReturnedDay: val })}
+            onMonthChange={(val) => setFormData({ ...formData, agreementReturnedMonth: val })}
+            onYearChange={(val) => setFormData({ ...formData, agreementReturnedYear: val })}
+            testIdPrefix="agreementReturned"
+            t={t}
+          />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -705,13 +759,6 @@ function AgreementsTab({
                 {t.collaborators.rewardTypes[rt.labelKey] || rt.value}
               </Badge>
             ))}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>{t.collaborators.fields.uploadFile}</Label>
-          <div className="flex items-center gap-2 p-4 border rounded-md border-dashed">
-            <Upload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{t.collaborators.comingSoon}</span>
           </div>
         </div>
         <div className="flex justify-end gap-2">
@@ -749,28 +796,97 @@ function AgreementsTab({
           {agreements.map((agreement) => (
             <Card key={agreement.id}>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">{t.collaborators.fields.billingCompany}: </span>
+                        {getBillingCompanyName(agreement.billingCompanyId)}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t.collaborators.fields.contractNumber}: </span>
+                        {agreement.contractNumber || "-"}
+                      </div>
+                      <div>
+                        <Badge variant={agreement.isValid ? "default" : "secondary"}>
+                          {agreement.isValid ? t.common.active : t.common.inactive}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button size="icon" variant="ghost" onClick={() => handleEdit(agreement)} data-testid={`button-edit-agreement-${agreement.id}`}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(agreement.id)} data-testid={`button-delete-agreement-${agreement.id}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">{t.collaborators.fields.billingCompany}: </span>
-                      {getBillingCompanyName(agreement.billingCompanyId)}
+                      <span className="text-muted-foreground">{t.collaborators.fields.validFrom}: </span>
+                      {formatDate(agreement.validFromDay, agreement.validFromMonth, agreement.validFromYear)}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">{t.collaborators.fields.contractNumber}: </span>
-                      {agreement.contractNumber || "-"}
+                      <span className="text-muted-foreground">{t.collaborators.fields.validTo}: </span>
+                      {formatDate(agreement.validToDay, agreement.validToMonth, agreement.validToYear)}
                     </div>
                     <div>
-                      <Badge variant={agreement.isValid ? "default" : "secondary"}>
-                        {agreement.isValid ? t.common.active : t.common.inactive}
-                      </Badge>
+                      <span className="text-muted-foreground">{t.collaborators.fields.agreementSent}: </span>
+                      {formatDate(agreement.agreementSentDay, agreement.agreementSentMonth, agreement.agreementSentYear)}
                     </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button size="icon" variant="ghost" onClick={() => handleEdit(agreement)} data-testid={`button-edit-agreement-${agreement.id}`}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(agreement.id)} data-testid={`button-delete-agreement-${agreement.id}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div>
+                      <span className="text-muted-foreground">{t.collaborators.fields.agreementReturned}: </span>
+                      {formatDate(agreement.agreementReturnedDay, agreement.agreementReturnedMonth, agreement.agreementReturnedYear)}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      {agreement.fileName ? (
+                        <>
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{agreement.fileName}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => window.open(`/api/collaborators/${collaboratorId}/agreements/${agreement.id}/file`, "_blank")}
+                            data-testid={`button-view-file-${agreement.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => window.open(`/api/collaborators/${collaboratorId}/agreements/${agreement.id}/download`, "_blank")}
+                            data-testid={`button-download-file-${agreement.id}`}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">{t.collaborators.noFile}</span>
+                      )}
+                    </div>
+                    <div>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(agreement.id, file);
+                          }}
+                          disabled={uploadingFile}
+                          data-testid={`input-upload-file-${agreement.id}`}
+                        />
+                        <Button variant="outline" size="sm" disabled={uploadingFile} asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploadingFile ? t.common.loading : t.collaborators.uploadAgreement}
+                          </span>
+                        </Button>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -1384,6 +1500,10 @@ export default function CollaboratorsPage() {
   const { user } = useAuth();
   const { selectedCountries } = useCountryFilter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | undefined>();
@@ -1412,11 +1532,20 @@ export default function CollaboratorsPage() {
     },
   });
 
-  const filteredCollaborators = collaborators.filter((c) =>
-    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCollaborators = collaborators.filter((c) => {
+    const nameMatch = `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase());
+    const emailMatch = c.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const phoneMatch = c.phone?.toLowerCase().includes(searchQuery.toLowerCase()) || c.mobile?.toLowerCase().includes(searchQuery.toLowerCase());
+    const textMatch = searchQuery === "" || nameMatch || emailMatch || phoneMatch;
+    
+    const countryMatch = filterCountry === "" || c.countryCode === filterCountry;
+    const typeMatch = filterType === "" || c.collaboratorType === filterType;
+    const statusMatch = filterStatus === "" || 
+      (filterStatus === "active" && c.isActive) || 
+      (filterStatus === "inactive" && !c.isActive);
+    
+    return textMatch && countryMatch && typeMatch && statusMatch;
+  });
 
   const getCollaboratorTypeName = (type: string | null) => {
     if (!type) return "-";
@@ -1519,17 +1648,111 @@ export default function CollaboratorsPage() {
 
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t.collaborators.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-collaborators"
-              />
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t.collaborators.searchPlaceholder}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-collaborators"
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                data-testid="button-toggle-filters"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {t.common.filter}
+              </Button>
             </div>
+            {showFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{t.common.country}</Label>
+                  <Select value={filterCountry || "_all"} onValueChange={(val) => setFilterCountry(val === "_all" ? "" : val)}>
+                    <SelectTrigger data-testid="select-filter-country">
+                      <SelectValue placeholder={t.common.all} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">{t.common.all}</SelectItem>
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {getCountryFlag(c.code)} {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.collaborators.fields.collaboratorType}</Label>
+                  <Select value={filterType || "_all"} onValueChange={(val) => setFilterType(val === "_all" ? "" : val)}>
+                    <SelectTrigger data-testid="select-filter-type">
+                      <SelectValue placeholder={t.common.all} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">{t.common.all}</SelectItem>
+                      {COLLABORATOR_TYPES.map((ct) => (
+                        <SelectItem key={ct.value} value={ct.value}>
+                          {t.collaborators.types[ct.labelKey] || ct.value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t.common.status}</Label>
+                  <Select value={filterStatus || "_all"} onValueChange={(val) => setFilterStatus(val === "_all" ? "" : val)}>
+                    <SelectTrigger data-testid="select-filter-status">
+                      <SelectValue placeholder={t.common.all} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">{t.common.all}</SelectItem>
+                      <SelectItem value="active">{t.common.active}</SelectItem>
+                      <SelectItem value="inactive">{t.common.inactive}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            {(filterCountry || filterType || filterStatus) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground">{t.common.activeFilters}:</span>
+                {filterCountry && (
+                  <Badge variant="secondary" className="gap-1">
+                    {getCountryFlag(filterCountry)} {getCountryName(filterCountry)}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterCountry("")} />
+                  </Badge>
+                )}
+                {filterType && (
+                  <Badge variant="secondary" className="gap-1">
+                    {t.collaborators.types[COLLABORATOR_TYPES.find(ct => ct.value === filterType)?.labelKey || ""] || filterType}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterType("")} />
+                  </Badge>
+                )}
+                {filterStatus && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterStatus === "active" ? t.common.active : t.common.inactive}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterStatus("")} />
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterCountry("");
+                    setFilterType("");
+                    setFilterStatus("");
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  {t.common.clearAll}
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>

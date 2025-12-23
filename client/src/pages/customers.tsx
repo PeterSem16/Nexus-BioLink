@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { CustomerForm, type CustomerFormData } from "@/components/customer-form";
-import { PotentialCaseForm } from "@/components/potential-case-form";
+import { PotentialCaseForm, EmbeddedPotentialCaseForm } from "@/components/potential-case-form";
 import { useCountryFilter } from "@/contexts/country-filter-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -145,15 +145,6 @@ function CustomerDetailsContent({
     queryFn: async () => {
       const res = await fetch(`/api/customers/${customer.id}/messages`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch messages");
-      return res.json();
-    },
-  });
-
-  const { data: potentialCase, isLoading: potentialCaseLoading } = useQuery<CustomerPotentialCase | null>({
-    queryKey: ["/api/customers", customer.id, "potential-case"],
-    queryFn: async () => {
-      const res = await fetch(`/api/customers/${customer.id}/potential-case`, { credentials: "include" });
-      if (!res.ok) return null;
       return res.json();
     },
   });
@@ -579,170 +570,8 @@ function CustomerDetailsContent({
         </TabsContent>
 
         {customer.clientStatus === "acquired" && (
-          <TabsContent value="potential" className="space-y-6 mt-4">
-            {potentialCaseLoading ? (
-              <p className="text-sm text-muted-foreground">Loading case data...</p>
-            ) : !potentialCase ? (
-              <p className="text-sm text-muted-foreground">No case data available yet.</p>
-            ) : (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <Baby className="h-4 w-4" />
-                    Status
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Case Status</p>
-                      <p className="mt-1">{potentialCase.caseStatus || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Collection</h4>
-                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Expected Date</p>
-                      <p className="mt-1">
-                        {potentialCase.expectedDateDay && potentialCase.expectedDateMonth && potentialCase.expectedDateYear 
-                          ? `${potentialCase.expectedDateDay}.${potentialCase.expectedDateMonth}.${potentialCase.expectedDateYear}` 
-                          : "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Hospital</p>
-                      <p className="mt-1">{potentialCase.hospitalId || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Obstetrician</p>
-                      <p className="mt-1">{potentialCase.obstetricianId || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Multiple Pregnancy</p>
-                      <p className="mt-1">{potentialCase.isMultiplePregnancy ? "Yes" : "No"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Child Count</p>
-                      <p className="mt-1">{potentialCase.childCount || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Father Information</h4>
-                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Name</p>
-                      <p className="mt-1">
-                        {potentialCase.fatherTitleBefore} {potentialCase.fatherFirstName} {potentialCase.fatherLastName} {potentialCase.fatherTitleAfter || ""}
-                        {!potentialCase.fatherFirstName && !potentialCase.fatherLastName && "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                      <p className="mt-1">{potentialCase.fatherPhone || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Mobile</p>
-                      <p className="mt-1">{potentialCase.fatherMobile || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Email</p>
-                      <p className="mt-1">{potentialCase.fatherEmail || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Street</p>
-                      <p className="mt-1">{potentialCase.fatherStreet || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">City</p>
-                      <p className="mt-1">{potentialCase.fatherCity || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Postal Code</p>
-                      <p className="mt-1">{potentialCase.fatherPostalCode || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Region</p>
-                      <p className="mt-1">{potentialCase.fatherRegion || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Country</p>
-                      <p className="mt-1">{potentialCase.fatherCountry || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Product & Contract</h4>
-                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Product</p>
-                      <p className="mt-1">{potentialCase.productId || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Product Type</p>
-                      <p className="mt-1">{potentialCase.productType || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Payment Type</p>
-                      <p className="mt-1">{potentialCase.paymentType || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Gift Voucher</p>
-                      <p className="mt-1">{potentialCase.giftVoucher || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Contact Date</p>
-                      <p className="mt-1">
-                        {potentialCase.contactDateDay && potentialCase.contactDateMonth && potentialCase.contactDateYear 
-                          ? `${potentialCase.contactDateDay}.${potentialCase.contactDateMonth}.${potentialCase.contactDateYear}` 
-                          : "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Existing Contracts</p>
-                      <p className="mt-1">{potentialCase.existingContracts || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Recruiting</p>
-                      <p className="mt-1">{potentialCase.recruiting || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Marketing & Sales</h4>
-                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Sales Channel</p>
-                      <p className="mt-1">{potentialCase.salesChannel || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Info Source</p>
-                      <p className="mt-1">{potentialCase.infoSource || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Marketing Action</p>
-                      <p className="mt-1">{potentialCase.marketingAction || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Marketing Code</p>
-                      <p className="mt-1">{potentialCase.marketingCode || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Newsletter Opt-In</p>
-                      <p className="mt-1">{potentialCase.newsletterOptIn ? "Yes" : "No"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                      <p className="mt-1">{potentialCase.notes || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+          <TabsContent value="potential" className="mt-4">
+            <EmbeddedPotentialCaseForm customer={customer} />
           </TabsContent>
         )}
 

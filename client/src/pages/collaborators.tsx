@@ -1,0 +1,1597 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Plus, Pencil, Trash2, Search, User, MapPin, FileText, Award, Gift, Activity, ClipboardList, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
+import { DataTable } from "@/components/data-table";
+import { useCountryFilter } from "@/contexts/country-filter-context";
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getCountryFlag, getCountryName } from "@/lib/countries";
+import type { 
+  Collaborator, 
+  CollaboratorAddress, 
+  CollaboratorOtherData, 
+  CollaboratorAgreement,
+  SafeUser,
+  Hospital,
+  HealthInsurance,
+  BillingDetails,
+} from "@shared/schema";
+import { 
+  COUNTRIES, 
+  WORLD_COUNTRIES,
+  COLLABORATOR_TYPES, 
+  MARITAL_STATUSES, 
+  REWARD_TYPES, 
+  ADDRESS_TYPES,
+} from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+
+interface CollaboratorFormData {
+  countryCode: string;
+  titleBefore: string;
+  firstName: string;
+  lastName: string;
+  maidenName: string;
+  titleAfter: string;
+  birthNumber: string;
+  birthDay: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
+  birthPlace: string;
+  healthInsuranceId: string;
+  maritalStatus: string;
+  collaboratorType: string;
+  phone: string;
+  mobile: string;
+  mobile2: string;
+  otherContact: string;
+  email: string;
+  bankAccountIban: string;
+  swiftCode: string;
+  clientContact: boolean;
+  representativeId: string;
+  isActive: boolean;
+  svetZdravia: boolean;
+  companyName: string;
+  ico: string;
+  dic: string;
+  icDph: string;
+  companyIban: string;
+  companySwift: string;
+  monthRewards: boolean;
+  note: string;
+  hospitalId: string;
+}
+
+const defaultFormData: CollaboratorFormData = {
+  countryCode: "",
+  titleBefore: "",
+  firstName: "",
+  lastName: "",
+  maidenName: "",
+  titleAfter: "",
+  birthNumber: "",
+  birthDay: null,
+  birthMonth: null,
+  birthYear: null,
+  birthPlace: "",
+  healthInsuranceId: "",
+  maritalStatus: "",
+  collaboratorType: "",
+  phone: "",
+  mobile: "",
+  mobile2: "",
+  otherContact: "",
+  email: "",
+  bankAccountIban: "",
+  swiftCode: "",
+  clientContact: false,
+  representativeId: "",
+  isActive: true,
+  svetZdravia: false,
+  companyName: "",
+  ico: "",
+  dic: "",
+  icDph: "",
+  companyIban: "",
+  companySwift: "",
+  monthRewards: false,
+  note: "",
+  hospitalId: "",
+};
+
+interface AddressFormData {
+  name: string;
+  streetNumber: string;
+  postalCode: string;
+  region: string;
+  countryCode: string;
+}
+
+const defaultAddressData: AddressFormData = {
+  name: "",
+  streetNumber: "",
+  postalCode: "",
+  region: "",
+  countryCode: "",
+};
+
+interface OtherDataFormData {
+  ztpDay: number | null;
+  ztpMonth: number | null;
+  ztpYear: number | null;
+  oldAgePensionDay: number | null;
+  oldAgePensionMonth: number | null;
+  oldAgePensionYear: number | null;
+  disabilityPensionDay: number | null;
+  disabilityPensionMonth: number | null;
+  disabilityPensionYear: number | null;
+  widowPensionDay: number | null;
+  widowPensionMonth: number | null;
+  widowPensionYear: number | null;
+}
+
+const defaultOtherData: OtherDataFormData = {
+  ztpDay: null,
+  ztpMonth: null,
+  ztpYear: null,
+  oldAgePensionDay: null,
+  oldAgePensionMonth: null,
+  oldAgePensionYear: null,
+  disabilityPensionDay: null,
+  disabilityPensionMonth: null,
+  disabilityPensionYear: null,
+  widowPensionDay: null,
+  widowPensionMonth: null,
+  widowPensionYear: null,
+};
+
+function DateFields({
+  label,
+  dayValue,
+  monthValue,
+  yearValue,
+  onDayChange,
+  onMonthChange,
+  onYearChange,
+  testIdPrefix,
+  t,
+}: {
+  label: string;
+  dayValue: number | null;
+  monthValue: number | null;
+  yearValue: number | null;
+  onDayChange: (val: number | null) => void;
+  onMonthChange: (val: number | null) => void;
+  onYearChange: (val: number | null) => void;
+  testIdPrefix: string;
+  t: any;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="grid grid-cols-3 gap-2">
+        <Input
+          type="number"
+          placeholder={t.collaborators.fields.day}
+          value={dayValue ?? ""}
+          onChange={(e) => onDayChange(e.target.value ? parseInt(e.target.value) : null)}
+          min={1}
+          max={31}
+          data-testid={`input-${testIdPrefix}-day`}
+        />
+        <Input
+          type="number"
+          placeholder={t.collaborators.fields.month}
+          value={monthValue ?? ""}
+          onChange={(e) => onMonthChange(e.target.value ? parseInt(e.target.value) : null)}
+          min={1}
+          max={12}
+          data-testid={`input-${testIdPrefix}-month`}
+        />
+        <Input
+          type="number"
+          placeholder={t.collaborators.fields.year}
+          value={yearValue ?? ""}
+          onChange={(e) => onYearChange(e.target.value ? parseInt(e.target.value) : null)}
+          min={1900}
+          max={2100}
+          data-testid={`input-${testIdPrefix}-year`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AddressTab({
+  addressType,
+  collaboratorId,
+  t,
+}: {
+  addressType: string;
+  collaboratorId: string;
+  t: any;
+}) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState<AddressFormData>(defaultAddressData);
+
+  const { data: addressData } = useQuery<CollaboratorAddress[]>({
+    queryKey: ["/api/collaborators", collaboratorId, "addresses"],
+    queryFn: async () => {
+      const res = await fetch(`/api/collaborators/${collaboratorId}/addresses`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!collaboratorId,
+  });
+
+  useEffect(() => {
+    if (addressData) {
+      const addr = addressData.find((a) => a.addressType === addressType);
+      if (addr) {
+        setFormData({
+          name: addr.name || "",
+          streetNumber: addr.streetNumber || "",
+          postalCode: addr.postalCode || "",
+          region: addr.region || "",
+          countryCode: addr.countryCode || "",
+        });
+      } else {
+        setFormData(defaultAddressData);
+      }
+    }
+  }, [addressData, addressType]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data: AddressFormData) => {
+      return apiRequest("PUT", `/api/collaborators/${collaboratorId}/addresses/${addressType}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "addresses"] });
+      toast({ title: t.success.saved });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate(formData);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.name}</Label>
+          <Input
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            data-testid={`input-address-${addressType}-name`}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.streetNumber}</Label>
+          <Input
+            value={formData.streetNumber}
+            onChange={(e) => setFormData({ ...formData, streetNumber: e.target.value })}
+            data-testid={`input-address-${addressType}-street`}
+          />
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.postalCode}</Label>
+          <Input
+            value={formData.postalCode}
+            onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+            data-testid={`input-address-${addressType}-postal`}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.addressRegion}</Label>
+          <Input
+            value={formData.region}
+            onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+            data-testid={`input-address-${addressType}-region`}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.addressCountry}</Label>
+          <Select
+            value={formData.countryCode || "_none"}
+            onValueChange={(value) => setFormData({ ...formData, countryCode: value === "_none" ? "" : value })}
+          >
+            <SelectTrigger data-testid={`select-address-${addressType}-country`}>
+              <SelectValue placeholder={t.collaborators.fields.addressCountry} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">{t.common.noData}</SelectItem>
+              {WORLD_COUNTRIES.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid={`button-save-address-${addressType}`}>
+          {saveMutation.isPending ? t.common.loading : t.common.save}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OtherDataTab({
+  collaboratorId,
+  t,
+}: {
+  collaboratorId: string;
+  t: any;
+}) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState<OtherDataFormData>(defaultOtherData);
+
+  const { data: otherData } = useQuery<CollaboratorOtherData | null>({
+    queryKey: ["/api/collaborators", collaboratorId, "other-data"],
+    queryFn: async () => {
+      const res = await fetch(`/api/collaborators/${collaboratorId}/other-data`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!collaboratorId,
+  });
+
+  useEffect(() => {
+    if (otherData) {
+      setFormData({
+        ztpDay: otherData.ztpDay,
+        ztpMonth: otherData.ztpMonth,
+        ztpYear: otherData.ztpYear,
+        oldAgePensionDay: otherData.oldAgePensionDay,
+        oldAgePensionMonth: otherData.oldAgePensionMonth,
+        oldAgePensionYear: otherData.oldAgePensionYear,
+        disabilityPensionDay: otherData.disabilityPensionDay,
+        disabilityPensionMonth: otherData.disabilityPensionMonth,
+        disabilityPensionYear: otherData.disabilityPensionYear,
+        widowPensionDay: otherData.widowPensionDay,
+        widowPensionMonth: otherData.widowPensionMonth,
+        widowPensionYear: otherData.widowPensionYear,
+      });
+    }
+  }, [otherData]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data: OtherDataFormData) => {
+      return apiRequest("PUT", `/api/collaborators/${collaboratorId}/other-data`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "other-data"] });
+      toast({ title: t.success.saved });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate(formData);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <DateFields
+          label={t.collaborators.fields.ztpFrom}
+          dayValue={formData.ztpDay}
+          monthValue={formData.ztpMonth}
+          yearValue={formData.ztpYear}
+          onDayChange={(val) => setFormData({ ...formData, ztpDay: val })}
+          onMonthChange={(val) => setFormData({ ...formData, ztpMonth: val })}
+          onYearChange={(val) => setFormData({ ...formData, ztpYear: val })}
+          testIdPrefix="ztp"
+          t={t}
+        />
+        <DateFields
+          label={t.collaborators.fields.oldAgePension}
+          dayValue={formData.oldAgePensionDay}
+          monthValue={formData.oldAgePensionMonth}
+          yearValue={formData.oldAgePensionYear}
+          onDayChange={(val) => setFormData({ ...formData, oldAgePensionDay: val })}
+          onMonthChange={(val) => setFormData({ ...formData, oldAgePensionMonth: val })}
+          onYearChange={(val) => setFormData({ ...formData, oldAgePensionYear: val })}
+          testIdPrefix="oldAgePension"
+          t={t}
+        />
+        <DateFields
+          label={t.collaborators.fields.disabilityPension}
+          dayValue={formData.disabilityPensionDay}
+          monthValue={formData.disabilityPensionMonth}
+          yearValue={formData.disabilityPensionYear}
+          onDayChange={(val) => setFormData({ ...formData, disabilityPensionDay: val })}
+          onMonthChange={(val) => setFormData({ ...formData, disabilityPensionMonth: val })}
+          onYearChange={(val) => setFormData({ ...formData, disabilityPensionYear: val })}
+          testIdPrefix="disabilityPension"
+          t={t}
+        />
+        <DateFields
+          label={t.collaborators.fields.widowPension}
+          dayValue={formData.widowPensionDay}
+          monthValue={formData.widowPensionMonth}
+          yearValue={formData.widowPensionYear}
+          onDayChange={(val) => setFormData({ ...formData, widowPensionDay: val })}
+          onMonthChange={(val) => setFormData({ ...formData, widowPensionMonth: val })}
+          onYearChange={(val) => setFormData({ ...formData, widowPensionYear: val })}
+          testIdPrefix="widowPension"
+          t={t}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-other-data">
+          {saveMutation.isPending ? t.common.loading : t.common.save}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AgreementsTab({
+  collaboratorId,
+  collaboratorCountry,
+  t,
+}: {
+  collaboratorId: string;
+  collaboratorCountry: string;
+  t: any;
+}) {
+  const { toast } = useToast();
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    billingCompanyId: "",
+    contractNumber: "",
+    validFrom: "",
+    validTo: "",
+    isValid: true,
+    agreementSentAt: "",
+    agreementReturnedAt: "",
+    agreementForm: "",
+    rewardTypes: [] as string[],
+  });
+
+  const { data: agreements = [] } = useQuery<CollaboratorAgreement[]>({
+    queryKey: ["/api/collaborators", collaboratorId, "agreements"],
+    queryFn: async () => {
+      const res = await fetch(`/api/collaborators/${collaboratorId}/agreements`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!collaboratorId,
+  });
+
+  const { data: billingCompanies = [] } = useQuery<BillingDetails[]>({
+    queryKey: ["/api/billing-details", collaboratorCountry],
+    queryFn: async () => {
+      const res = await fetch(`/api/billing-details?country=${collaboratorCountry}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!collaboratorCountry,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (data: typeof formData) => {
+      const payload = {
+        ...data,
+        validFrom: data.validFrom ? new Date(data.validFrom) : null,
+        validTo: data.validTo ? new Date(data.validTo) : null,
+        agreementSentAt: data.agreementSentAt ? new Date(data.agreementSentAt) : null,
+        agreementReturnedAt: data.agreementReturnedAt ? new Date(data.agreementReturnedAt) : null,
+      };
+      if (editingId) {
+        return apiRequest("PUT", `/api/collaborators/${collaboratorId}/agreements/${editingId}`, payload);
+      }
+      return apiRequest("POST", `/api/collaborators/${collaboratorId}/agreements`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "agreements"] });
+      toast({ title: t.success.saved });
+      setIsAddingNew(false);
+      setEditingId(null);
+      resetForm();
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (agreementId: string) => {
+      return apiRequest("DELETE", `/api/collaborators/${collaboratorId}/agreements/${agreementId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators", collaboratorId, "agreements"] });
+      toast({ title: t.success.deleted });
+    },
+    onError: () => {
+      toast({ title: t.errors.deleteFailed, variant: "destructive" });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      billingCompanyId: "",
+      contractNumber: "",
+      validFrom: "",
+      validTo: "",
+      isValid: true,
+      agreementSentAt: "",
+      agreementReturnedAt: "",
+      agreementForm: "",
+      rewardTypes: [],
+    });
+  };
+
+  const handleEdit = (agreement: CollaboratorAgreement) => {
+    setEditingId(agreement.id);
+    setFormData({
+      billingCompanyId: agreement.billingCompanyId || "",
+      contractNumber: agreement.contractNumber || "",
+      validFrom: agreement.validFrom ? new Date(agreement.validFrom).toISOString().split("T")[0] : "",
+      validTo: agreement.validTo ? new Date(agreement.validTo).toISOString().split("T")[0] : "",
+      isValid: agreement.isValid,
+      agreementSentAt: agreement.agreementSentAt ? new Date(agreement.agreementSentAt).toISOString().split("T")[0] : "",
+      agreementReturnedAt: agreement.agreementReturnedAt ? new Date(agreement.agreementReturnedAt).toISOString().split("T")[0] : "",
+      agreementForm: agreement.agreementForm || "",
+      rewardTypes: agreement.rewardTypes || [],
+    });
+    setIsAddingNew(true);
+  };
+
+  const toggleRewardType = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      rewardTypes: prev.rewardTypes.includes(value)
+        ? prev.rewardTypes.filter((r) => r !== value)
+        : [...prev.rewardTypes, value],
+    }));
+  };
+
+  const getBillingCompanyName = (id: string | null) => {
+    if (!id) return "-";
+    return billingCompanies.find((bc) => bc.id === id)?.companyName || "-";
+  };
+
+  if (isAddingNew || editingId) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.billingCompany}</Label>
+            <Select
+              value={formData.billingCompanyId || "_none"}
+              onValueChange={(value) => setFormData({ ...formData, billingCompanyId: value === "_none" ? "" : value })}
+            >
+              <SelectTrigger data-testid="select-agreement-billing">
+                <SelectValue placeholder={t.collaborators.fields.billingCompany} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">{t.common.noData}</SelectItem>
+                {billingCompanies.map((bc) => (
+                  <SelectItem key={bc.id} value={bc.id}>
+                    {bc.companyName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.contractNumber}</Label>
+            <Input
+              value={formData.contractNumber}
+              onChange={(e) => setFormData({ ...formData, contractNumber: e.target.value })}
+              data-testid="input-agreement-contract"
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.validFrom}</Label>
+            <Input
+              type="date"
+              value={formData.validFrom}
+              onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
+              data-testid="input-agreement-valid-from"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.validTo}</Label>
+            <Input
+              type="date"
+              value={formData.validTo}
+              onChange={(e) => setFormData({ ...formData, validTo: e.target.value })}
+              data-testid="input-agreement-valid-to"
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.agreementSent}</Label>
+            <Input
+              type="date"
+              value={formData.agreementSentAt}
+              onChange={(e) => setFormData({ ...formData, agreementSentAt: e.target.value })}
+              data-testid="input-agreement-sent"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.agreementReturned}</Label>
+            <Input
+              type="date"
+              value={formData.agreementReturnedAt}
+              onChange={(e) => setFormData({ ...formData, agreementReturnedAt: e.target.value })}
+              data-testid="input-agreement-returned"
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.agreementForm}</Label>
+            <Input
+              value={formData.agreementForm}
+              onChange={(e) => setFormData({ ...formData, agreementForm: e.target.value })}
+              data-testid="input-agreement-form"
+            />
+          </div>
+          <div className="flex items-center space-x-2 pt-6">
+            <Switch
+              checked={formData.isValid}
+              onCheckedChange={(checked) => setFormData({ ...formData, isValid: checked })}
+              data-testid="switch-agreement-valid"
+            />
+            <Label>{t.collaborators.fields.isValid}</Label>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.rewardTypes}</Label>
+          <div className="flex flex-wrap gap-2">
+            {REWARD_TYPES.map((rt) => (
+              <Badge
+                key={rt.value}
+                variant={formData.rewardTypes.includes(rt.value) ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleRewardType(rt.value)}
+                data-testid={`badge-reward-${rt.value}`}
+              >
+                {t.collaborators.rewardTypes[rt.labelKey] || rt.value}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>{t.collaborators.fields.uploadFile}</Label>
+          <div className="flex items-center gap-2 p-4 border rounded-md border-dashed">
+            <Upload className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{t.collaborators.comingSoon}</span>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsAddingNew(false);
+              setEditingId(null);
+              resetForm();
+            }}
+            data-testid="button-cancel-agreement"
+          >
+            {t.common.cancel}
+          </Button>
+          <Button onClick={() => saveMutation.mutate(formData)} disabled={saveMutation.isPending} data-testid="button-save-agreement">
+            {saveMutation.isPending ? t.common.loading : t.common.save}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setIsAddingNew(true)} data-testid="button-add-agreement">
+          <Plus className="h-4 w-4 mr-2" />
+          {t.common.add}
+        </Button>
+      </div>
+      {agreements.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">{t.common.noData}</div>
+      ) : (
+        <div className="space-y-2">
+          {agreements.map((agreement) => (
+            <Card key={agreement.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">{t.collaborators.fields.billingCompany}: </span>
+                      {getBillingCompanyName(agreement.billingCompanyId)}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">{t.collaborators.fields.contractNumber}: </span>
+                      {agreement.contractNumber || "-"}
+                    </div>
+                    <div>
+                      <Badge variant={agreement.isValid ? "default" : "secondary"}>
+                        {agreement.isValid ? t.common.active : t.common.inactive}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button size="icon" variant="ghost" onClick={() => handleEdit(agreement)} data-testid={`button-edit-agreement-${agreement.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(agreement.id)} data-testid={`button-delete-agreement-${agreement.id}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CollaboratorForm({
+  collaborator,
+  onClose,
+  onSuccess,
+}: {
+  collaborator?: Collaborator;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const [activeFormTab, setActiveFormTab] = useState("collaborator");
+  const [activeAddressTab, setActiveAddressTab] = useState("permanent");
+
+  const [formData, setFormData] = useState<CollaboratorFormData>(() =>
+    collaborator
+      ? {
+          countryCode: collaborator.countryCode,
+          titleBefore: collaborator.titleBefore || "",
+          firstName: collaborator.firstName,
+          lastName: collaborator.lastName,
+          maidenName: collaborator.maidenName || "",
+          titleAfter: collaborator.titleAfter || "",
+          birthNumber: collaborator.birthNumber || "",
+          birthDay: collaborator.birthDay,
+          birthMonth: collaborator.birthMonth,
+          birthYear: collaborator.birthYear,
+          birthPlace: collaborator.birthPlace || "",
+          healthInsuranceId: collaborator.healthInsuranceId || "",
+          maritalStatus: collaborator.maritalStatus || "",
+          collaboratorType: collaborator.collaboratorType || "",
+          phone: collaborator.phone || "",
+          mobile: collaborator.mobile || "",
+          mobile2: collaborator.mobile2 || "",
+          otherContact: collaborator.otherContact || "",
+          email: collaborator.email || "",
+          bankAccountIban: collaborator.bankAccountIban || "",
+          swiftCode: collaborator.swiftCode || "",
+          clientContact: collaborator.clientContact,
+          representativeId: collaborator.representativeId || "",
+          isActive: collaborator.isActive,
+          svetZdravia: collaborator.svetZdravia,
+          companyName: collaborator.companyName || "",
+          ico: collaborator.ico || "",
+          dic: collaborator.dic || "",
+          icDph: collaborator.icDph || "",
+          companyIban: collaborator.companyIban || "",
+          companySwift: collaborator.companySwift || "",
+          monthRewards: collaborator.monthRewards,
+          note: collaborator.note || "",
+          hospitalId: collaborator.hospitalId || "",
+        }
+      : defaultFormData
+  );
+
+  const { data: users = [] } = useQuery<SafeUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: healthInsurances = [] } = useQuery<HealthInsurance[]>({
+    queryKey: ["/api/config/health-insurance"],
+  });
+
+  const { data: hospitals = [] } = useQuery<Hospital[]>({
+    queryKey: ["/api/hospitals"],
+  });
+
+  const filteredHealthInsurances = formData.countryCode
+    ? healthInsurances.filter((hi) => hi.countryCode === formData.countryCode)
+    : healthInsurances;
+
+  const filteredHospitals = formData.countryCode
+    ? hospitals.filter((h) => h.countryCode === formData.countryCode)
+    : hospitals;
+
+  const saveMutation = useMutation({
+    mutationFn: (data: CollaboratorFormData) => {
+      if (collaborator) {
+        return apiRequest("PUT", `/api/collaborators/${collaborator.id}`, data);
+      } else {
+        return apiRequest("POST", "/api/collaborators", data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators"] });
+      toast({ title: t.success.saved });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.firstName || !formData.lastName || !formData.countryCode) {
+      toast({ title: t.errors.required, variant: "destructive" });
+      return;
+    }
+    saveMutation.mutate(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Tabs value={activeFormTab} onValueChange={setActiveFormTab}>
+        <TabsList className="flex flex-wrap gap-1 h-auto mb-4">
+          <TabsTrigger value="collaborator" data-testid="form-tab-collaborator">
+            <User className="h-4 w-4 mr-2" />
+            {t.collaborators.tabs.collaborator}
+          </TabsTrigger>
+          {collaborator && (
+            <>
+              <TabsTrigger value="addresses" data-testid="form-tab-addresses">
+                <MapPin className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.addresses}
+              </TabsTrigger>
+              <TabsTrigger value="otherData" data-testid="form-tab-other">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.otherData}
+              </TabsTrigger>
+              <TabsTrigger value="agreements" data-testid="form-tab-agreements">
+                <FileText className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.agreements}
+              </TabsTrigger>
+              <TabsTrigger value="templates" data-testid="form-tab-templates">
+                <FileText className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.templates}
+              </TabsTrigger>
+              <TabsTrigger value="rewards" data-testid="form-tab-rewards">
+                <Gift className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.rewards}
+              </TabsTrigger>
+              <TabsTrigger value="actions" data-testid="form-tab-actions">
+                <Activity className="h-4 w-4 mr-2" />
+                {t.collaborators.tabs.actions}
+              </TabsTrigger>
+            </>
+          )}
+        </TabsList>
+
+        <TabsContent value="collaborator" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.country} *</Label>
+              <Select
+                value={formData.countryCode}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, countryCode: value, healthInsuranceId: "", hospitalId: "" })
+                }
+              >
+                <SelectTrigger data-testid="select-collaborator-country">
+                  <SelectValue placeholder={t.collaborators.fields.country} />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {getCountryFlag(country.code)} {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.collaboratorType}</Label>
+              <Select
+                value={formData.collaboratorType || "_none"}
+                onValueChange={(value) => setFormData({ ...formData, collaboratorType: value === "_none" ? "" : value })}
+              >
+                <SelectTrigger data-testid="select-collaborator-type">
+                  <SelectValue placeholder={t.collaborators.fields.collaboratorType} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{t.common.noData}</SelectItem>
+                  {COLLABORATOR_TYPES.map((ct) => (
+                    <SelectItem key={ct.value} value={ct.value}>
+                      {t.collaborators.types[ct.labelKey] || ct.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.titleBefore}</Label>
+              <Input
+                value={formData.titleBefore}
+                onChange={(e) => setFormData({ ...formData, titleBefore: e.target.value })}
+                data-testid="input-collaborator-title-before"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.firstName} *</Label>
+              <Input
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                data-testid="input-collaborator-firstname"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.lastName} *</Label>
+              <Input
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                data-testid="input-collaborator-lastname"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.titleAfter}</Label>
+              <Input
+                value={formData.titleAfter}
+                onChange={(e) => setFormData({ ...formData, titleAfter: e.target.value })}
+                data-testid="input-collaborator-title-after"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.maidenName}</Label>
+              <Input
+                value={formData.maidenName}
+                onChange={(e) => setFormData({ ...formData, maidenName: e.target.value })}
+                data-testid="input-collaborator-maiden"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.birthNumber}</Label>
+              <Input
+                value={formData.birthNumber}
+                onChange={(e) => setFormData({ ...formData, birthNumber: e.target.value })}
+                data-testid="input-collaborator-birth-number"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <DateFields
+              label={t.collaborators.fields.birthDate}
+              dayValue={formData.birthDay}
+              monthValue={formData.birthMonth}
+              yearValue={formData.birthYear}
+              onDayChange={(val) => setFormData({ ...formData, birthDay: val })}
+              onMonthChange={(val) => setFormData({ ...formData, birthMonth: val })}
+              onYearChange={(val) => setFormData({ ...formData, birthYear: val })}
+              testIdPrefix="birth"
+              t={t}
+            />
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.birthPlace}</Label>
+              <Input
+                value={formData.birthPlace}
+                onChange={(e) => setFormData({ ...formData, birthPlace: e.target.value })}
+                data-testid="input-collaborator-birth-place"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.healthInsurance}</Label>
+              <Select
+                value={formData.healthInsuranceId || "_none"}
+                onValueChange={(value) => setFormData({ ...formData, healthInsuranceId: value === "_none" ? "" : value })}
+              >
+                <SelectTrigger data-testid="select-collaborator-insurance">
+                  <SelectValue placeholder={t.collaborators.fields.healthInsurance} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{t.common.noData}</SelectItem>
+                  {filteredHealthInsurances.map((hi) => (
+                    <SelectItem key={hi.id} value={hi.id}>
+                      {hi.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.maritalStatus}</Label>
+              <Select
+                value={formData.maritalStatus || "_none"}
+                onValueChange={(value) => setFormData({ ...formData, maritalStatus: value === "_none" ? "" : value })}
+              >
+                <SelectTrigger data-testid="select-collaborator-marital">
+                  <SelectValue placeholder={t.collaborators.fields.maritalStatus} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{t.common.noData}</SelectItem>
+                  {MARITAL_STATUSES.map((ms) => (
+                    <SelectItem key={ms.value} value={ms.value}>
+                      {t.collaborators.maritalStatuses[ms.labelKey] || ms.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.phone}</Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                data-testid="input-collaborator-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.mobile}</Label>
+              <Input
+                value={formData.mobile}
+                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                data-testid="input-collaborator-mobile"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.mobile2}</Label>
+              <Input
+                value={formData.mobile2}
+                onChange={(e) => setFormData({ ...formData, mobile2: e.target.value })}
+                data-testid="input-collaborator-mobile2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.otherContact}</Label>
+              <Input
+                value={formData.otherContact}
+                onChange={(e) => setFormData({ ...formData, otherContact: e.target.value })}
+                data-testid="input-collaborator-other-contact"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.email}</Label>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              data-testid="input-collaborator-email"
+            />
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.bankAccountIban}</Label>
+              <Input
+                value={formData.bankAccountIban}
+                onChange={(e) => setFormData({ ...formData, bankAccountIban: e.target.value })}
+                data-testid="input-collaborator-iban"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.swiftCode}</Label>
+              <Input
+                value={formData.swiftCode}
+                onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value })}
+                data-testid="input-collaborator-swift"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.representative}</Label>
+              <Select
+                value={formData.representativeId || "_none"}
+                onValueChange={(value) => setFormData({ ...formData, representativeId: value === "_none" ? "" : value })}
+              >
+                <SelectTrigger data-testid="select-collaborator-representative">
+                  <SelectValue placeholder={t.collaborators.fields.representative} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{t.common.noData}</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.hospital}</Label>
+              <Select
+                value={formData.hospitalId || "_none"}
+                onValueChange={(value) => setFormData({ ...formData, hospitalId: value === "_none" ? "" : value })}
+              >
+                <SelectTrigger data-testid="select-collaborator-hospital">
+                  <SelectValue placeholder={t.collaborators.fields.hospital} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">{t.common.noData}</SelectItem>
+                  {filteredHospitals.map((h) => (
+                    <SelectItem key={h.id} value={h.id}>
+                      {h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.isActive}
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                data-testid="switch-collaborator-active"
+              />
+              <Label>{t.collaborators.fields.active}</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.clientContact}
+                onCheckedChange={(checked) => setFormData({ ...formData, clientContact: checked })}
+                data-testid="switch-collaborator-client-contact"
+              />
+              <Label>{t.collaborators.fields.clientContact}</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.svetZdravia}
+                onCheckedChange={(checked) => setFormData({ ...formData, svetZdravia: checked })}
+                data-testid="switch-collaborator-svet-zdravia"
+              />
+              <Label>{t.collaborators.fields.svetZdravia}</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.monthRewards}
+                onCheckedChange={(checked) => setFormData({ ...formData, monthRewards: checked })}
+                data-testid="switch-collaborator-month-rewards"
+              />
+              <Label>{t.collaborators.fields.monthRewards}</Label>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.companyName}</Label>
+              <Input
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                data-testid="input-collaborator-company-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.ico}</Label>
+              <Input
+                value={formData.ico}
+                onChange={(e) => setFormData({ ...formData, ico: e.target.value })}
+                data-testid="input-collaborator-ico"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.dic}</Label>
+              <Input
+                value={formData.dic}
+                onChange={(e) => setFormData({ ...formData, dic: e.target.value })}
+                data-testid="input-collaborator-dic"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.icDph}</Label>
+              <Input
+                value={formData.icDph}
+                onChange={(e) => setFormData({ ...formData, icDph: e.target.value })}
+                data-testid="input-collaborator-ic-dph"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.companyIban}</Label>
+              <Input
+                value={formData.companyIban}
+                onChange={(e) => setFormData({ ...formData, companyIban: e.target.value })}
+                data-testid="input-collaborator-company-iban"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t.collaborators.fields.companySwift}</Label>
+              <Input
+                value={formData.companySwift}
+                onChange={(e) => setFormData({ ...formData, companySwift: e.target.value })}
+                data-testid="input-collaborator-company-swift"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t.collaborators.fields.note}</Label>
+            <Textarea
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              rows={3}
+              data-testid="textarea-collaborator-note"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel-collaborator">
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" disabled={saveMutation.isPending} data-testid="button-save-collaborator">
+              {saveMutation.isPending ? t.collaborators.saving : (collaborator ? t.collaborators.updateCollaborator : t.collaborators.createCollaborator)}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {collaborator && (
+          <>
+            <TabsContent value="addresses">
+              <Tabs value={activeAddressTab} onValueChange={setActiveAddressTab}>
+                <TabsList className="flex flex-wrap gap-1 h-auto mb-4">
+                  {ADDRESS_TYPES.map((at) => (
+                    <TabsTrigger key={at.value} value={at.value} data-testid={`address-tab-${at.value}`}>
+                      {t.collaborators.addressTabs[at.labelKey] || at.value}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {ADDRESS_TYPES.map((at) => (
+                  <TabsContent key={at.value} value={at.value}>
+                    <AddressTab addressType={at.value} collaboratorId={collaborator.id} t={t} />
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </TabsContent>
+
+            <TabsContent value="otherData">
+              <OtherDataTab collaboratorId={collaborator.id} t={t} />
+            </TabsContent>
+
+            <TabsContent value="agreements">
+              <AgreementsTab collaboratorId={collaborator.id} collaboratorCountry={collaborator.countryCode} t={t} />
+            </TabsContent>
+
+            <TabsContent value="templates">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t.collaborators.tabs.templates}</CardTitle>
+                  <CardDescription>{t.collaborators.templatesDesc}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">{t.collaborators.comingSoon}</div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="rewards">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t.collaborators.tabs.rewards}</CardTitle>
+                  <CardDescription>{t.collaborators.rewardsDesc}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">{t.collaborators.comingSoon}</div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="actions">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t.collaborators.tabs.actions}</CardTitle>
+                  <CardDescription>{t.collaborators.actionsDesc}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">{t.collaborators.comingSoon}</div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
+    </form>
+  );
+}
+
+export default function CollaboratorsPage() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { selectedCountries } = useCountryFilter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | undefined>();
+  const [collaboratorToDelete, setCollaboratorToDelete] = useState<Collaborator | null>(null);
+
+  const { data: collaborators = [], isLoading } = useQuery<Collaborator[]>({
+    queryKey: ["/api/collaborators", selectedCountries.join(",")],
+    queryFn: async () => {
+      const params = selectedCountries.length > 0 ? `?countries=${selectedCountries.join(",")}` : "";
+      const res = await fetch(`/api/collaborators${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch collaborators");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/collaborators/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators"] });
+      toast({ title: t.success.deleted });
+      setIsDeleteOpen(false);
+      setCollaboratorToDelete(null);
+    },
+    onError: () => {
+      toast({ title: t.errors.deleteFailed, variant: "destructive" });
+    },
+  });
+
+  const filteredCollaborators = collaborators.filter((c) =>
+    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.phone?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getCollaboratorTypeName = (type: string | null) => {
+    if (!type) return "-";
+    const ct = COLLABORATOR_TYPES.find((c) => c.value === type);
+    return ct ? (t.collaborators.types[ct.labelKey] || type) : type;
+  };
+
+  const handleEdit = (collaborator: Collaborator) => {
+    setSelectedCollaborator(collaborator);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = (collaborator: Collaborator) => {
+    setCollaboratorToDelete(collaborator);
+    setIsDeleteOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setSelectedCollaborator(undefined);
+    setIsFormOpen(true);
+  };
+
+  const columns = [
+    {
+      key: "name",
+      header: t.common.name,
+      cell: (c: Collaborator) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{c.firstName} {c.lastName}</span>
+        </div>
+      ),
+    },
+    {
+      key: "country",
+      header: t.common.country,
+      cell: (c: Collaborator) => (
+        <span>
+          {getCountryFlag(c.countryCode)} {getCountryName(c.countryCode)}
+        </span>
+      ),
+    },
+    {
+      key: "type",
+      header: t.collaborators.fields.collaboratorType,
+      cell: (c: Collaborator) => getCollaboratorTypeName(c.collaboratorType),
+    },
+    {
+      key: "phone",
+      header: t.common.phone,
+      cell: (c: Collaborator) => c.phone || c.mobile || "-",
+    },
+    {
+      key: "email",
+      header: t.common.email,
+      cell: (c: Collaborator) => c.email || "-",
+    },
+    {
+      key: "status",
+      header: t.common.status,
+      cell: (c: Collaborator) => (
+        <Badge variant={c.isActive ? "default" : "secondary"}>
+          {c.isActive ? t.common.active : t.common.inactive}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: t.common.actions,
+      cell: (c: Collaborator) => (
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => handleEdit(c)}
+            data-testid={`button-edit-collaborator-${c.id}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => handleDelete(c)}
+            data-testid={`button-delete-collaborator-${c.id}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title={t.collaborators.title} description={t.collaborators.description}>
+        <Button onClick={handleAddNew} data-testid="button-add-collaborator">
+          <Plus className="h-4 w-4 mr-2" />
+          {t.collaborators.addCollaborator}
+        </Button>
+      </PageHeader>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t.collaborators.searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-collaborators"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : filteredCollaborators.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {t.collaborators.noCollaborators}
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredCollaborators}
+              getRowKey={(c) => c.id}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
+            </DialogDescription>
+          </DialogHeader>
+          <CollaboratorForm
+            collaborator={selectedCollaborator}
+            onClose={() => setIsFormOpen(false)}
+            onSuccess={() => setIsFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.collaborators.deleteCollaborator}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.collaborators.deleteConfirm}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-collaborator">
+              {t.common.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => collaboratorToDelete && deleteMutation.mutate(collaboratorToDelete.id)}
+              data-testid="button-confirm-delete-collaborator"
+            >
+              {t.common.delete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

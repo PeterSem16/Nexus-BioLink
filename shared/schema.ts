@@ -1008,3 +1008,112 @@ export type InsertCollaboratorOtherData = z.infer<typeof insertCollaboratorOther
 export type CollaboratorOtherData = typeof collaboratorOtherData.$inferSelect;
 export type InsertCollaboratorAgreement = z.infer<typeof insertCollaboratorAgreementSchema>;
 export type CollaboratorAgreement = typeof collaboratorAgreements.$inferSelect;
+
+// Customer Potential Cases - extended data for potential clients
+export const customerPotentialCases = pgTable("customer_potential_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().unique(),
+  
+  // Tab Stav (Status)
+  caseStatus: text("case_status"), // Zrealizovaný, Duplikát, Prebieha, Odložený, Nezáujem, Zrušený
+  
+  // Tab Odber (Collection)
+  expectedDateDay: integer("expected_date_day"),
+  expectedDateMonth: integer("expected_date_month"),
+  expectedDateYear: integer("expected_date_year"),
+  hospitalId: varchar("hospital_id"),
+  obstetricianId: varchar("obstetrician_id"),
+  isMultiplePregnancy: boolean("is_multiple_pregnancy").notNull().default(false),
+  childCount: integer("child_count").default(1),
+  
+  // Tab Otec (Father)
+  fatherTitleBefore: text("father_title_before"),
+  fatherFirstName: text("father_first_name"),
+  fatherLastName: text("father_last_name"),
+  fatherTitleAfter: text("father_title_after"),
+  fatherPhone: text("father_phone"),
+  fatherMobile: text("father_mobile"),
+  fatherEmail: text("father_email"),
+  fatherStreet: text("father_street"),
+  fatherCity: text("father_city"),
+  fatherPostalCode: text("father_postal_code"),
+  fatherRegion: text("father_region"),
+  fatherCountry: text("father_country"),
+  
+  // Tab Produkt (Product)
+  productId: varchar("product_id"),
+  productType: text("product_type"),
+  paymentType: text("payment_type"),
+  giftVoucher: text("gift_voucher"),
+  contactDateDay: integer("contact_date_day"),
+  contactDateMonth: integer("contact_date_month"),
+  contactDateYear: integer("contact_date_year"),
+  existingContracts: text("existing_contracts"),
+  recruiting: text("recruiting"),
+  
+  // Tab Iné (Other)
+  salesChannel: text("sales_channel"), // CCP, CCP+D, CCAI, CCAI+D, CCAE, CCAE+D, I
+  infoSource: text("info_source"), // Internet, Friends, Doctor, etc.
+  marketingAction: text("marketing_action"),
+  marketingCode: text("marketing_code"),
+  newsletterOptIn: boolean("newsletter_opt_in").notNull().default(false),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Case status enum values
+export const CASE_STATUSES = [
+  "realized", // Zrealizovaný
+  "duplicate", // Duplikát
+  "in_progress", // Prebieha
+  "postponed", // Odložený
+  "no_interest", // Nezáujem
+  "cancelled", // Zrušený
+] as const;
+
+// Sales channel enum values
+export const SALES_CHANNELS = [
+  "CCP", // Pasívne call centrum
+  "CCP+D", // Pasívne call centrum + lekár
+  "CCAI", // Aktívne interné call centrum
+  "CCAI+D", // Aktívne interné call centrum + lekár
+  "CCAE", // Aktívne externé call centrum
+  "CCAE+D", // Aktívne externé call centrum + lekár
+  "I", // Internet
+] as const;
+
+// Info source enum values
+export const INFO_SOURCES = [
+  "internet",
+  "friends",
+  "doctor",
+  "positive_experience",
+  "conference",
+  "tv",
+  "radio",
+  "prenatal_course",
+  "hospital_doctor",
+  "other",
+] as const;
+
+// Customer potential case schema
+export const insertCustomerPotentialCaseSchema = createInsertSchema(customerPotentialCases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  customerId: z.string().min(1, "Customer ID is required"),
+  childCount: z.number().min(1).max(20).optional().nullable(),
+  expectedDateDay: z.number().min(1).max(31).optional().nullable(),
+  expectedDateMonth: z.number().min(1).max(12).optional().nullable(),
+  expectedDateYear: z.number().min(1900).max(2100).optional().nullable(),
+  contactDateDay: z.number().min(1).max(31).optional().nullable(),
+  contactDateMonth: z.number().min(1).max(12).optional().nullable(),
+  contactDateYear: z.number().min(1900).max(2100).optional().nullable(),
+  fatherEmail: z.string().email().optional().nullable().or(z.literal("")),
+});
+
+export type InsertCustomerPotentialCase = z.infer<typeof insertCustomerPotentialCaseSchema>;
+export type CustomerPotentialCase = typeof customerPotentialCases.$inferSelect;

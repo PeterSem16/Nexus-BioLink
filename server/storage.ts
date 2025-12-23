@@ -4,6 +4,7 @@ import {
   complaintTypes, cooperationTypes, vipStatuses, healthInsuranceCompanies,
   laboratories, hospitals,
   collaborators, collaboratorAddresses, collaboratorOtherData, collaboratorAgreements,
+  customerPotentialCases,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -23,7 +24,8 @@ import {
   type Collaborator, type InsertCollaborator,
   type CollaboratorAddress, type InsertCollaboratorAddress,
   type CollaboratorOtherData, type InsertCollaboratorOtherData,
-  type CollaboratorAgreement, type InsertCollaboratorAgreement
+  type CollaboratorAgreement, type InsertCollaboratorAgreement,
+  type CustomerPotentialCase, type InsertCustomerPotentialCase
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and } from "drizzle-orm";
@@ -176,6 +178,10 @@ export interface IStorage {
   createCollaboratorAgreement(data: InsertCollaboratorAgreement): Promise<CollaboratorAgreement>;
   updateCollaboratorAgreement(id: string, data: Partial<InsertCollaboratorAgreement>): Promise<CollaboratorAgreement | undefined>;
   deleteCollaboratorAgreement(id: string): Promise<boolean>;
+
+  // Customer Potential Cases
+  getCustomerPotentialCase(customerId: string): Promise<CustomerPotentialCase | undefined>;
+  upsertCustomerPotentialCase(data: InsertCustomerPotentialCase): Promise<CustomerPotentialCase>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -830,6 +836,26 @@ export class DatabaseStorage implements IStorage {
   async deleteCollaboratorAgreement(id: string): Promise<boolean> {
     const result = await db.delete(collaboratorAgreements).where(eq(collaboratorAgreements.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Customer Potential Cases
+  async getCustomerPotentialCase(customerId: string): Promise<CustomerPotentialCase | undefined> {
+    const [data] = await db.select().from(customerPotentialCases)
+      .where(eq(customerPotentialCases.customerId, customerId));
+    return data || undefined;
+  }
+
+  async upsertCustomerPotentialCase(data: InsertCustomerPotentialCase): Promise<CustomerPotentialCase> {
+    const existing = await this.getCustomerPotentialCase(data.customerId);
+    if (existing) {
+      const [updated] = await db.update(customerPotentialCases)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(customerPotentialCases.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(customerPotentialCases).values(data).returning();
+    return created;
   }
 }
 

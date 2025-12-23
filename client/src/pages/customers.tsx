@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1166,6 +1166,16 @@ export default function CustomersPage() {
   const customers = allCustomers.filter(c => 
     selectedCountries.includes(c.country as any)
   );
+
+  // Keep viewingCustomer in sync with latest data from query
+  useEffect(() => {
+    if (viewingCustomer) {
+      const updated = allCustomers.find(c => c.id === viewingCustomer.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(viewingCustomer)) {
+        setViewingCustomer(updated);
+      }
+    }
+  }, [allCustomers, viewingCustomer]);
 
   const createMutation = useMutation({
     mutationFn: (data: CustomerFormData) => {

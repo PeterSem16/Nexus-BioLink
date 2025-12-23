@@ -93,6 +93,7 @@ export interface IStorage {
 
   // Customer Notes
   getCustomerNotes(customerId: string): Promise<CustomerNote[]>;
+  getAllCustomerNotes(): Promise<CustomerNote[]>;
   createCustomerNote(note: InsertCustomerNote): Promise<CustomerNote>;
   deleteCustomerNote(id: string): Promise<boolean>;
 
@@ -461,6 +462,10 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(customerNotes)
       .where(eq(customerNotes.customerId, customerId))
       .orderBy(desc(customerNotes.createdAt));
+  }
+
+  async getAllCustomerNotes(): Promise<CustomerNote[]> {
+    return db.select().from(customerNotes).orderBy(desc(customerNotes.createdAt));
   }
 
   async createCustomerNote(note: InsertCustomerNote): Promise<CustomerNote> {

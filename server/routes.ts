@@ -1997,6 +1997,81 @@ export async function registerRoutes(
         }
       }
 
+      // Search hospitals
+      const hospitals = await storage.getAllHospitals();
+      for (const h of hospitals) {
+        const searchText = `${h.name} ${h.fullName || ""} ${h.city || ""} ${h.streetNumber || ""}`.toLowerCase();
+        if (searchText.includes(query)) {
+          results.push({
+            type: "hospital",
+            id: h.id,
+            title: h.name,
+            subtitle: h.city || h.countryCode || "",
+            url: `/hospitals?id=${h.id}`,
+          });
+        }
+      }
+
+      // Search health insurance companies
+      const healthInsurances = await storage.getAllHealthInsuranceCompanies();
+      for (const hi of healthInsurances) {
+        const searchText = `${hi.name}`.toLowerCase();
+        if (searchText.includes(query)) {
+          results.push({
+            type: "healthInsurance",
+            id: hi.id,
+            title: hi.name,
+            subtitle: hi.countryCode || "",
+            url: `/settings`,
+          });
+        }
+      }
+
+      // Search laboratories
+      const laboratories = await storage.getAllLaboratories();
+      for (const lab of laboratories) {
+        const searchText = `${lab.name}`.toLowerCase();
+        if (searchText.includes(query)) {
+          results.push({
+            type: "laboratory",
+            id: lab.id,
+            title: lab.name,
+            subtitle: lab.countryCode || "",
+            url: `/settings`,
+          });
+        }
+      }
+
+      // Search billing companies
+      const billingDetails = await storage.getAllBillingDetails();
+      for (const bd of billingDetails) {
+        const searchText = `${bd.companyName} ${bd.address || ""} ${bd.taxId || ""} ${bd.bankIban || ""}`.toLowerCase();
+        if (searchText.includes(query)) {
+          results.push({
+            type: "billingCompany",
+            id: bd.id,
+            title: bd.companyName,
+            subtitle: bd.countryCode || "",
+            url: `/settings`,
+          });
+        }
+      }
+
+      // Search customer notes
+      const notes = await storage.getAllCustomerNotes();
+      for (const n of notes) {
+        if (n.content && n.content.toLowerCase().includes(query)) {
+          const customer = customers.find(c => c.id === n.customerId);
+          results.push({
+            type: "note",
+            id: n.id,
+            title: n.content.substring(0, 50) + (n.content.length > 50 ? "..." : ""),
+            subtitle: customer ? `${customer.firstName} ${customer.lastName}` : "",
+            url: `/customers?id=${n.customerId}`,
+          });
+        }
+      }
+
       res.json({ results: results.slice(0, 50) }); // Limit to 50 results
     } catch (error) {
       console.error("Global search failed:", error);

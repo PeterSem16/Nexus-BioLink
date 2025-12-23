@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, X, User, Users, Package, FileText, Building, File } from "lucide-react";
+import { Search, X, User, Users, Package, FileText, Building, File, Hospital, Shield, FlaskConical, CreditCard, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -90,6 +90,16 @@ export function GlobalSearch() {
         return <FileText className="h-4 w-4" />;
       case "agreement":
         return <File className="h-4 w-4" />;
+      case "hospital":
+        return <Hospital className="h-4 w-4" />;
+      case "healthInsurance":
+        return <Shield className="h-4 w-4" />;
+      case "laboratory":
+        return <FlaskConical className="h-4 w-4" />;
+      case "billingCompany":
+        return <CreditCard className="h-4 w-4" />;
+      case "note":
+        return <StickyNote className="h-4 w-4" />;
       default:
         return <Building className="h-4 w-4" />;
     }
@@ -103,6 +113,11 @@ export function GlobalSearch() {
       product: t.nav?.products || "Products",
       invoice: t.nav?.invoices || "Invoices",
       agreement: t.globalSearch?.agreement || "Agreement",
+      hospital: t.nav?.hospitals || "Hospital",
+      healthInsurance: t.globalSearch?.healthInsurance || "Health Insurance",
+      laboratory: t.globalSearch?.laboratory || "Laboratory",
+      billingCompany: t.globalSearch?.billingCompany || "Billing Company",
+      note: t.globalSearch?.note || "Note",
     };
     return labels[type] || type;
   };

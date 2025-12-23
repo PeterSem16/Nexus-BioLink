@@ -539,6 +539,10 @@ export interface Translations {
     minChars: string;
     noResults: string;
     agreement: string;
+    healthInsurance: string;
+    laboratory: string;
+    billingCompany: string;
+    note: string;
   };
 }
 
@@ -1072,6 +1076,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Type at least 2 characters to search',
       noResults: 'No results found',
       agreement: 'Agreement',
+      healthInsurance: 'Health Insurance',
+      laboratory: 'Laboratory',
+      billingCompany: 'Billing Company',
+      note: 'Note',
     },
   },
   sk: {
@@ -1603,6 +1611,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Zadajte aspoň 2 znaky pre vyhľadávanie',
       noResults: 'Žiadne výsledky',
       agreement: 'Dohoda',
+      healthInsurance: 'Zdravotná poisťovňa',
+      laboratory: 'Laboratórium',
+      billingCompany: 'Fakturačná spoločnosť',
+      note: 'Poznámka',
     },
   },
   cs: {
@@ -2134,6 +2146,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Zadejte alespoň 2 znaky pro vyhledávání',
       noResults: 'Žádné výsledky',
       agreement: 'Dohoda',
+      healthInsurance: 'Zdravotní pojišťovna',
+      laboratory: 'Laboratoř',
+      billingCompany: 'Fakturační společnost',
+      note: 'Poznámka',
     },
   },
   hu: {
@@ -2665,6 +2681,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Legalább 2 karaktert írjon be a kereséshez',
       noResults: 'Nincs találat',
       agreement: 'Megállapodás',
+      healthInsurance: 'Egészségbiztosító',
+      laboratory: 'Laboratórium',
+      billingCompany: 'Számlázó cég',
+      note: 'Jegyzet',
     },
   },
   ro: {
@@ -3196,6 +3216,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Introduceți cel puțin 2 caractere pentru a căuta',
       noResults: 'Nu s-au găsit rezultate',
       agreement: 'Acord',
+      healthInsurance: 'Asigurare de sănătate',
+      laboratory: 'Laborator',
+      billingCompany: 'Companie de facturare',
+      note: 'Notă',
     },
   },
   it: {
@@ -3727,6 +3751,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Inserisci almeno 2 caratteri per cercare',
       noResults: 'Nessun risultato trovato',
       agreement: 'Accordo',
+      healthInsurance: 'Assicurazione sanitaria',
+      laboratory: 'Laboratorio',
+      billingCompany: 'Società di fatturazione',
+      note: 'Nota',
     },
   },
   de: {
@@ -4258,6 +4286,10 @@ export const translations: Record<Locale, Translations> = {
       minChars: 'Geben Sie mindestens 2 Zeichen ein, um zu suchen',
       noResults: 'Keine Ergebnisse gefunden',
       agreement: 'Vereinbarung',
+      healthInsurance: 'Krankenversicherung',
+      laboratory: 'Labor',
+      billingCompany: 'Rechnungsfirma',
+      note: 'Notiz',
     },
   },
 };

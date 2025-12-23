@@ -268,6 +268,12 @@ export const customers = pgTable("customers", {
   serviceType: text("service_type"), // cord_blood, cord_tissue, both
   notes: text("notes"),
   assignedUserId: varchar("assigned_user_id"),
+  
+  // Lead scoring
+  leadScore: integer("lead_score").notNull().default(0), // Computed lead score 0-100
+  leadScoreUpdatedAt: timestamp("lead_score_updated_at"),
+  leadStatus: text("lead_status").notNull().default("cold"), // cold, warm, hot, qualified
+  
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -1117,3 +1123,36 @@ export const insertCustomerPotentialCaseSchema = createInsertSchema(customerPote
 
 export type InsertCustomerPotentialCase = z.infer<typeof insertCustomerPotentialCaseSchema>;
 export type CustomerPotentialCase = typeof customerPotentialCases.$inferSelect;
+
+// Lead status enum values
+export const LEAD_STATUSES = [
+  "cold",      // New lead, no interaction
+  "warm",      // Some engagement shown
+  "hot",       // High engagement, ready to convert
+  "qualified", // Qualified lead, active discussion
+] as const;
+
+// Lead scoring criteria table - configurable scoring rules
+export const leadScoringCriteria = pgTable("lead_scoring_criteria", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Criterion name
+  description: text("description"),
+  category: text("category").notNull(), // demographic, engagement, behavior, profile
+  field: text("field").notNull(), // Field to evaluate (e.g., "hasPhone", "hasEmail", "hasCase", "newsletterOptIn")
+  condition: text("condition").notNull(), // equals, not_empty, greater_than, less_than, contains
+  value: text("value"), // Value to compare against
+  points: integer("points").notNull().default(0), // Points to add/subtract
+  isActive: boolean("is_active").notNull().default(true),
+  countryCode: text("country_code"), // null = global, or specific country
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertLeadScoringCriteriaSchema = createInsertSchema(leadScoringCriteria).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertLeadScoringCriteria = z.infer<typeof insertLeadScoringCriteriaSchema>;
+export type LeadScoringCriteria = typeof leadScoringCriteria.$inferSelect;

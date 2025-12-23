@@ -7,6 +7,7 @@ import {
   insertCustomerNoteSchema, insertActivityLogSchema, sendEmailSchema, sendSmsSchema,
   insertComplaintTypeSchema, insertCooperationTypeSchema, insertVipStatusSchema, insertHealthInsuranceSchema,
   insertLaboratorySchema, insertHospitalSchema,
+  insertCollaboratorSchema, insertCollaboratorAddressSchema, insertCollaboratorOtherDataSchema, insertCollaboratorAgreementSchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog
 } from "@shared/schema";
 import { z } from "zod";
@@ -1540,6 +1541,164 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete hospital" });
+    }
+  });
+
+  // Collaborators routes
+  app.get("/api/collaborators", requireAuth, async (req, res) => {
+    try {
+      const countryCodes = req.query.countries ? String(req.query.countries).split(",") : undefined;
+      const collaborators = countryCodes 
+        ? await storage.getCollaboratorsByCountry(countryCodes)
+        : await storage.getAllCollaborators();
+      res.json(collaborators);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch collaborators" });
+    }
+  });
+
+  app.get("/api/collaborators/:id", requireAuth, async (req, res) => {
+    try {
+      const collaborator = await storage.getCollaborator(req.params.id);
+      if (!collaborator) return res.status(404).json({ error: "Collaborator not found" });
+      res.json(collaborator);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch collaborator" });
+    }
+  });
+
+  app.post("/api/collaborators", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertCollaboratorSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const collaborator = await storage.createCollaborator(parsed.data);
+      await logActivity(req.session.user!.id, "create", "collaborator", collaborator.id, `${collaborator.firstName} ${collaborator.lastName}`);
+      res.status(201).json(collaborator);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create collaborator" });
+    }
+  });
+
+  app.put("/api/collaborators/:id", requireAuth, async (req, res) => {
+    try {
+      const collaborator = await storage.updateCollaborator(req.params.id, req.body);
+      if (!collaborator) return res.status(404).json({ error: "Collaborator not found" });
+      await logActivity(req.session.user!.id, "update", "collaborator", collaborator.id, `${collaborator.firstName} ${collaborator.lastName}`);
+      res.json(collaborator);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update collaborator" });
+    }
+  });
+
+  app.delete("/api/collaborators/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteCollaborator(req.params.id);
+      if (!success) return res.status(404).json({ error: "Collaborator not found" });
+      await logActivity(req.session.user!.id, "delete", "collaborator", req.params.id, "");
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete collaborator" });
+    }
+  });
+
+  // Collaborator Addresses routes
+  app.get("/api/collaborators/:id/addresses", requireAuth, async (req, res) => {
+    try {
+      const addresses = await storage.getCollaboratorAddresses(req.params.id);
+      res.json(addresses);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch addresses" });
+    }
+  });
+
+  app.put("/api/collaborators/:id/addresses/:type", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertCollaboratorAddressSchema.safeParse({
+        ...req.body,
+        collaboratorId: req.params.id,
+        addressType: req.params.type
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const address = await storage.upsertCollaboratorAddress(parsed.data);
+      res.json(address);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save address" });
+    }
+  });
+
+  // Collaborator Other Data routes
+  app.get("/api/collaborators/:id/other-data", requireAuth, async (req, res) => {
+    try {
+      const data = await storage.getCollaboratorOtherData(req.params.id);
+      res.json(data || {});
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch other data" });
+    }
+  });
+
+  app.put("/api/collaborators/:id/other-data", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertCollaboratorOtherDataSchema.safeParse({
+        ...req.body,
+        collaboratorId: req.params.id
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const data = await storage.upsertCollaboratorOtherData(parsed.data);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save other data" });
+    }
+  });
+
+  // Collaborator Agreements routes
+  app.get("/api/collaborators/:id/agreements", requireAuth, async (req, res) => {
+    try {
+      const agreements = await storage.getCollaboratorAgreements(req.params.id);
+      res.json(agreements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch agreements" });
+    }
+  });
+
+  app.post("/api/collaborators/:id/agreements", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertCollaboratorAgreementSchema.safeParse({
+        ...req.body,
+        collaboratorId: req.params.id
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const agreement = await storage.createCollaboratorAgreement(parsed.data);
+      res.status(201).json(agreement);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create agreement" });
+    }
+  });
+
+  app.put("/api/collaborators/:id/agreements/:agreementId", requireAuth, async (req, res) => {
+    try {
+      const agreement = await storage.updateCollaboratorAgreement(req.params.agreementId, req.body);
+      if (!agreement) return res.status(404).json({ error: "Agreement not found" });
+      res.json(agreement);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update agreement" });
+    }
+  });
+
+  app.delete("/api/collaborators/:id/agreements/:agreementId", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteCollaboratorAgreement(req.params.agreementId);
+      if (!success) return res.status(404).json({ error: "Agreement not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete agreement" });
     }
   });
 

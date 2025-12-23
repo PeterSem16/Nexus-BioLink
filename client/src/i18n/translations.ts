@@ -50,6 +50,7 @@ export interface Translations {
     all: string;
     activeFilters: string;
     clearAll: string;
+    select: string;
   };
   dashboard: {
     title: string;
@@ -606,6 +607,15 @@ export interface Translations {
       hospital_doctor: string;
       other: string;
     };
+    salesChannels: {
+      CCP: string;
+      'CCP+D': string;
+      CCAI: string;
+      'CCAI+D': string;
+      CCAE: string;
+      'CCAE+D': string;
+      I: string;
+    };
   };
 }
 
@@ -650,6 +660,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'All',
       activeFilters: 'Active Filters',
       clearAll: 'Clear All',
+      select: 'Select',
     },
     dashboard: {
       title: 'Dashboard',
@@ -1206,6 +1217,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Hospital Doctor',
         other: 'Other',
       },
+      salesChannels: {
+        CCP: 'Passive Call Center',
+        'CCP+D': 'Passive Call Center + Doctor',
+        CCAI: 'Active Internal Call Center',
+        'CCAI+D': 'Active Internal Call Center + Doctor',
+        CCAE: 'Active External Call Center',
+        'CCAE+D': 'Active External Call Center + Doctor',
+        I: 'Internet',
+      },
     },
   },
   sk: {
@@ -1248,6 +1268,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Všetky',
       activeFilters: 'Aktívne filtre',
       clearAll: 'Vymazať všetko',
+      select: 'Vybrať',
     },
     dashboard: {
       title: 'Prehľad',
@@ -1804,6 +1825,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Lekár v nemocnici',
         other: 'Iné',
       },
+      salesChannels: {
+        CCP: 'Pasívne call centrum',
+        'CCP+D': 'Pasívne call centrum + lekár',
+        CCAI: 'Aktívne interné call centrum',
+        'CCAI+D': 'Aktívne interné call centrum + lekár',
+        CCAE: 'Aktívne externé call centrum',
+        'CCAE+D': 'Aktívne externé call centrum + lekár',
+        I: 'Internet',
+      },
     },
   },
   cs: {
@@ -1846,6 +1876,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Všechny',
       activeFilters: 'Aktivní filtry',
       clearAll: 'Vymazat vše',
+      select: 'Vybrat',
     },
     dashboard: {
       title: 'Přehled',
@@ -2402,6 +2433,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Lékař v nemocnici',
         other: 'Ostatní',
       },
+      salesChannels: {
+        CCP: 'Pasivní call centrum',
+        'CCP+D': 'Pasivní call centrum + lékař',
+        CCAI: 'Aktivní interní call centrum',
+        'CCAI+D': 'Aktivní interní call centrum + lékař',
+        CCAE: 'Aktivní externí call centrum',
+        'CCAE+D': 'Aktivní externí call centrum + lékař',
+        I: 'Internet',
+      },
     },
   },
   hu: {
@@ -2444,6 +2484,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Összes',
       activeFilters: 'Aktív szűrők',
       clearAll: 'Összes törlése',
+      select: 'Kiválasztás',
     },
     dashboard: {
       title: 'Irányítópult',
@@ -3000,6 +3041,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Kórházi orvos',
         other: 'Egyéb',
       },
+      salesChannels: {
+        CCP: 'Passzív call center',
+        'CCP+D': 'Passzív call center + orvos',
+        CCAI: 'Aktív belső call center',
+        'CCAI+D': 'Aktív belső call center + orvos',
+        CCAE: 'Aktív külső call center',
+        'CCAE+D': 'Aktív külső call center + orvos',
+        I: 'Internet',
+      },
     },
   },
   ro: {
@@ -3042,6 +3092,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Toate',
       activeFilters: 'Filtre active',
       clearAll: 'Șterge tot',
+      select: 'Selectați',
     },
     dashboard: {
       title: 'Panou de control',
@@ -3598,6 +3649,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Doctor spital',
         other: 'Altele',
       },
+      salesChannels: {
+        CCP: 'Call center pasiv',
+        'CCP+D': 'Call center pasiv + doctor',
+        CCAI: 'Call center activ intern',
+        'CCAI+D': 'Call center activ intern + doctor',
+        CCAE: 'Call center activ extern',
+        'CCAE+D': 'Call center activ extern + doctor',
+        I: 'Internet',
+      },
     },
   },
   it: {
@@ -3640,6 +3700,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Tutti',
       activeFilters: 'Filtri attivi',
       clearAll: 'Cancella tutto',
+      select: 'Seleziona',
     },
     dashboard: {
       title: 'Dashboard',
@@ -4196,6 +4257,15 @@ export const translations: Record<Locale, Translations> = {
         hospital_doctor: 'Medico ospedaliero',
         other: 'Altro',
       },
+      salesChannels: {
+        CCP: 'Call center passivo',
+        'CCP+D': 'Call center passivo + dottore',
+        CCAI: 'Call center attivo interno',
+        'CCAI+D': 'Call center attivo interno + dottore',
+        CCAE: 'Call center attivo esterno',
+        'CCAE+D': 'Call center attivo esterno + dottore',
+        I: 'Internet',
+      },
     },
   },
   de: {
@@ -4238,6 +4308,7 @@ export const translations: Record<Locale, Translations> = {
       all: 'Alle',
       activeFilters: 'Aktive Filter',
       clearAll: 'Alles löschen',
+      select: 'Auswählen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -4793,6 +4864,15 @@ export const translations: Record<Locale, Translations> = {
         prenatal_course: 'Geburtsvorbereitungskurs',
         hospital_doctor: 'Krankenhausarzt',
         other: 'Sonstiges',
+      },
+      salesChannels: {
+        CCP: 'Passives Call Center',
+        'CCP+D': 'Passives Call Center + Arzt',
+        CCAI: 'Aktives internes Call Center',
+        'CCAI+D': 'Aktives internes Call Center + Arzt',
+        CCAE: 'Aktives externes Call Center',
+        'CCAE+D': 'Aktives externes Call Center + Arzt',
+        I: 'Internet',
       },
     },
   },

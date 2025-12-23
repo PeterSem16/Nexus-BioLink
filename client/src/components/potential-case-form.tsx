@@ -1114,7 +1114,7 @@ export function EmbeddedPotentialCaseForm({ customer }: EmbeddedPotentialCaseFor
                   <SelectItem value="_none">--</SelectItem>
                   {SALES_CHANNELS.map((channel) => (
                     <SelectItem key={channel} value={channel}>
-                      {channel}
+                      {pc.salesChannels?.[channel as keyof typeof pc.salesChannels] || channel}
                     </SelectItem>
                   ))}
                 </SelectContent>

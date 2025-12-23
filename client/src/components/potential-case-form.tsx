@@ -295,6 +295,7 @@ export function PotentialCaseForm({ customer, open, onClose }: PotentialCaseForm
       apiRequest("POST", `/api/customers/${customer.id}/potential-case`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "potential-case"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       toast({ title: t.success.saved });
       onClose();
     },

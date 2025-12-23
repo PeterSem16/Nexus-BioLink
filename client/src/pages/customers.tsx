@@ -612,6 +612,10 @@ function CustomerDetailsContent({
                     <p className="mt-1">{potentialCase.hospitalId || "-"}</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-muted-foreground">Obstetrician</p>
+                    <p className="mt-1">{potentialCase.obstetricianId || "-"}</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Multiple Pregnancy</p>
                     <p className="mt-1">{potentialCase.isMultiplePregnancy ? "Yes" : "No"}</p>
                   </div>
@@ -634,19 +638,35 @@ function CustomerDetailsContent({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <p className="mt-1">{potentialCase.fatherPhone || potentialCase.fatherMobile || "-"}</p>
+                    <p className="mt-1">{potentialCase.fatherPhone || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Mobile</p>
+                    <p className="mt-1">{potentialCase.fatherMobile || "-"}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Email</p>
                     <p className="mt-1">{potentialCase.fatherEmail || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Address</p>
-                    <p className="mt-1">
-                      {potentialCase.fatherStreet || potentialCase.fatherCity 
-                        ? `${potentialCase.fatherStreet || ""}, ${potentialCase.fatherCity || ""} ${potentialCase.fatherPostalCode || ""}`
-                        : "-"}
-                    </p>
+                    <p className="text-sm font-medium text-muted-foreground">Street</p>
+                    <p className="mt-1">{potentialCase.fatherStreet || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">City</p>
+                    <p className="mt-1">{potentialCase.fatherCity || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Postal Code</p>
+                    <p className="mt-1">{potentialCase.fatherPostalCode || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Region</p>
+                    <p className="mt-1">{potentialCase.fatherRegion || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Country</p>
+                    <p className="mt-1">{potentialCase.fatherCountry || "-"}</p>
                   </div>
                 </div>
               </div>
@@ -667,12 +687,24 @@ function CustomerDetailsContent({
                     <p className="mt-1">{potentialCase.paymentType || "-"}</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-muted-foreground">Gift Voucher</p>
+                    <p className="mt-1">{potentialCase.giftVoucher || "-"}</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Contact Date</p>
                     <p className="mt-1">
                       {potentialCase.contactDateDay && potentialCase.contactDateMonth && potentialCase.contactDateYear 
                         ? `${potentialCase.contactDateDay}.${potentialCase.contactDateMonth}.${potentialCase.contactDateYear}` 
                         : "-"}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Existing Contracts</p>
+                    <p className="mt-1">{potentialCase.existingContracts || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Recruiting</p>
+                    <p className="mt-1">{potentialCase.recruiting || "-"}</p>
                   </div>
                 </div>
               </div>
@@ -691,6 +723,10 @@ function CustomerDetailsContent({
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Marketing Action</p>
                     <p className="mt-1">{potentialCase.marketingAction || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Marketing Code</p>
+                    <p className="mt-1">{potentialCase.marketingCode || "-"}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Newsletter Opt-In</p>

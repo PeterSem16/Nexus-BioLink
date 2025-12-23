@@ -417,12 +417,12 @@ function CustomerDetailsContent({
       <Separator />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className={`grid w-full ${customer.clientStatus === "realized" ? "grid-cols-5" : "grid-cols-4"}`}>
+        <TabsList className={`grid w-full ${customer.clientStatus === "acquired" ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="overview" data-testid="tab-overview">
             <Package className="h-4 w-4 mr-2" />
             Overview
           </TabsTrigger>
-          {customer.clientStatus === "realized" && (
+          {customer.clientStatus === "acquired" && (
             <TabsTrigger value="potential" data-testid="tab-potential">
               <Baby className="h-4 w-4 mr-2" />
               Case
@@ -578,7 +578,7 @@ function CustomerDetailsContent({
           </div>
         </TabsContent>
 
-        {customer.clientStatus === "realized" && (
+        {customer.clientStatus === "acquired" && (
           <TabsContent value="potential" className="space-y-6 mt-4">
             {potentialCaseLoading ? (
               <p className="text-sm text-muted-foreground">Loading case data...</p>

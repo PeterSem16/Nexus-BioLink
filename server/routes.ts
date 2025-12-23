@@ -1908,10 +1908,19 @@ export async function registerRoutes(
 
   app.post("/api/customers/:id/potential-case", requireAuth, async (req, res) => {
     try {
-      const data = await storage.upsertCustomerPotentialCase({
+      const customerId = req.params.id;
+      const caseData = {
         ...req.body,
-        customerId: req.params.id,
-      });
+        customerId,
+      };
+      
+      const data = await storage.upsertCustomerPotentialCase(caseData);
+      
+      // If case status is set (not empty), automatically update customer's clientStatus to "realized"
+      if (caseData.caseStatus && caseData.caseStatus.trim() !== "") {
+        await storage.updateCustomer(customerId, { clientStatus: "realized" });
+      }
+      
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: "Failed to save potential case" });

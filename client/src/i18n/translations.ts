@@ -416,6 +416,8 @@ export interface Translations {
     saving: string;
     createCollaborator: string;
     updateCollaborator: string;
+    noFile: string;
+    uploadAgreement: string;
   };
   settings: {
     title: string;
@@ -927,6 +929,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Saving...',
       createCollaborator: 'Create Collaborator',
       updateCollaborator: 'Update Collaborator',
+      noFile: 'No file attached',
+      uploadAgreement: 'Upload Agreement',
     },
     settings: {
       title: 'Settings',
@@ -1436,6 +1440,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Ukladám...',
       createCollaborator: 'Vytvoriť spolupracovníka',
       updateCollaborator: 'Aktualizovať spolupracovníka',
+      noFile: 'Žiadny súbor',
+      uploadAgreement: 'Nahrať dohodu',
     },
     settings: {
       title: 'Nastavenia',
@@ -1945,6 +1951,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Ukládám...',
       createCollaborator: 'Vytvořit spolupracovníka',
       updateCollaborator: 'Aktualizovat spolupracovníka',
+      noFile: 'Žádný soubor',
+      uploadAgreement: 'Nahrát dohodu',
     },
     settings: {
       title: 'Nastavení',
@@ -2454,6 +2462,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Mentés...',
       createCollaborator: 'Munkatárs létrehozása',
       updateCollaborator: 'Munkatárs frissítése',
+      noFile: 'Nincs fájl csatolva',
+      uploadAgreement: 'Megállapodás feltöltése',
     },
     settings: {
       title: 'Beállítások',
@@ -2963,6 +2973,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Se salvează...',
       createCollaborator: 'Creează colaborator',
       updateCollaborator: 'Actualizează colaborator',
+      noFile: 'Niciun fișier atașat',
+      uploadAgreement: 'Încarcă acord',
     },
     settings: {
       title: 'Setări',
@@ -3472,6 +3484,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Salvataggio...',
       createCollaborator: 'Crea collaboratore',
       updateCollaborator: 'Aggiorna collaboratore',
+      noFile: 'Nessun file allegato',
+      uploadAgreement: 'Carica accordo',
     },
     settings: {
       title: 'Impostazioni',
@@ -3981,6 +3995,8 @@ export const translations: Record<Locale, Translations> = {
       saving: 'Speichern...',
       createCollaborator: 'Mitarbeiter erstellen',
       updateCollaborator: 'Mitarbeiter aktualisieren',
+      noFile: 'Keine Datei angehängt',
+      uploadAgreement: 'Vereinbarung hochladen',
     },
     settings: {
       title: 'Einstellungen',

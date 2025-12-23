@@ -798,7 +798,7 @@ function AgreementsTab({
               <CardContent className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">{t.collaborators.fields.billingCompany}: </span>
                         {getBillingCompanyName(agreement.billingCompanyId)}
@@ -806,6 +806,10 @@ function AgreementsTab({
                       <div>
                         <span className="text-muted-foreground">{t.collaborators.fields.contractNumber}: </span>
                         {agreement.contractNumber || "-"}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t.collaborators.fields.agreementForm}: </span>
+                        {agreement.agreementForm || "-"}
                       </div>
                       <div>
                         <Badge variant={agreement.isValid ? "default" : "secondary"}>
@@ -1729,7 +1733,10 @@ export default function CollaboratorsPage() {
                 )}
                 {filterType && (
                   <Badge variant="secondary" className="gap-1">
-                    {t.collaborators.types[COLLABORATOR_TYPES.find(ct => ct.value === filterType)?.labelKey || ""] || filterType}
+                    {(() => {
+                      const ct = COLLABORATOR_TYPES.find(c => c.value === filterType);
+                      return ct ? (t.collaborators.types[ct.labelKey as keyof typeof t.collaborators.types] || filterType) : filterType;
+                    })()}
                     <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterType("")} />
                   </Badge>
                 )}

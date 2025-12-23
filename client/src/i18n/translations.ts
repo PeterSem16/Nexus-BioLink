@@ -102,6 +102,11 @@ export interface Translations {
       marketing: string;
       addresses: string;
       other: string;
+      overview: string;
+      case: string;
+      contact: string;
+      notes: string;
+      activity: string;
     };
     fields: {
       title: string;
@@ -712,6 +717,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Addresses',
         other: 'Other',
+        overview: 'Overview',
+        case: 'Case',
+        contact: 'Contact',
+        notes: 'Notes',
+        activity: 'Activity',
       },
       fields: {
         title: 'Title',
@@ -1320,6 +1330,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Adresy',
         other: 'Iné',
+        overview: 'Prehľad',
+        case: 'Prípad',
+        contact: 'Kontakt',
+        notes: 'Poznámky',
+        activity: 'Aktivita',
       },
       fields: {
         title: 'Titul pred menom',
@@ -1928,6 +1943,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Adresy',
         other: 'Jiné',
+        overview: 'Přehled',
+        case: 'Případ',
+        contact: 'Kontakt',
+        notes: 'Poznámky',
+        activity: 'Aktivita',
       },
       fields: {
         title: 'Titul před jménem',
@@ -2536,6 +2556,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Címek',
         other: 'Egyéb',
+        overview: 'Áttekintés',
+        case: 'Eset',
+        contact: 'Kapcsolat',
+        notes: 'Megjegyzések',
+        activity: 'Tevékenység',
       },
       fields: {
         title: 'Titulus (név előtt)',
@@ -3144,6 +3169,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Adrese',
         other: 'Altele',
+        overview: 'Prezentare',
+        case: 'Caz',
+        contact: 'Contact',
+        notes: 'Note',
+        activity: 'Activitate',
       },
       fields: {
         title: 'Titlu (înainte de nume)',
@@ -3752,6 +3782,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Indirizzi',
         other: 'Altro',
+        overview: 'Panoramica',
+        case: 'Caso',
+        contact: 'Contatto',
+        notes: 'Note',
+        activity: 'Attività',
       },
       fields: {
         title: 'Titolo (prima del nome)',
@@ -4360,6 +4395,11 @@ export const translations: Record<Locale, Translations> = {
         marketing: 'Marketing',
         addresses: 'Adressen',
         other: 'Sonstiges',
+        overview: 'Übersicht',
+        case: 'Fall',
+        contact: 'Kontakt',
+        notes: 'Notizen',
+        activity: 'Aktivität',
       },
       fields: {
         title: 'Titel (vor dem Namen)',

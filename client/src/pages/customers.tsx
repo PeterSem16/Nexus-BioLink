@@ -70,6 +70,7 @@ function CustomerDetailsContent({
   customer: Customer; 
   onEdit: () => void;
 }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("1");
@@ -411,25 +412,25 @@ function CustomerDetailsContent({
         <TabsList className={`grid w-full ${customer.clientStatus === "acquired" ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="overview" data-testid="tab-overview">
             <Package className="h-4 w-4 mr-2" />
-            Overview
+            {t.customers.tabs.overview}
           </TabsTrigger>
           {customer.clientStatus === "acquired" && (
             <TabsTrigger value="potential" data-testid="tab-potential">
               <Baby className="h-4 w-4 mr-2" />
-              Case
+              {t.customers.tabs.case}
             </TabsTrigger>
           )}
           <TabsTrigger value="communicate" data-testid="tab-communicate">
             <Mail className="h-4 w-4 mr-2" />
-            Contact
+            {t.customers.tabs.contact}
           </TabsTrigger>
           <TabsTrigger value="notes" data-testid="tab-notes">
             <MessageSquare className="h-4 w-4 mr-2" />
-            Notes
+            {t.customers.tabs.notes}
           </TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">
             <History className="h-4 w-4 mr-2" />
-            Activity
+            {t.customers.tabs.activity}
           </TabsTrigger>
         </TabsList>
 

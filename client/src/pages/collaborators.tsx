@@ -191,6 +191,7 @@ function DateFields({
   onDayChange,
   onMonthChange,
   onYearChange,
+  onSetAll,
   testIdPrefix,
   t,
 }: {
@@ -201,6 +202,7 @@ function DateFields({
   onDayChange: (val: number | null) => void;
   onMonthChange: (val: number | null) => void;
   onYearChange: (val: number | null) => void;
+  onSetAll?: (day: number, month: number, year: number) => void;
   testIdPrefix: string;
   t: any;
 }) {
@@ -217,9 +219,16 @@ function DateFields({
 
   const setToday = () => {
     const today = new Date();
-    onDayChange(today.getDate());
-    onMonthChange(today.getMonth() + 1);
-    onYearChange(today.getFullYear());
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    if (onSetAll) {
+      onSetAll(day, month, year);
+    } else {
+      onDayChange(day);
+      onMonthChange(month);
+      onYearChange(year);
+    }
   };
 
   return (
@@ -497,6 +506,7 @@ function OtherDataTab({
           onDayChange={(val) => setFormData({ ...formData, ztpDay: val })}
           onMonthChange={(val) => setFormData({ ...formData, ztpMonth: val })}
           onYearChange={(val) => setFormData({ ...formData, ztpYear: val })}
+          onSetAll={(d, m, y) => setFormData({ ...formData, ztpDay: d, ztpMonth: m, ztpYear: y })}
           testIdPrefix="ztp"
           t={t}
         />
@@ -508,6 +518,7 @@ function OtherDataTab({
           onDayChange={(val) => setFormData({ ...formData, oldAgePensionDay: val })}
           onMonthChange={(val) => setFormData({ ...formData, oldAgePensionMonth: val })}
           onYearChange={(val) => setFormData({ ...formData, oldAgePensionYear: val })}
+          onSetAll={(d, m, y) => setFormData({ ...formData, oldAgePensionDay: d, oldAgePensionMonth: m, oldAgePensionYear: y })}
           testIdPrefix="oldAgePension"
           t={t}
         />
@@ -519,6 +530,7 @@ function OtherDataTab({
           onDayChange={(val) => setFormData({ ...formData, disabilityPensionDay: val })}
           onMonthChange={(val) => setFormData({ ...formData, disabilityPensionMonth: val })}
           onYearChange={(val) => setFormData({ ...formData, disabilityPensionYear: val })}
+          onSetAll={(d, m, y) => setFormData({ ...formData, disabilityPensionDay: d, disabilityPensionMonth: m, disabilityPensionYear: y })}
           testIdPrefix="disabilityPension"
           t={t}
         />
@@ -530,6 +542,7 @@ function OtherDataTab({
           onDayChange={(val) => setFormData({ ...formData, widowPensionDay: val })}
           onMonthChange={(val) => setFormData({ ...formData, widowPensionMonth: val })}
           onYearChange={(val) => setFormData({ ...formData, widowPensionYear: val })}
+          onSetAll={(d, m, y) => setFormData({ ...formData, widowPensionDay: d, widowPensionMonth: m, widowPensionYear: y })}
           testIdPrefix="widowPension"
           t={t}
         />
@@ -757,6 +770,7 @@ function AgreementsTab({
             onDayChange={(val) => setFormData({ ...formData, validFromDay: val })}
             onMonthChange={(val) => setFormData({ ...formData, validFromMonth: val })}
             onYearChange={(val) => setFormData({ ...formData, validFromYear: val })}
+            onSetAll={(d, m, y) => setFormData({ ...formData, validFromDay: d, validFromMonth: m, validFromYear: y })}
             testIdPrefix="validFrom"
             t={t}
           />
@@ -768,6 +782,7 @@ function AgreementsTab({
             onDayChange={(val) => setFormData({ ...formData, validToDay: val })}
             onMonthChange={(val) => setFormData({ ...formData, validToMonth: val })}
             onYearChange={(val) => setFormData({ ...formData, validToYear: val })}
+            onSetAll={(d, m, y) => setFormData({ ...formData, validToDay: d, validToMonth: m, validToYear: y })}
             testIdPrefix="validTo"
             t={t}
           />
@@ -781,6 +796,7 @@ function AgreementsTab({
             onDayChange={(val) => setFormData({ ...formData, agreementSentDay: val })}
             onMonthChange={(val) => setFormData({ ...formData, agreementSentMonth: val })}
             onYearChange={(val) => setFormData({ ...formData, agreementSentYear: val })}
+            onSetAll={(d, m, y) => setFormData({ ...formData, agreementSentDay: d, agreementSentMonth: m, agreementSentYear: y })}
             testIdPrefix="agreementSent"
             t={t}
           />
@@ -792,6 +808,7 @@ function AgreementsTab({
             onDayChange={(val) => setFormData({ ...formData, agreementReturnedDay: val })}
             onMonthChange={(val) => setFormData({ ...formData, agreementReturnedMonth: val })}
             onYearChange={(val) => setFormData({ ...formData, agreementReturnedYear: val })}
+            onSetAll={(d, m, y) => setFormData({ ...formData, agreementReturnedDay: d, agreementReturnedMonth: m, agreementReturnedYear: y })}
             testIdPrefix="agreementReturned"
             t={t}
           />
@@ -1333,6 +1350,7 @@ function CollaboratorForm({
               onDayChange={(val) => setFormData({ ...formData, birthDay: val })}
               onMonthChange={(val) => setFormData({ ...formData, birthMonth: val })}
               onYearChange={(val) => setFormData({ ...formData, birthYear: val })}
+              onSetAll={(d, m, y) => setFormData({ ...formData, birthDay: d, birthMonth: m, birthYear: y })}
               testIdPrefix="birth"
               t={t}
             />

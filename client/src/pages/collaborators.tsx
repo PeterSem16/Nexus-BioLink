@@ -212,11 +212,30 @@ function DateFields({
   const daysInMonth = getDaysInMonth(yearValue, monthValue);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
-  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 120 }, (_, i) => currentYear + 10 - i);
+
+  const setToday = () => {
+    const today = new Date();
+    onDayChange(today.getDate());
+    onMonthChange(today.getMonth() + 1);
+    onYearChange(today.getFullYear());
+  };
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label>{label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={setToday}
+          data-testid={`button-${testIdPrefix}-today`}
+        >
+          {t.collaborators?.fields?.today || "Today"}
+        </Button>
+      </div>
       <div className="flex gap-2">
         <Select
           value={dayValue?.toString() || "_none"}
@@ -861,10 +880,20 @@ function AgreementsTab({
                         <span className="text-muted-foreground">{t.collaborators.fields.agreementForm}: </span>
                         {agreement.agreementForm || "-"}
                       </div>
-                      <div>
+                      <div className="flex flex-wrap gap-1">
                         <Badge variant={agreement.isValid ? "default" : "secondary"}>
                           {agreement.isValid ? t.common.active : t.common.inactive}
                         </Badge>
+                        {agreement.rewardTypes && agreement.rewardTypes.length > 0 && 
+                          agreement.rewardTypes.map((rt: string) => {
+                            const rewardType = REWARD_TYPES.find(r => r.value === rt);
+                            return (
+                              <Badge key={rt} variant="outline">
+                                {rewardType ? (t.collaborators.rewardTypes[rewardType.labelKey] || rt) : rt}
+                              </Badge>
+                            );
+                          })
+                        }
                       </div>
                       <div className="flex gap-2 justify-end">
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(agreement)} data-testid={`button-edit-agreement-${agreement.id}`}>
@@ -976,7 +1005,7 @@ function ActionsTab({
 
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
-    return user ? `${user.firstName} ${user.lastName}` : userId;
+    return user ? user.fullName : userId;
   };
 
   const getActionLabel = (action: string) => {

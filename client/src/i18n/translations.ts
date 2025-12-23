@@ -359,6 +359,7 @@ export interface Translations {
       day: string;
       month: string;
       year: string;
+      today: string;
       billingCompany: string;
       contractNumber: string;
       validFrom: string;
@@ -891,6 +892,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Day',
         month: 'Month',
         year: 'Year',
+        today: 'Today',
         billingCompany: 'Billing Company',
         contractNumber: 'Contract Number',
         validFrom: 'Valid From',
@@ -1421,6 +1423,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Deň',
         month: 'Mesiac',
         year: 'Rok',
+        today: 'Dnes',
         billingCompany: 'Firma',
         contractNumber: 'Číslo zmluvy',
         validFrom: 'Platné od',
@@ -1951,6 +1954,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Den',
         month: 'Měsíc',
         year: 'Rok',
+        today: 'Dnes',
         billingCompany: 'Firma',
         contractNumber: 'Číslo smlouvy',
         validFrom: 'Platné od',
@@ -2481,6 +2485,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Nap',
         month: 'Hónap',
         year: 'Év',
+        today: 'Ma',
         billingCompany: 'Számlázó cég',
         contractNumber: 'Szerződésszám',
         validFrom: 'Érvényes ettől',
@@ -3011,6 +3016,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Zi',
         month: 'Lună',
         year: 'An',
+        today: 'Astăzi',
         billingCompany: 'Companie de facturare',
         contractNumber: 'Număr contract',
         validFrom: 'Valabil de la',
@@ -3541,6 +3547,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Giorno',
         month: 'Mese',
         year: 'Anno',
+        today: 'Oggi',
         billingCompany: 'Azienda di fatturazione',
         contractNumber: 'Numero contratto',
         validFrom: 'Valido da',
@@ -4071,6 +4078,7 @@ export const translations: Record<Locale, Translations> = {
         day: 'Tag',
         month: 'Monat',
         year: 'Jahr',
+        today: 'Heute',
         billingCompany: 'Abrechnungsunternehmen',
         contractNumber: 'Vertragsnummer',
         validFrom: 'Gültig ab',

@@ -622,6 +622,65 @@ export interface Translations {
       I: string;
     };
   };
+  leadScoring: {
+    title: string;
+    description: string;
+    score: string;
+    status: string;
+    recalculate: string;
+    recalculateAll: string;
+    recalculatingAll: string;
+    criteria: string;
+    addCriteria: string;
+    editCriteria: string;
+    deleteCriteria: string;
+    deleteConfirm: string;
+    seedDefaults: string;
+    seedDefaultsConfirm: string;
+    noCriteria: string;
+    statuses: {
+      cold: string;
+      warm: string;
+      hot: string;
+      qualified: string;
+    };
+    categories: {
+      profile: string;
+      engagement: string;
+      behavior: string;
+      demographic: string;
+    };
+    fields: {
+      name: string;
+      category: string;
+      field: string;
+      condition: string;
+      value: string;
+      points: string;
+      isActive: string;
+      countryCode: string;
+    };
+    conditions: {
+      equals: string;
+      not_empty: string;
+      greater_than: string;
+      less_than: string;
+      contains: string;
+    };
+    fieldOptions: {
+      hasPhone: string;
+      hasEmail: string;
+      hasAddress: string;
+      hasCase: string;
+      newsletterOptIn: string;
+      caseStatus: string;
+      hasExpectedDate: string;
+      hasFatherInfo: string;
+      hasProduct: string;
+      clientStatus: string;
+      daysFromCreation: string;
+    };
+  };
 }
 
 export const translations: Record<Locale, Translations> = {
@@ -1237,6 +1296,65 @@ export const translations: Record<Locale, Translations> = {
         I: 'Internet',
       },
     },
+    leadScoring: {
+      title: 'Lead Score',
+      description: 'Automated lead scoring based on customer profile and engagement',
+      score: 'Score',
+      status: 'Status',
+      recalculate: 'Recalculate',
+      recalculateAll: 'Recalculate All',
+      recalculatingAll: 'Recalculating all scores...',
+      criteria: 'Scoring Criteria',
+      addCriteria: 'Add Criteria',
+      editCriteria: 'Edit Criteria',
+      deleteCriteria: 'Delete Criteria',
+      deleteConfirm: 'Are you sure you want to delete this scoring criteria?',
+      seedDefaults: 'Load Default Criteria',
+      seedDefaultsConfirm: 'This will add default scoring criteria. Continue?',
+      noCriteria: 'No scoring criteria configured.',
+      statuses: {
+        cold: 'Cold',
+        warm: 'Warm',
+        hot: 'Hot',
+        qualified: 'Qualified',
+      },
+      categories: {
+        profile: 'Profile',
+        engagement: 'Engagement',
+        behavior: 'Behavior',
+        demographic: 'Demographic',
+      },
+      fields: {
+        name: 'Name',
+        category: 'Category',
+        field: 'Field',
+        condition: 'Condition',
+        value: 'Value',
+        points: 'Points',
+        isActive: 'Active',
+        countryCode: 'Country',
+      },
+      conditions: {
+        equals: 'Equals',
+        not_empty: 'Not Empty',
+        greater_than: 'Greater Than',
+        less_than: 'Less Than',
+        contains: 'Contains',
+      },
+      fieldOptions: {
+        hasPhone: 'Has Phone',
+        hasEmail: 'Has Email',
+        hasAddress: 'Has Address',
+        hasCase: 'Has Case',
+        newsletterOptIn: 'Newsletter Opt-in',
+        caseStatus: 'Case Status',
+        hasExpectedDate: 'Has Expected Date',
+        hasFatherInfo: 'Has Father Info',
+        hasProduct: 'Has Product',
+        clientStatus: 'Client Status',
+        daysFromCreation: 'Days Since Creation',
+      },
+    },
   },
   sk: {
     nav: {
@@ -1848,6 +1966,65 @@ export const translations: Record<Locale, Translations> = {
         CCAE: 'Aktívne externé call centrum',
         'CCAE+D': 'Aktívne externé call centrum + lekár',
         I: 'Internet',
+      },
+    },
+    leadScoring: {
+      title: 'Skóre potenciálneho klienta',
+      description: 'Automatické hodnotenie na základe profilu a angažovanosti',
+      score: 'Skóre',
+      status: 'Stav',
+      recalculate: 'Prepočítať',
+      recalculateAll: 'Prepočítať všetky',
+      recalculatingAll: 'Prepočítavam všetky skóre...',
+      criteria: 'Kritériá hodnotenia',
+      addCriteria: 'Pridať kritérium',
+      editCriteria: 'Upraviť kritérium',
+      deleteCriteria: 'Odstrániť kritérium',
+      deleteConfirm: 'Naozaj chcete odstrániť toto kritérium?',
+      seedDefaults: 'Načítať predvolené kritériá',
+      seedDefaultsConfirm: 'Tým sa pridajú predvolené kritériá. Pokračovať?',
+      noCriteria: 'Žiadne kritériá nie sú nakonfigurované.',
+      statuses: {
+        cold: 'Studený',
+        warm: 'Teplý',
+        hot: 'Horúci',
+        qualified: 'Kvalifikovaný',
+      },
+      categories: {
+        profile: 'Profil',
+        engagement: 'Angažovanosť',
+        behavior: 'Správanie',
+        demographic: 'Demografické',
+      },
+      fields: {
+        name: 'Názov',
+        category: 'Kategória',
+        field: 'Pole',
+        condition: 'Podmienka',
+        value: 'Hodnota',
+        points: 'Body',
+        isActive: 'Aktívne',
+        countryCode: 'Krajina',
+      },
+      conditions: {
+        equals: 'Rovná sa',
+        not_empty: 'Nie je prázdne',
+        greater_than: 'Väčšie ako',
+        less_than: 'Menšie ako',
+        contains: 'Obsahuje',
+      },
+      fieldOptions: {
+        hasPhone: 'Má telefón',
+        hasEmail: 'Má email',
+        hasAddress: 'Má adresu',
+        hasCase: 'Má prípad',
+        newsletterOptIn: 'Prihlásený k odberu',
+        caseStatus: 'Stav prípadu',
+        hasExpectedDate: 'Má očakávaný dátum',
+        hasFatherInfo: 'Má údaje o otcovi',
+        hasProduct: 'Má produkt',
+        clientStatus: 'Stav klienta',
+        daysFromCreation: 'Dni od vytvorenia',
       },
     },
   },
@@ -2463,6 +2640,28 @@ export const translations: Record<Locale, Translations> = {
         I: 'Internet',
       },
     },
+    leadScoring: {
+      title: 'Skóre potenciálního klienta',
+      description: 'Automatické hodnocení na základě profilu a zapojení',
+      score: 'Skóre',
+      status: 'Stav',
+      recalculate: 'Přepočítat',
+      recalculateAll: 'Přepočítat vše',
+      recalculatingAll: 'Přepočítávám všechna skóre...',
+      criteria: 'Kritéria hodnocení',
+      addCriteria: 'Přidat kritérium',
+      editCriteria: 'Upravit kritérium',
+      deleteCriteria: 'Odstranit kritérium',
+      deleteConfirm: 'Opravdu chcete odstranit toto kritérium?',
+      seedDefaults: 'Načíst výchozí kritéria',
+      seedDefaultsConfirm: 'Tím se přidají výchozí kritéria. Pokračovat?',
+      noCriteria: 'Žádná kritéria nejsou nakonfigurována.',
+      statuses: { cold: 'Studený', warm: 'Teplý', hot: 'Horký', qualified: 'Kvalifikovaný' },
+      categories: { profile: 'Profil', engagement: 'Zapojení', behavior: 'Chování', demographic: 'Demografické' },
+      fields: { name: 'Název', category: 'Kategorie', field: 'Pole', condition: 'Podmínka', value: 'Hodnota', points: 'Body', isActive: 'Aktivní', countryCode: 'Země' },
+      conditions: { equals: 'Rovná se', not_empty: 'Není prázdné', greater_than: 'Větší než', less_than: 'Menší než', contains: 'Obsahuje' },
+      fieldOptions: { hasPhone: 'Má telefon', hasEmail: 'Má email', hasAddress: 'Má adresu', hasCase: 'Má případ', newsletterOptIn: 'Odběr newsletteru', caseStatus: 'Stav případu', hasExpectedDate: 'Má očekávané datum', hasFatherInfo: 'Má údaje o otci', hasProduct: 'Má produkt', clientStatus: 'Stav klienta', daysFromCreation: 'Dní od vytvoření' },
+    },
   },
   hu: {
     nav: {
@@ -3075,6 +3274,28 @@ export const translations: Record<Locale, Translations> = {
         'CCAE+D': 'Aktív külső call center + orvos',
         I: 'Internet',
       },
+    },
+    leadScoring: {
+      title: 'Lead pontszám',
+      description: 'Automatikus pontozás profil és elkötelezettség alapján',
+      score: 'Pontszám',
+      status: 'Állapot',
+      recalculate: 'Újraszámolás',
+      recalculateAll: 'Összes újraszámolása',
+      recalculatingAll: 'Összes pontszám újraszámolása...',
+      criteria: 'Pontozási kritériumok',
+      addCriteria: 'Kritérium hozzáadása',
+      editCriteria: 'Kritérium szerkesztése',
+      deleteCriteria: 'Kritérium törlése',
+      deleteConfirm: 'Biztosan törölni szeretné ezt a kritériumot?',
+      seedDefaults: 'Alapértelmezett kritériumok betöltése',
+      seedDefaultsConfirm: 'Ez hozzáadja az alapértelmezett kritériumokat. Folytatja?',
+      noCriteria: 'Nincsenek konfigurált kritériumok.',
+      statuses: { cold: 'Hideg', warm: 'Meleg', hot: 'Forró', qualified: 'Minősített' },
+      categories: { profile: 'Profil', engagement: 'Elkötelezettség', behavior: 'Viselkedés', demographic: 'Demográfiai' },
+      fields: { name: 'Név', category: 'Kategória', field: 'Mező', condition: 'Feltétel', value: 'Érték', points: 'Pontok', isActive: 'Aktív', countryCode: 'Ország' },
+      conditions: { equals: 'Egyenlő', not_empty: 'Nem üres', greater_than: 'Nagyobb mint', less_than: 'Kisebb mint', contains: 'Tartalmazza' },
+      fieldOptions: { hasPhone: 'Van telefonszáma', hasEmail: 'Van emailje', hasAddress: 'Van címe', hasCase: 'Van esete', newsletterOptIn: 'Hírlevél feliratkozás', caseStatus: 'Eset állapota', hasExpectedDate: 'Van várható dátuma', hasFatherInfo: 'Van apa adat', hasProduct: 'Van terméke', clientStatus: 'Ügyfél állapota', daysFromCreation: 'Létrehozás óta eltelt napok' },
     },
   },
   ro: {
@@ -3689,6 +3910,28 @@ export const translations: Record<Locale, Translations> = {
         I: 'Internet',
       },
     },
+    leadScoring: {
+      title: 'Scor lead',
+      description: 'Scorare automată bazată pe profil și implicare',
+      score: 'Scor',
+      status: 'Status',
+      recalculate: 'Recalculare',
+      recalculateAll: 'Recalculare toate',
+      recalculatingAll: 'Se recalculează toate scorurile...',
+      criteria: 'Criterii de scorare',
+      addCriteria: 'Adaugă criteriu',
+      editCriteria: 'Editează criteriu',
+      deleteCriteria: 'Șterge criteriu',
+      deleteConfirm: 'Sigur doriți să ștergeți acest criteriu?',
+      seedDefaults: 'Încarcă criterii implicite',
+      seedDefaultsConfirm: 'Aceasta va adăuga criterii implicite. Continuați?',
+      noCriteria: 'Nu sunt configurate criterii.',
+      statuses: { cold: 'Rece', warm: 'Cald', hot: 'Fierbinte', qualified: 'Calificat' },
+      categories: { profile: 'Profil', engagement: 'Implicare', behavior: 'Comportament', demographic: 'Demografic' },
+      fields: { name: 'Nume', category: 'Categorie', field: 'Câmp', condition: 'Condiție', value: 'Valoare', points: 'Puncte', isActive: 'Activ', countryCode: 'Țară' },
+      conditions: { equals: 'Egal cu', not_empty: 'Nu este gol', greater_than: 'Mai mare decât', less_than: 'Mai mic decât', contains: 'Conține' },
+      fieldOptions: { hasPhone: 'Are telefon', hasEmail: 'Are email', hasAddress: 'Are adresă', hasCase: 'Are caz', newsletterOptIn: 'Abonat newsletter', caseStatus: 'Status caz', hasExpectedDate: 'Are dată estimată', hasFatherInfo: 'Are info tată', hasProduct: 'Are produs', clientStatus: 'Status client', daysFromCreation: 'Zile de la creare' },
+    },
   },
   it: {
     nav: {
@@ -4302,6 +4545,28 @@ export const translations: Record<Locale, Translations> = {
         I: 'Internet',
       },
     },
+    leadScoring: {
+      title: 'Punteggio lead',
+      description: 'Punteggio automatico basato su profilo e coinvolgimento',
+      score: 'Punteggio',
+      status: 'Stato',
+      recalculate: 'Ricalcola',
+      recalculateAll: 'Ricalcola tutti',
+      recalculatingAll: 'Ricalcolo di tutti i punteggi...',
+      criteria: 'Criteri di punteggio',
+      addCriteria: 'Aggiungi criterio',
+      editCriteria: 'Modifica criterio',
+      deleteCriteria: 'Elimina criterio',
+      deleteConfirm: 'Sei sicuro di voler eliminare questo criterio?',
+      seedDefaults: 'Carica criteri predefiniti',
+      seedDefaultsConfirm: 'Questo aggiungerà i criteri predefiniti. Continuare?',
+      noCriteria: 'Nessun criterio configurato.',
+      statuses: { cold: 'Freddo', warm: 'Tiepido', hot: 'Caldo', qualified: 'Qualificato' },
+      categories: { profile: 'Profilo', engagement: 'Coinvolgimento', behavior: 'Comportamento', demographic: 'Demografico' },
+      fields: { name: 'Nome', category: 'Categoria', field: 'Campo', condition: 'Condizione', value: 'Valore', points: 'Punti', isActive: 'Attivo', countryCode: 'Paese' },
+      conditions: { equals: 'Uguale a', not_empty: 'Non vuoto', greater_than: 'Maggiore di', less_than: 'Minore di', contains: 'Contiene' },
+      fieldOptions: { hasPhone: 'Ha telefono', hasEmail: 'Ha email', hasAddress: 'Ha indirizzo', hasCase: 'Ha caso', newsletterOptIn: 'Iscrizione newsletter', caseStatus: 'Stato caso', hasExpectedDate: 'Ha data prevista', hasFatherInfo: 'Ha info padre', hasProduct: 'Ha prodotto', clientStatus: 'Stato cliente', daysFromCreation: 'Giorni dalla creazione' },
+    },
   },
   de: {
     nav: {
@@ -4914,6 +5179,28 @@ export const translations: Record<Locale, Translations> = {
         'CCAE+D': 'Aktives externes Call Center + Arzt',
         I: 'Internet',
       },
+    },
+    leadScoring: {
+      title: 'Lead-Punktzahl',
+      description: 'Automatische Bewertung basierend auf Profil und Engagement',
+      score: 'Punktzahl',
+      status: 'Status',
+      recalculate: 'Neu berechnen',
+      recalculateAll: 'Alle neu berechnen',
+      recalculatingAll: 'Alle Punktzahlen werden neu berechnet...',
+      criteria: 'Bewertungskriterien',
+      addCriteria: 'Kriterium hinzufügen',
+      editCriteria: 'Kriterium bearbeiten',
+      deleteCriteria: 'Kriterium löschen',
+      deleteConfirm: 'Möchten Sie dieses Kriterium wirklich löschen?',
+      seedDefaults: 'Standardkriterien laden',
+      seedDefaultsConfirm: 'Dies fügt Standardkriterien hinzu. Fortfahren?',
+      noCriteria: 'Keine Kriterien konfiguriert.',
+      statuses: { cold: 'Kalt', warm: 'Warm', hot: 'Heiß', qualified: 'Qualifiziert' },
+      categories: { profile: 'Profil', engagement: 'Engagement', behavior: 'Verhalten', demographic: 'Demografisch' },
+      fields: { name: 'Name', category: 'Kategorie', field: 'Feld', condition: 'Bedingung', value: 'Wert', points: 'Punkte', isActive: 'Aktiv', countryCode: 'Land' },
+      conditions: { equals: 'Gleich', not_empty: 'Nicht leer', greater_than: 'Größer als', less_than: 'Kleiner als', contains: 'Enthält' },
+      fieldOptions: { hasPhone: 'Hat Telefon', hasEmail: 'Hat E-Mail', hasAddress: 'Hat Adresse', hasCase: 'Hat Fall', newsletterOptIn: 'Newsletter-Anmeldung', caseStatus: 'Fallstatus', hasExpectedDate: 'Hat erwartetes Datum', hasFatherInfo: 'Hat Vater-Info', hasProduct: 'Hat Produkt', clientStatus: 'Kundenstatus', daysFromCreation: 'Tage seit Erstellung' },
     },
   },
 };

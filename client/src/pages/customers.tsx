@@ -1152,6 +1152,48 @@ export default function CustomersPage() {
       },
     },
     {
+      key: "leadScore",
+      header: t.leadScoring?.title || "Lead Score",
+      cell: (customer: Customer) => {
+        if (customer.clientStatus !== "potential") {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        const score = customer.leadScore || 0;
+        const status = customer.leadStatus || "cold";
+        const statusColors: Record<string, string> = {
+          cold: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+          warm: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+          hot: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+          qualified: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+        };
+        const statusLabels: Record<string, string> = {
+          cold: t.leadScoring?.statuses?.cold || "Cold",
+          warm: t.leadScoring?.statuses?.warm || "Warm",
+          hot: t.leadScoring?.statuses?.hot || "Hot",
+          qualified: t.leadScoring?.statuses?.qualified || "Qualified",
+        };
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-12 bg-muted rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  score >= 75 ? "bg-green-500" :
+                  score >= 50 ? "bg-orange-500" :
+                  score >= 25 ? "bg-yellow-500" :
+                  "bg-slate-400"
+                }`}
+                style={{ width: `${score}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium w-8">{score}</span>
+            <Badge variant="secondary" className={statusColors[status]}>
+              {statusLabels[status]}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
       key: "actions",
       header: "",
       className: "text-right",

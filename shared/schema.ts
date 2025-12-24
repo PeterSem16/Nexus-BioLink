@@ -214,6 +214,7 @@ export type ClientStatus = typeof CLIENT_STATUSES[number]["value"];
 // Customers table - cord blood banking customers (extended)
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  internalId: text("internal_id"), // Interné číslo (prenos zo starej aplikácie)
   
   // Tab Klientka - Personal info
   titleBefore: text("title_before"), // Titul pred menom

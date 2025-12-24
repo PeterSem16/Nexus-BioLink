@@ -119,6 +119,9 @@ export interface Translations {
       email2: string;
       nationalId: string;
       idCardNumber: string;
+      clientId: string;
+      internalId: string;
+      copiedToClipboard: string;
       dateOfBirth: string;
       selectDate: string;
       newsletter: string;
@@ -793,6 +796,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'National ID',
         idCardNumber: 'ID Card Number',
+        clientId: 'Client ID',
+        internalId: 'Internal ID (Legacy)',
+        copiedToClipboard: 'Copied to clipboard',
         dateOfBirth: 'Date of Birth',
         selectDate: 'Select date',
         newsletter: 'Newsletter',
@@ -1465,6 +1471,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'Rodné číslo',
         idCardNumber: 'Číslo občianskeho preukazu',
+        clientId: 'ID klienta',
+        internalId: 'Interné číslo (prenos)',
+        copiedToClipboard: 'Skopírované do schránky',
         dateOfBirth: 'Dátum narodenia',
         selectDate: 'Vyberte dátum',
         newsletter: 'Obežník (newsletter)',
@@ -2137,6 +2146,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'Rodné číslo',
         idCardNumber: 'Číslo občanského průkazu',
+        clientId: 'ID klienta',
+        internalId: 'Interní číslo (přenos)',
+        copiedToClipboard: 'Zkopírováno do schránky',
         dateOfBirth: 'Datum narození',
         selectDate: 'Vyberte datum',
         newsletter: 'Newsletter',
@@ -2772,6 +2784,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'Személyi szám',
         idCardNumber: 'Személyi igazolvány szám',
+        clientId: 'Ügyfél ID',
+        internalId: 'Belső azonosító (régi)',
+        copiedToClipboard: 'Vágólapra másolva',
         dateOfBirth: 'Születési dátum',
         selectDate: 'Válasszon dátumot',
         newsletter: 'Hírlevél',
@@ -3407,6 +3422,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'CNP',
         idCardNumber: 'Număr CI',
+        clientId: 'ID Client',
+        internalId: 'Număr intern (transfer)',
+        copiedToClipboard: 'Copiat în clipboard',
         dateOfBirth: 'Data nașterii',
         selectDate: 'Selectați data',
         newsletter: 'Newsletter',
@@ -4042,6 +4060,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'Email 2',
         nationalId: 'Codice fiscale',
         idCardNumber: 'Numero carta d\'identità',
+        clientId: 'ID Cliente',
+        internalId: 'Numero interno (legacy)',
+        copiedToClipboard: 'Copiato negli appunti',
         dateOfBirth: 'Data di nascita',
         selectDate: 'Seleziona data',
         newsletter: 'Newsletter',
@@ -4677,6 +4698,9 @@ export const translations: Record<Locale, Translations> = {
         email2: 'E-Mail 2',
         nationalId: 'Personalausweisnummer',
         idCardNumber: 'Ausweisnummer',
+        clientId: 'Kunden-ID',
+        internalId: 'Interne Nummer (Altdaten)',
+        copiedToClipboard: 'In Zwischenablage kopiert',
         dateOfBirth: 'Geburtsdatum',
         selectDate: 'Datum auswählen',
         newsletter: 'Newsletter',

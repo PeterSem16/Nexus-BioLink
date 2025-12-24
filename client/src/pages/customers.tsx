@@ -1108,13 +1108,6 @@ export default function CustomersPage() {
       ),
     },
     {
-      key: "phone",
-      header: "Phone",
-      cell: (customer: Customer) => (
-        <span className="text-sm">{customer.phone || "-"}</span>
-      ),
-    },
-    {
       key: "service",
       header: "Service Type",
       cell: (customer: Customer) => (

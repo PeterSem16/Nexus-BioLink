@@ -27,7 +27,8 @@ import {
 import { COUNTRIES, WORLD_COUNTRIES } from "@shared/schema";
 import { CLIENT_STATUSES } from "@shared/schema";
 import type { Customer, ComplaintType, CooperationType, VipStatus, HealthInsurance } from "@shared/schema";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -137,6 +138,13 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
   const [activeTab, setActiveTab] = useState("klientka");
   
   // Fetch configuration data
+  const { toast } = useToast();
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: t.customers.fields.copiedToClipboard });
+  };
+  
   const { data: complaintTypes = [] } = useQuery<ComplaintType[]>({
     queryKey: ["/api/config/complaint-types"],
   });
@@ -532,6 +540,54 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                 </FormItem>
               )}
             />
+
+            {/* ID Fields (read-only, shown when editing) */}
+            {initialData && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.customers.fields.clientId}</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={initialData.id}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
+                      data-testid="input-client-id"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(initialData.id)}
+                      data-testid="button-copy-client-id"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.customers.fields.internalId}</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={initialData.internalId || ""}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
+                      placeholder="-"
+                      data-testid="input-internal-id"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(initialData.internalId || "")}
+                      disabled={!initialData.internalId}
+                      data-testid="button-copy-internal-id"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField

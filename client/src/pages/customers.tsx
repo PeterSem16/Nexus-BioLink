@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -377,6 +377,44 @@ function CustomerDetailsContent({
             {customer.firstName} {customer.lastName}
           </h3>
           <p className="text-muted-foreground">{customer.email}</p>
+          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">{t.customers.fields.clientId}:</span>
+              <span className="font-mono text-xs">{customer.id}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => {
+                  navigator.clipboard.writeText(customer.id);
+                  toast({ title: t.customers.fields.copiedToClipboard });
+                }}
+                data-testid="button-copy-detail-client-id"
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+            </div>
+            {customer.internalId && (
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">{t.customers.fields.internalId}:</span>
+                <span className="font-mono text-xs">{customer.internalId}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => {
+                    navigator.clipboard.writeText(customer.internalId || "");
+                    toast({ title: t.customers.fields.copiedToClipboard });
+                  }}
+                  data-testid="button-copy-detail-internal-id"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

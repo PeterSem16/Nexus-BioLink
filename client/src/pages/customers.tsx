@@ -1094,11 +1094,27 @@ export default function CustomersPage() {
   });
 
   const filteredCustomers = customers.filter(customer => {
-    // Search filter (name/email)
+    // Search filter - search across all text fields
+    const searchLower = search.toLowerCase();
     const matchesSearch = search === "" || 
-      customer.firstName.toLowerCase().includes(search.toLowerCase()) ||
-      customer.lastName.toLowerCase().includes(search.toLowerCase()) ||
-      customer.email.toLowerCase().includes(search.toLowerCase());
+      customer.id.toLowerCase().includes(searchLower) ||
+      (customer.internalId && customer.internalId.toLowerCase().includes(searchLower)) ||
+      customer.firstName.toLowerCase().includes(searchLower) ||
+      customer.lastName.toLowerCase().includes(searchLower) ||
+      (customer.maidenName && customer.maidenName.toLowerCase().includes(searchLower)) ||
+      customer.email.toLowerCase().includes(searchLower) ||
+      (customer.email2 && customer.email2.toLowerCase().includes(searchLower)) ||
+      (customer.phone && customer.phone.toLowerCase().includes(searchLower)) ||
+      (customer.mobile && customer.mobile.toLowerCase().includes(searchLower)) ||
+      (customer.mobile2 && customer.mobile2.toLowerCase().includes(searchLower)) ||
+      (customer.nationalId && customer.nationalId.toLowerCase().includes(searchLower)) ||
+      (customer.idCardNumber && customer.idCardNumber.toLowerCase().includes(searchLower)) ||
+      (customer.city && customer.city.toLowerCase().includes(searchLower)) ||
+      (customer.address && customer.address.toLowerCase().includes(searchLower)) ||
+      (customer.postalCode && customer.postalCode.toLowerCase().includes(searchLower)) ||
+      (customer.region && customer.region.toLowerCase().includes(searchLower)) ||
+      (customer.bankAccount && customer.bankAccount.toLowerCase().includes(searchLower)) ||
+      (customer.notes && customer.notes.toLowerCase().includes(searchLower));
     
     // Phone filter
     const matchesPhone = phoneFilter === "" || 

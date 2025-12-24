@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/I18nProvider";
 import { EmbeddedPotentialCaseForm } from "./potential-case-form";
+import { useModuleFieldPermissions } from "@/components/ui/permission-field";
 
 // Validation helpers
 function validateSlovakNationalId(id: string): boolean {
@@ -137,6 +138,9 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("klientka");
   
+  // Field permissions for customers module
+  const { isHidden, isReadonly } = useModuleFieldPermissions("customers");
+  
   // Fetch configuration data
   const { toast } = useToast();
   
@@ -231,74 +235,111 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
           {/* Tab Klientka - Personal Info */}
           <TabsContent value="klientka" className="space-y-4 mt-4">
             <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="titleBefore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.fields.title}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ing., Mgr., ..." {...field} data-testid="input-title-before" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.firstName} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-firstname" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.lastName} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-lastname" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isHidden("title_before") && (
+                <FormField
+                  control={form.control}
+                  name="titleBefore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.customers.fields.title}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Ing., Mgr., ..." 
+                          {...field} 
+                          data-testid="input-title-before"
+                          disabled={isReadonly("title_before")}
+                          className={isReadonly("title_before") ? "bg-muted" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {!isHidden("first_name") && (
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.customers.firstName} *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          data-testid="input-firstname" 
+                          disabled={isReadonly("first_name")}
+                          className={isReadonly("first_name") ? "bg-muted" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {!isHidden("last_name") && (
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.customers.lastName} *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          data-testid="input-lastname"
+                          disabled={isReadonly("last_name")}
+                          className={isReadonly("last_name") ? "bg-muted" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             
             <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="maidenName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.fields.maidenName}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-maiden-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="titleAfter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.fields.titleAfter}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="PhD., MBA, ..." {...field} data-testid="input-title-after" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isHidden("maiden_name") && (
+                <FormField
+                  control={form.control}
+                  name="maidenName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.customers.fields.maidenName}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          data-testid="input-maiden-name"
+                          disabled={isReadonly("maiden_name")}
+                          className={isReadonly("maiden_name") ? "bg-muted" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {!isHidden("title_after") && (
+                <FormField
+                  control={form.control}
+                  name="titleAfter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.customers.fields.titleAfter}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="PhD., MBA, ..." 
+                          {...field} 
+                          data-testid="input-title-after"
+                          disabled={isReadonly("title_after")}
+                          className={isReadonly("title_after") ? "bg-muted" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="dateOfBirth"

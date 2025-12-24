@@ -267,21 +267,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<SafeUser> {
-    const { password, ...userData } = insertUser;
+    const { password, roleId, ...userData } = insertUser;
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     
     const [user] = await db.insert(users).values({
       ...userData,
       passwordHash,
+      roleId: roleId || null,
     }).returning();
     
     return toSafeUser(user);
   }
 
   async updateUser(id: string, updateData: UpdateUser): Promise<SafeUser | undefined> {
-    const { password, ...userData } = updateData;
+    const { password, roleId, ...userData } = updateData;
     
     let dataToUpdate: Partial<User> = { ...userData };
+    
+    // Explicitly handle roleId to ensure it's stored as null when empty
+    if (roleId !== undefined) {
+      dataToUpdate.roleId = roleId || null;
+    }
     
     if (password) {
       dataToUpdate.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

@@ -129,7 +129,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("user"), // admin, manager, user
+  role: text("role").notNull().default("user"), // legacy field - admin, manager, user
+  roleId: varchar("role_id"), // FK to roles table - new role system
   isActive: boolean("is_active").notNull().default(true),
   assignedCountries: text("assigned_countries").array().notNull().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -482,6 +483,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 }).extend({
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.string().optional().default("user"),
+  roleId: z.string().optional().nullable().transform(val => val === "" ? null : val),
   isActive: z.boolean().optional().default(true),
   assignedCountries: z.array(z.string()).optional().default([]),
 });
@@ -494,6 +496,7 @@ export const updateUserSchema = createInsertSchema(users).omit({
 }).extend({
   password: z.string().min(6).optional(),
   role: z.string().optional(),
+  roleId: z.string().optional().nullable().transform(val => val === "" ? null : val),
   isActive: z.boolean().optional(),
   assignedCountries: z.array(z.string()).optional(),
 });
@@ -1251,6 +1254,7 @@ export const roles = pgTable("roles", {
   name: text("name").notNull().unique(),
   description: text("description"),
   department: text("department"), // management, sales, operations, finance, customer_service, it, medical
+  legacyRole: text("legacy_role"), // Maps to legacy role enum (admin, manager, user) for backward compatibility
   isActive: boolean("is_active").notNull().default(true),
   isSystem: boolean("is_system").notNull().default(false), // system roles cannot be deleted
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

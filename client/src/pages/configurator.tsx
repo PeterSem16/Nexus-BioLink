@@ -1735,6 +1735,17 @@ function PermissionsRolesTab() {
     },
   });
 
+  const seedMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/roles/seed"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      toast({ title: t.konfigurator.defaultRolesCreated || "Default roles created successfully" });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
   const updateModulePermission = useMutation({
     mutationFn: ({ roleId, moduleKey, access }: { roleId: string; moduleKey: string; access: ModuleAccess }) =>
       apiRequest("PUT", `/api/roles/${roleId}/modules/${moduleKey}`, { access }),
@@ -1827,10 +1838,15 @@ function PermissionsRolesTab() {
       <div className="w-1/3 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-lg font-medium">{t.konfigurator.roles}</h3>
-          <Button size="sm" onClick={() => { setIsEditing(false); form.reset(); setIsFormOpen(true); }} data-testid="button-add-role">
-            <Plus className="h-4 w-4 mr-1" />
-            {t.konfigurator.addRole}
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} data-testid="button-seed-roles">
+              {t.konfigurator.createDefaultRoles}
+            </Button>
+            <Button size="sm" onClick={() => { setIsEditing(false); form.reset(); setIsFormOpen(true); }} data-testid="button-add-role">
+              <Plus className="h-4 w-4 mr-1" />
+              {t.konfigurator.addRole}
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">

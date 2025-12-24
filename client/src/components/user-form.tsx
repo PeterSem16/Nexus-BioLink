@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { COUNTRIES } from "@/lib/countries";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { User } from "@shared/schema";
+import type { User, Role } from "@shared/schema";
 
 const createUserFormSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -30,6 +32,7 @@ const createUserFormSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["admin", "manager", "user"]),
+  roleId: z.string().optional(),
   isActive: z.boolean(),
   assignedCountries: z.array(z.string()).min(1, "At least one country must be assigned"),
 });
@@ -40,6 +43,7 @@ const updateUserFormSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
   role: z.enum(["admin", "manager", "user"]),
+  roleId: z.string().optional(),
   isActive: z.boolean(),
   assignedCountries: z.array(z.string()).min(1, "At least one country must be assigned"),
 });
@@ -57,6 +61,22 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
   const { t } = useI18n();
   const isEditing = !!initialData;
   
+  const { data: roles = [] } = useQuery<Role[]>({
+    queryKey: ["/api/roles"],
+  });
+  
+  // Get active roles or fallback to legacy options
+  const activeRoles = roles.filter(r => r.isActive);
+  const hasCustomRoles = activeRoles.length > 0;
+  
+  // Map legacy role to roleId using legacyRole field
+  const getLegacyRoleId = (legacyRoleValue: string): string => {
+    if (!hasCustomRoles) return "";
+    // Find role by legacyRole field instead of name
+    const matchingRole = activeRoles.find(r => (r as any).legacyRole === legacyRoleValue);
+    return matchingRole?.id || "";
+  };
+  
   const form = useForm<UserFormData>({
     resolver: zodResolver(isEditing ? updateUserFormSchema : createUserFormSchema),
     defaultValues: {
@@ -65,16 +85,43 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
       fullName: initialData?.fullName || "",
       password: "",
       role: (initialData?.role as any) || "user",
+      roleId: (initialData as any)?.roleId || "",
       isActive: initialData?.isActive ?? true,
       assignedCountries: initialData?.assignedCountries || [],
     },
   });
+  
+  // Auto-set roleId for legacy users when custom roles are loaded
+  useEffect(() => {
+    const currentRoleId = form.getValues("roleId");
+    const legacyRole = initialData?.role;
+    
+    // If user has no roleId but has legacy role and custom roles exist, set roleId
+    if (hasCustomRoles && !currentRoleId && legacyRole) {
+      const mappedRoleId = getLegacyRoleId(legacyRole);
+      if (mappedRoleId) {
+        form.setValue("roleId", mappedRoleId);
+      }
+    }
+  }, [hasCustomRoles, activeRoles, initialData?.role]);
   
   const handleFormSubmit = (data: UserFormData) => {
     const submitData = { ...data };
     if (isEditing && !data.password) {
       delete (submitData as any).password;
     }
+    
+    // Map roleId to legacy role field using legacyRole from the role definition
+    if (submitData.roleId && hasCustomRoles) {
+      const selectedRole = activeRoles.find(r => r.id === submitData.roleId);
+      if (selectedRole && (selectedRole as any).legacyRole) {
+        submitData.role = (selectedRole as any).legacyRole as "admin" | "manager" | "user";
+      } else {
+        // Default to "user" for custom roles without legacyRole mapping
+        submitData.role = "user";
+      }
+    }
+    
     onSubmit(submitData);
   };
 
@@ -164,28 +211,58 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.users.role}</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-role">
-                      <SelectValue placeholder={t.users.selectRole} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="admin">{t.users.roles.admin}</SelectItem>
-                    <SelectItem value="manager">{t.users.roles.manager}</SelectItem>
-                    <SelectItem value="user">{t.users.roles.user}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {hasCustomRoles ? (
+            <FormField
+              control={form.control}
+              name="roleId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.users.role}</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-role">
+                        <SelectValue placeholder={t.users.selectRole} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {activeRoles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : (
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.users.role}</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-role">
+                        <SelectValue placeholder={t.users.selectRole} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="admin">{t.users.roles.admin}</SelectItem>
+                      <SelectItem value="manager">{t.users.roles.manager}</SelectItem>
+                      <SelectItem value="user">{t.users.roles.user}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <FormField

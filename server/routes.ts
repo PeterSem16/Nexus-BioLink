@@ -3039,5 +3039,108 @@ export async function registerRoutes(
     }
   });
 
+  // Seed default roles
+  app.post("/api/roles/seed", requireAuth, async (req, res) => {
+    try {
+      const existingRoles = await storage.getAllRoles();
+      
+      // Define the 3 system roles with legacyRole for backward compatibility
+      const systemRoles = [
+        {
+          name: "Administrator",
+          description: "Full access to all modules and features",
+          department: "management",
+          legacyRole: "admin",
+          isSystem: true,
+          moduleAccess: {
+            dashboard: "visible",
+            customers: "visible",
+            hospitals: "visible",
+            collaborators: "visible",
+            invoices: "visible",
+            users: "visible",
+            settings: "visible",
+            configurator: "visible",
+          },
+        },
+        {
+          name: "User",
+          description: "Access to operational modules",
+          department: "operations",
+          legacyRole: "user",
+          isSystem: true,
+          moduleAccess: {
+            dashboard: "visible",
+            customers: "visible",
+            hospitals: "visible",
+            collaborators: "visible",
+            invoices: "visible",
+            users: "hidden",
+            settings: "hidden",
+            configurator: "hidden",
+          },
+        },
+        {
+          name: "Manager",
+          description: "Dashboard access only",
+          department: "management",
+          legacyRole: "manager",
+          isSystem: true,
+          moduleAccess: {
+            dashboard: "visible",
+            customers: "hidden",
+            hospitals: "hidden",
+            collaborators: "hidden",
+            invoices: "hidden",
+            users: "hidden",
+            settings: "hidden",
+            configurator: "hidden",
+          },
+        },
+      ];
+
+      const createdRoles: Role[] = [];
+
+      for (const roleData of systemRoles) {
+        // Skip if role already exists
+        const existingRole = existingRoles.find(r => r.name === roleData.name);
+        if (existingRole) {
+          createdRoles.push(existingRole);
+          continue;
+        }
+
+        // Create the role
+        const role = await storage.createRole({
+          name: roleData.name,
+          description: roleData.description,
+          department: roleData.department,
+          legacyRole: roleData.legacyRole,
+          isSystem: roleData.isSystem,
+          isActive: true,
+          createdBy: req.session.user!.id,
+        });
+
+        // Set module permissions
+        const modulePerms = Object.entries(roleData.moduleAccess).map(([moduleKey, access]) => ({
+          roleId: role.id,
+          moduleKey,
+          access,
+        }));
+        await storage.setRoleModulePermissions(role.id, modulePerms);
+
+        createdRoles.push(role);
+      }
+
+      res.json({ 
+        success: true, 
+        message: "System roles created successfully",
+        roles: createdRoles 
+      });
+    } catch (error) {
+      console.error("Failed to seed roles:", error);
+      res.status(500).json({ error: "Failed to seed roles" });
+    }
+  });
+
   return httpServer;
 }

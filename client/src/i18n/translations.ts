@@ -620,6 +620,8 @@ export interface Translations {
     roleUpdated: string;
     roleDeleted: string;
     roleCopied: string;
+    defaultRolesCreated: string;
+    createDefaultRoles: string;
     newRoleName: string;
     copyRoleDescription: string;
     noRoles: string;
@@ -1440,6 +1442,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Role updated successfully',
       roleDeleted: 'Role deleted successfully',
       roleCopied: 'Role copied successfully',
+      defaultRolesCreated: 'Default roles created successfully',
+      createDefaultRoles: 'Create Default Roles',
       newRoleName: 'New Role Name',
       copyRoleDescription: 'Create a copy of this role with a new name',
       noRoles: 'No roles defined yet',
@@ -2258,6 +2262,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Rola bola úspešne aktualizovaná',
       roleDeleted: 'Rola bola úspešne odstránená',
       roleCopied: 'Rola bola úspešne skopírovaná',
+      defaultRolesCreated: 'Predvolené role boli úspešne vytvorené',
+      createDefaultRoles: 'Vytvoriť predvolené role',
       newRoleName: 'Nový názov role',
       copyRoleDescription: 'Vytvorte kópiu tejto role s novým názvom',
       noRoles: 'Zatiaľ nie sú definované žiadne role',
@@ -3076,6 +3082,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Role byla úspěšně aktualizována',
       roleDeleted: 'Role byla úspěšně odstraněna',
       roleCopied: 'Role byla úspěšně zkopírována',
+      defaultRolesCreated: 'Výchozí role byly úspěšně vytvořeny',
+      createDefaultRoles: 'Vytvořit výchozí role',
       newRoleName: 'Nový název role',
       copyRoleDescription: 'Vytvořte kopii této role s novým názvem',
       noRoles: 'Zatím nejsou definovány žádné role',
@@ -3857,6 +3865,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Szerepkör sikeresen frissítve',
       roleDeleted: 'Szerepkör sikeresen törölve',
       roleCopied: 'Szerepkör sikeresen másolva',
+      defaultRolesCreated: 'Alapértelmezett szerepkörök sikeresen létrehozva',
+      createDefaultRoles: 'Alapértelmezett szerepkörök létrehozása',
       newRoleName: 'Új szerepkör neve',
       copyRoleDescription: 'Készítsen másolatot erről a szerepkörről új névvel',
       noRoles: 'Még nincsenek definiált szerepkörök',
@@ -4638,6 +4648,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Rol actualizat cu succes',
       roleDeleted: 'Rol șters cu succes',
       roleCopied: 'Rol copiat cu succes',
+      defaultRolesCreated: 'Rolurile implicite au fost create cu succes',
+      createDefaultRoles: 'Creează roluri implicite',
       newRoleName: 'Nume rol nou',
       copyRoleDescription: 'Creează o copie a acestui rol cu un nou nume',
       noRoles: 'Nu sunt definite roluri încă',
@@ -5419,6 +5431,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Ruolo aggiornato con successo',
       roleDeleted: 'Ruolo eliminato con successo',
       roleCopied: 'Ruolo copiato con successo',
+      defaultRolesCreated: 'Ruoli predefiniti creati con successo',
+      createDefaultRoles: 'Crea ruoli predefiniti',
       newRoleName: 'Nuovo nome ruolo',
       copyRoleDescription: 'Crea una copia di questo ruolo con un nuovo nome',
       noRoles: 'Nessun ruolo definito ancora',
@@ -6200,6 +6214,8 @@ export const translations: Record<Locale, Translations> = {
       roleUpdated: 'Rolle erfolgreich aktualisiert',
       roleDeleted: 'Rolle erfolgreich gelöscht',
       roleCopied: 'Rolle erfolgreich kopiert',
+      defaultRolesCreated: 'Standardrollen erfolgreich erstellt',
+      createDefaultRoles: 'Standardrollen erstellen',
       newRoleName: 'Neuer Rollenname',
       copyRoleDescription: 'Erstellen Sie eine Kopie dieser Rolle mit neuem Namen',
       noRoles: 'Noch keine Rollen definiert',

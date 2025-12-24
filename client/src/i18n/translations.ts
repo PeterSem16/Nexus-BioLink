@@ -542,6 +542,30 @@ export interface Translations {
     created: string;
     updated: string;
   };
+  wizard: {
+    next: string;
+    previous: string;
+    skip: string;
+    complete: string;
+    cancel: string;
+    stepOf: string;
+    percentComplete: string;
+    optional: string;
+    steps: {
+      personalInfo: string;
+      personalInfoDesc: string;
+      contactDetails: string;
+      contactDetailsDesc: string;
+      address: string;
+      addressDesc: string;
+      marketing: string;
+      marketingDesc: string;
+      banking: string;
+      bankingDesc: string;
+      review: string;
+      reviewDesc: string;
+    };
+  };
   globalSearch: {
     title: string;
     placeholder: string;
@@ -1219,6 +1243,30 @@ export const translations: Record<Locale, Translations> = {
       created: 'Successfully created',
       updated: 'Successfully updated',
     },
+    wizard: {
+      next: 'Next',
+      previous: 'Previous',
+      skip: 'Skip',
+      complete: 'Complete',
+      cancel: 'Cancel',
+      stepOf: 'Step {current} of {total}',
+      percentComplete: '{percent}% complete',
+      optional: 'Optional',
+      steps: {
+        personalInfo: 'Personal Info',
+        personalInfoDesc: 'Basic information about the client',
+        contactDetails: 'Contact Details',
+        contactDetailsDesc: 'Phone numbers and email addresses',
+        address: 'Address',
+        addressDesc: 'Permanent and correspondence address',
+        marketing: 'Marketing',
+        marketingDesc: 'Marketing preferences and classifications',
+        banking: 'Banking',
+        bankingDesc: 'Bank account and health insurance',
+        review: 'Review',
+        reviewDesc: 'Review and confirm all information',
+      },
+    },
     globalSearch: {
       title: 'Search',
       placeholder: 'Search customers, collaborators, invoices...',
@@ -1893,6 +1941,30 @@ export const translations: Record<Locale, Translations> = {
       deleted: 'Úspešne odstránené',
       created: 'Úspešne vytvorené',
       updated: 'Úspešne aktualizované',
+    },
+    wizard: {
+      next: 'Ďalej',
+      previous: 'Späť',
+      skip: 'Preskočiť',
+      complete: 'Dokončiť',
+      cancel: 'Zrušiť',
+      stepOf: 'Krok {current} z {total}',
+      percentComplete: '{percent}% dokončené',
+      optional: 'Voliteľné',
+      steps: {
+        personalInfo: 'Osobné údaje',
+        personalInfoDesc: 'Základné informácie o klientovi',
+        contactDetails: 'Kontaktné údaje',
+        contactDetailsDesc: 'Telefónne čísla a emailové adresy',
+        address: 'Adresa',
+        addressDesc: 'Trvalá a korešpondenčná adresa',
+        marketing: 'Marketing',
+        marketingDesc: 'Marketingové preferencie a klasifikácie',
+        banking: 'Bankové údaje',
+        bankingDesc: 'Bankový účet a zdravotné poistenie',
+        review: 'Prehľad',
+        reviewDesc: 'Skontrolujte a potvrďte všetky údaje',
+      },
     },
     globalSearch: {
       title: 'Vyhľadávanie',
@@ -2569,6 +2641,30 @@ export const translations: Record<Locale, Translations> = {
       created: 'Úspěšně vytvořeno',
       updated: 'Úspěšně aktualizováno',
     },
+    wizard: {
+      next: 'Další',
+      previous: 'Zpět',
+      skip: 'Přeskočit',
+      complete: 'Dokončit',
+      cancel: 'Zrušit',
+      stepOf: 'Krok {current} z {total}',
+      percentComplete: '{percent}% dokončeno',
+      optional: 'Volitelné',
+      steps: {
+        personalInfo: 'Osobní údaje',
+        personalInfoDesc: 'Základní informace o klientovi',
+        contactDetails: 'Kontaktní údaje',
+        contactDetailsDesc: 'Telefonní čísla a e-mailové adresy',
+        address: 'Adresa',
+        addressDesc: 'Trvalá a korespondenční adresa',
+        marketing: 'Marketing',
+        marketingDesc: 'Marketingové preference a klasifikace',
+        banking: 'Bankovní údaje',
+        bankingDesc: 'Bankovní účet a zdravotní pojištění',
+        review: 'Přehled',
+        reviewDesc: 'Zkontrolujte a potvrďte všechny údaje',
+      },
+    },
     globalSearch: {
       title: 'Vyhledávání',
       placeholder: 'Hledat zákazníky, spolupracovníky, faktury...',
@@ -3206,6 +3302,30 @@ export const translations: Record<Locale, Translations> = {
       deleted: 'Sikeresen törölve',
       created: 'Sikeresen létrehozva',
       updated: 'Sikeresen frissítve',
+    },
+    wizard: {
+      next: 'Tovább',
+      previous: 'Vissza',
+      skip: 'Kihagyás',
+      complete: 'Befejezés',
+      cancel: 'Mégse',
+      stepOf: '{current}. lépés / {total}',
+      percentComplete: '{percent}% kész',
+      optional: 'Opcionális',
+      steps: {
+        personalInfo: 'Személyes adatok',
+        personalInfoDesc: 'Alapvető információk az ügyfélről',
+        contactDetails: 'Elérhetőségek',
+        contactDetailsDesc: 'Telefonszámok és e-mail címek',
+        address: 'Cím',
+        addressDesc: 'Állandó és levelezési cím',
+        marketing: 'Marketing',
+        marketingDesc: 'Marketing preferenciák és besorolások',
+        banking: 'Banki adatok',
+        bankingDesc: 'Bankszámla és egészségbiztosítás',
+        review: 'Áttekintés',
+        reviewDesc: 'Ellenőrizze és erősítse meg az adatokat',
+      },
     },
     globalSearch: {
       title: 'Keresés',
@@ -3845,6 +3965,30 @@ export const translations: Record<Locale, Translations> = {
       created: 'Creat cu succes',
       updated: 'Actualizat cu succes',
     },
+    wizard: {
+      next: 'Următorul',
+      previous: 'Anterior',
+      skip: 'Sări peste',
+      complete: 'Finalizare',
+      cancel: 'Anulare',
+      stepOf: 'Pasul {current} din {total}',
+      percentComplete: '{percent}% complet',
+      optional: 'Opțional',
+      steps: {
+        personalInfo: 'Date personale',
+        personalInfoDesc: 'Informații de bază despre client',
+        contactDetails: 'Date de contact',
+        contactDetailsDesc: 'Numere de telefon și adrese de e-mail',
+        address: 'Adresă',
+        addressDesc: 'Adresa permanentă și de corespondență',
+        marketing: 'Marketing',
+        marketingDesc: 'Preferințe de marketing și clasificări',
+        banking: 'Date bancare',
+        bankingDesc: 'Cont bancar și asigurare de sănătate',
+        review: 'Revizuire',
+        reviewDesc: 'Verificați și confirmați toate datele',
+      },
+    },
     globalSearch: {
       title: 'Căutare',
       placeholder: 'Căutați clienți, colaboratori, facturi...',
@@ -4483,6 +4627,30 @@ export const translations: Record<Locale, Translations> = {
       created: 'Creato con successo',
       updated: 'Aggiornato con successo',
     },
+    wizard: {
+      next: 'Avanti',
+      previous: 'Indietro',
+      skip: 'Salta',
+      complete: 'Completa',
+      cancel: 'Annulla',
+      stepOf: 'Passo {current} di {total}',
+      percentComplete: '{percent}% completato',
+      optional: 'Opzionale',
+      steps: {
+        personalInfo: 'Dati personali',
+        personalInfoDesc: 'Informazioni di base sul cliente',
+        contactDetails: 'Contatti',
+        contactDetailsDesc: 'Numeri di telefono e indirizzi e-mail',
+        address: 'Indirizzo',
+        addressDesc: 'Indirizzo permanente e di corrispondenza',
+        marketing: 'Marketing',
+        marketingDesc: 'Preferenze di marketing e classificazioni',
+        banking: 'Dati bancari',
+        bankingDesc: 'Conto bancario e assicurazione sanitaria',
+        review: 'Revisione',
+        reviewDesc: 'Verifica e conferma tutti i dati',
+      },
+    },
     globalSearch: {
       title: 'Ricerca',
       placeholder: 'Cerca clienti, collaboratori, fatture...',
@@ -5120,6 +5288,30 @@ export const translations: Record<Locale, Translations> = {
       deleted: 'Erfolgreich gelöscht',
       created: 'Erfolgreich erstellt',
       updated: 'Erfolgreich aktualisiert',
+    },
+    wizard: {
+      next: 'Weiter',
+      previous: 'Zurück',
+      skip: 'Überspringen',
+      complete: 'Abschließen',
+      cancel: 'Abbrechen',
+      stepOf: 'Schritt {current} von {total}',
+      percentComplete: '{percent}% abgeschlossen',
+      optional: 'Optional',
+      steps: {
+        personalInfo: 'Persönliche Daten',
+        personalInfoDesc: 'Grundlegende Informationen über den Kunden',
+        contactDetails: 'Kontaktdaten',
+        contactDetailsDesc: 'Telefonnummern und E-Mail-Adressen',
+        address: 'Adresse',
+        addressDesc: 'Dauer- und Korrespondenzadresse',
+        marketing: 'Marketing',
+        marketingDesc: 'Marketing-Präferenzen und Klassifizierungen',
+        banking: 'Bankdaten',
+        bankingDesc: 'Bankkonto und Krankenversicherung',
+        review: 'Überprüfung',
+        reviewDesc: 'Überprüfen und bestätigen Sie alle Daten',
+      },
     },
     globalSearch: {
       title: 'Suche',

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby, Copy, ListChecks, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,6 +35,7 @@ import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { CustomerForm, type CustomerFormData } from "@/components/customer-form";
+import { CustomerFormWizard, type CustomerFormData as WizardCustomerFormData } from "@/components/customer-form-wizard";
 import { PotentialCaseForm, EmbeddedPotentialCaseForm } from "@/components/potential-case-form";
 import { useCountryFilter } from "@/contexts/country-filter-context";
 import { useToast } from "@/hooks/use-toast";
@@ -1022,6 +1023,7 @@ export default function CustomersPage() {
   const [clientStatusFilter, setClientStatusFilter] = useState<string>("_all");
   const [countryFilter, setCountryFilter] = useState<string>("_all");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [useWizardForm, setUseWizardForm] = useState(true);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
@@ -1410,18 +1412,50 @@ export default function CustomersPage() {
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={useWizardForm ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-2xl max-h-[90vh] overflow-y-auto"}>
           <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
-            <DialogDescription>
-              Add a new cord blood banking customer to the system.
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle>{t.customers.addCustomer}</DialogTitle>
+                <DialogDescription>
+                  {t.customers.description}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={useWizardForm ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUseWizardForm(true)}
+                  data-testid="button-wizard-mode"
+                >
+                  <ListChecks className="h-4 w-4 mr-1" />
+                  {t.wizard?.steps?.review ? t.wizard.steps.review.split(' ')[0] : "Wizard"}
+                </Button>
+                <Button
+                  variant={!useWizardForm ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUseWizardForm(false)}
+                  data-testid="button-simple-mode"
+                >
+                  <FileEdit className="h-4 w-4 mr-1" />
+                  {t.common?.form || "Form"}
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
-          <CustomerForm
-            onSubmit={(data) => createMutation.mutate(data)}
-            isLoading={createMutation.isPending}
-            onCancel={() => setIsFormOpen(false)}
-          />
+          {useWizardForm ? (
+            <CustomerFormWizard
+              onSubmit={(data) => createMutation.mutate(data as CustomerFormData)}
+              isLoading={createMutation.isPending}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          ) : (
+            <CustomerForm
+              onSubmit={(data) => createMutation.mutate(data)}
+              isLoading={createMutation.isPending}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

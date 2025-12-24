@@ -51,6 +51,8 @@ export interface Translations {
     activeFilters: string;
     clearAll: string;
     select: string;
+    form: string;
+    wizard: string;
   };
   dashboard: {
     title: string;
@@ -752,6 +754,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Active Filters',
       clearAll: 'Clear All',
       select: 'Select',
+      form: 'Form',
+      wizard: 'Wizard',
     },
     dashboard: {
       title: 'Dashboard',
@@ -1451,6 +1455,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Aktívne filtre',
       clearAll: 'Vymazať všetko',
       select: 'Vybrať',
+      form: 'Formulár',
+      wizard: 'Sprievodca',
     },
     dashboard: {
       title: 'Prehľad',
@@ -2150,6 +2156,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Aktivní filtry',
       clearAll: 'Vymazat vše',
       select: 'Vybrat',
+      form: 'Formulář',
+      wizard: 'Průvodce',
     },
     dashboard: {
       title: 'Přehled',
@@ -2812,6 +2820,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Aktív szűrők',
       clearAll: 'Összes törlése',
       select: 'Kiválasztás',
+      form: 'Űrlap',
+      wizard: 'Varázsló',
     },
     dashboard: {
       title: 'Irányítópult',
@@ -3474,6 +3484,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Filtre active',
       clearAll: 'Șterge tot',
       select: 'Selectați',
+      form: 'Formular',
+      wizard: 'Asistent',
     },
     dashboard: {
       title: 'Panou de control',
@@ -4136,6 +4148,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Filtri attivi',
       clearAll: 'Cancella tutto',
       select: 'Seleziona',
+      form: 'Modulo',
+      wizard: 'Procedura guidata',
     },
     dashboard: {
       title: 'Dashboard',
@@ -4798,6 +4812,8 @@ export const translations: Record<Locale, Translations> = {
       activeFilters: 'Aktive Filter',
       clearAll: 'Alles löschen',
       select: 'Auswählen',
+      form: 'Formular',
+      wizard: 'Assistent',
     },
     dashboard: {
       title: 'Dashboard',

@@ -162,7 +162,17 @@ export function HospitalFormWizard({ initialData, onSuccess, onCancel }: Hospita
   };
 
   const handleStepClick = (index: number) => {
-    if (index < currentStep || completedSteps.has(index) || completedSteps.has(index - 1)) {
+    if (index < currentStep) {
+      setCurrentStep(index);
+    } else if (index === currentStep) {
+      return;
+    } else {
+      for (let i = 0; i < index; i++) {
+        if (!completedSteps.has(i)) {
+          toast({ title: t.wizard?.completeStepsFirst || "Please complete previous steps first", variant: "destructive" });
+          return;
+        }
+      }
       setCurrentStep(index);
     }
   };

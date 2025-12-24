@@ -10,7 +10,8 @@ import {
   Package,
   FileText,
   Building2,
-  Handshake
+  Handshake,
+  Cog
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useI18n } from "@/i18n";
@@ -47,6 +48,7 @@ export function AppSidebar() {
   const adminNavItems = [
     { title: t.nav.users, url: "/users", icon: UserCog, testId: "users" },
     { title: t.nav.settings, url: "/settings", icon: Settings, testId: "settings" },
+    { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator" },
   ];
 
   const handleLogout = async () => {

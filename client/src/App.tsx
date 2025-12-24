@@ -19,6 +19,7 @@ import InvoicesPage from "@/pages/invoices";
 import SettingsPage from "@/pages/settings";
 import HospitalsPage from "@/pages/hospitals";
 import CollaboratorsPage from "@/pages/collaborators";
+import ConfiguratorPage from "@/pages/configurator";
 import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -111,6 +112,7 @@ function AuthenticatedApp() {
                     <Route path="/hospitals" component={HospitalsPage} />
                     <Route path="/collaborators" component={CollaboratorsPage} />
                     <Route path="/settings" component={SettingsPage} />
+                    <Route path="/configurator" component={ConfiguratorPage} />
                     <Route path="/login">
                       <Redirect to="/" />
                     </Route>

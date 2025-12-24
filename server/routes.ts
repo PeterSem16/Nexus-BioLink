@@ -9,7 +9,9 @@ import {
   insertLaboratorySchema, insertHospitalSchema,
   insertCollaboratorSchema, insertCollaboratorAddressSchema, insertCollaboratorOtherDataSchema, insertCollaboratorAgreementSchema,
   insertLeadScoringCriteriaSchema,
-  type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria
+  insertServiceConfigurationSchema, insertInvoiceTemplateSchema, insertInvoiceLayoutSchema,
+  type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria,
+  type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout
 } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
@@ -2490,6 +2492,269 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Failed to seed default criteria:", error);
       res.status(500).json({ error: "Failed to seed default criteria" });
+    }
+  });
+
+  // ============ CONFIGURATOR ENDPOINTS ============
+
+  // Service Configurations
+  app.get("/api/configurator/services", requireAuth, async (req, res) => {
+    try {
+      const countries = req.query.countries as string | undefined;
+      const countryCodes = countries ? countries.split(",") : [];
+      const services = await storage.getServiceConfigurationsByCountry(countryCodes);
+      res.json(services);
+    } catch (error) {
+      console.error("Failed to get service configurations:", error);
+      res.status(500).json({ error: "Failed to get service configurations" });
+    }
+  });
+
+  app.post("/api/configurator/services", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertServiceConfigurationSchema.parse(req.body);
+      const service = await storage.createServiceConfiguration(validatedData);
+      
+      await logActivity(
+        req.session.user!.id,
+        "created_service_configuration",
+        "service_configuration",
+        service.id,
+        service.serviceName,
+        { serviceCode: service.serviceCode },
+        req.ip
+      );
+      
+      res.status(201).json(service);
+    } catch (error) {
+      console.error("Failed to create service configuration:", error);
+      res.status(500).json({ error: "Failed to create service configuration" });
+    }
+  });
+
+  app.patch("/api/configurator/services/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const service = await storage.updateServiceConfiguration(id, req.body);
+      
+      if (!service) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_service_configuration",
+        "service_configuration",
+        service.id,
+        service.serviceName,
+        undefined,
+        req.ip
+      );
+      
+      res.json(service);
+    } catch (error) {
+      console.error("Failed to update service configuration:", error);
+      res.status(500).json({ error: "Failed to update service configuration" });
+    }
+  });
+
+  app.delete("/api/configurator/services/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteServiceConfiguration(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_service_configuration",
+        "service_configuration",
+        id,
+        undefined,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete service configuration:", error);
+      res.status(500).json({ error: "Failed to delete service configuration" });
+    }
+  });
+
+  // Invoice Templates
+  app.get("/api/configurator/invoice-templates", requireAuth, async (req, res) => {
+    try {
+      const countries = req.query.countries as string | undefined;
+      const countryCodes = countries ? countries.split(",") : [];
+      const templates = await storage.getInvoiceTemplatesByCountry(countryCodes);
+      res.json(templates);
+    } catch (error) {
+      console.error("Failed to get invoice templates:", error);
+      res.status(500).json({ error: "Failed to get invoice templates" });
+    }
+  });
+
+  app.post("/api/configurator/invoice-templates", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertInvoiceTemplateSchema.parse(req.body);
+      const template = await storage.createInvoiceTemplate(validatedData);
+      
+      await logActivity(
+        req.session.user!.id,
+        "created_invoice_template",
+        "invoice_template",
+        template.id,
+        template.name,
+        undefined,
+        req.ip
+      );
+      
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Failed to create invoice template:", error);
+      res.status(500).json({ error: "Failed to create invoice template" });
+    }
+  });
+
+  app.patch("/api/configurator/invoice-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const template = await storage.updateInvoiceTemplate(id, req.body);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_invoice_template",
+        "invoice_template",
+        template.id,
+        template.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Failed to update invoice template:", error);
+      res.status(500).json({ error: "Failed to update invoice template" });
+    }
+  });
+
+  app.delete("/api/configurator/invoice-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteInvoiceTemplate(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_invoice_template",
+        "invoice_template",
+        id,
+        undefined,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete invoice template:", error);
+      res.status(500).json({ error: "Failed to delete invoice template" });
+    }
+  });
+
+  // Invoice Layouts
+  app.get("/api/configurator/invoice-layouts", requireAuth, async (req, res) => {
+    try {
+      const countries = req.query.countries as string | undefined;
+      const countryCodes = countries ? countries.split(",") : [];
+      const layouts = await storage.getInvoiceLayoutsByCountry(countryCodes);
+      res.json(layouts);
+    } catch (error) {
+      console.error("Failed to get invoice layouts:", error);
+      res.status(500).json({ error: "Failed to get invoice layouts" });
+    }
+  });
+
+  app.post("/api/configurator/invoice-layouts", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertInvoiceLayoutSchema.parse(req.body);
+      const layout = await storage.createInvoiceLayout(validatedData);
+      
+      await logActivity(
+        req.session.user!.id,
+        "created_invoice_layout",
+        "invoice_layout",
+        layout.id,
+        layout.name,
+        undefined,
+        req.ip
+      );
+      
+      res.status(201).json(layout);
+    } catch (error) {
+      console.error("Failed to create invoice layout:", error);
+      res.status(500).json({ error: "Failed to create invoice layout" });
+    }
+  });
+
+  app.patch("/api/configurator/invoice-layouts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const layout = await storage.updateInvoiceLayout(id, req.body);
+      
+      if (!layout) {
+        return res.status(404).json({ error: "Layout not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_invoice_layout",
+        "invoice_layout",
+        layout.id,
+        layout.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json(layout);
+    } catch (error) {
+      console.error("Failed to update invoice layout:", error);
+      res.status(500).json({ error: "Failed to update invoice layout" });
+    }
+  });
+
+  app.delete("/api/configurator/invoice-layouts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteInvoiceLayout(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Layout not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_invoice_layout",
+        "invoice_layout",
+        id,
+        undefined,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete invoice layout:", error);
+      res.status(500).json({ error: "Failed to delete invoice layout" });
     }
   });
 

@@ -5,6 +5,7 @@ import {
   laboratories, hospitals,
   collaborators, collaboratorAddresses, collaboratorOtherData, collaboratorAgreements,
   customerPotentialCases, leadScoringCriteria,
+  serviceConfigurations, invoiceTemplates, invoiceLayouts,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -26,7 +27,10 @@ import {
   type CollaboratorOtherData, type InsertCollaboratorOtherData,
   type CollaboratorAgreement, type InsertCollaboratorAgreement,
   type CustomerPotentialCase, type InsertCustomerPotentialCase,
-  type LeadScoringCriteria, type InsertLeadScoringCriteria
+  type LeadScoringCriteria, type InsertLeadScoringCriteria,
+  type ServiceConfiguration, type InsertServiceConfiguration,
+  type InvoiceTemplate, type InsertInvoiceTemplate,
+  type InvoiceLayout, type InsertInvoiceLayout
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and } from "drizzle-orm";
@@ -191,6 +195,27 @@ export interface IStorage {
   updateLeadScoringCriteria(id: string, data: Partial<InsertLeadScoringCriteria>): Promise<LeadScoringCriteria | undefined>;
   deleteLeadScoringCriteria(id: string): Promise<boolean>;
   updateCustomerLeadScore(customerId: string, score: number, status: string): Promise<Customer | undefined>;
+
+  // Service Configurations
+  getAllServiceConfigurations(): Promise<ServiceConfiguration[]>;
+  getServiceConfigurationsByCountry(countryCodes: string[]): Promise<ServiceConfiguration[]>;
+  createServiceConfiguration(data: InsertServiceConfiguration): Promise<ServiceConfiguration>;
+  updateServiceConfiguration(id: string, data: Partial<InsertServiceConfiguration>): Promise<ServiceConfiguration | undefined>;
+  deleteServiceConfiguration(id: string): Promise<boolean>;
+
+  // Invoice Templates
+  getAllInvoiceTemplates(): Promise<InvoiceTemplate[]>;
+  getInvoiceTemplatesByCountry(countryCodes: string[]): Promise<InvoiceTemplate[]>;
+  createInvoiceTemplate(data: InsertInvoiceTemplate): Promise<InvoiceTemplate>;
+  updateInvoiceTemplate(id: string, data: Partial<InsertInvoiceTemplate>): Promise<InvoiceTemplate | undefined>;
+  deleteInvoiceTemplate(id: string): Promise<boolean>;
+
+  // Invoice Layouts
+  getAllInvoiceLayouts(): Promise<InvoiceLayout[]>;
+  getInvoiceLayoutsByCountry(countryCodes: string[]): Promise<InvoiceLayout[]>;
+  createInvoiceLayout(data: InsertInvoiceLayout): Promise<InvoiceLayout>;
+  updateInvoiceLayout(id: string, data: Partial<InsertInvoiceLayout>): Promise<InvoiceLayout | undefined>;
+  deleteInvoiceLayout(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -913,6 +938,102 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customers.id, customerId))
       .returning();
     return updated || undefined;
+  }
+
+  // Service Configurations
+  async getAllServiceConfigurations(): Promise<ServiceConfiguration[]> {
+    return db.select().from(serviceConfigurations).orderBy(serviceConfigurations.serviceName);
+  }
+
+  async getServiceConfigurationsByCountry(countryCodes: string[]): Promise<ServiceConfiguration[]> {
+    if (countryCodes.length === 0) {
+      return this.getAllServiceConfigurations();
+    }
+    return db.select().from(serviceConfigurations)
+      .where(inArray(serviceConfigurations.countryCode, countryCodes))
+      .orderBy(serviceConfigurations.serviceName);
+  }
+
+  async createServiceConfiguration(data: InsertServiceConfiguration): Promise<ServiceConfiguration> {
+    const [created] = await db.insert(serviceConfigurations).values(data).returning();
+    return created;
+  }
+
+  async updateServiceConfiguration(id: string, data: Partial<InsertServiceConfiguration>): Promise<ServiceConfiguration | undefined> {
+    const [updated] = await db.update(serviceConfigurations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(serviceConfigurations.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteServiceConfiguration(id: string): Promise<boolean> {
+    const result = await db.delete(serviceConfigurations).where(eq(serviceConfigurations.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Invoice Templates
+  async getAllInvoiceTemplates(): Promise<InvoiceTemplate[]> {
+    return db.select().from(invoiceTemplates).orderBy(invoiceTemplates.name);
+  }
+
+  async getInvoiceTemplatesByCountry(countryCodes: string[]): Promise<InvoiceTemplate[]> {
+    if (countryCodes.length === 0) {
+      return this.getAllInvoiceTemplates();
+    }
+    return db.select().from(invoiceTemplates)
+      .where(inArray(invoiceTemplates.countryCode, countryCodes))
+      .orderBy(invoiceTemplates.name);
+  }
+
+  async createInvoiceTemplate(data: InsertInvoiceTemplate): Promise<InvoiceTemplate> {
+    const [created] = await db.insert(invoiceTemplates).values(data).returning();
+    return created;
+  }
+
+  async updateInvoiceTemplate(id: string, data: Partial<InsertInvoiceTemplate>): Promise<InvoiceTemplate | undefined> {
+    const [updated] = await db.update(invoiceTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(invoiceTemplates.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteInvoiceTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(invoiceTemplates).where(eq(invoiceTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Invoice Layouts
+  async getAllInvoiceLayouts(): Promise<InvoiceLayout[]> {
+    return db.select().from(invoiceLayouts).orderBy(invoiceLayouts.name);
+  }
+
+  async getInvoiceLayoutsByCountry(countryCodes: string[]): Promise<InvoiceLayout[]> {
+    if (countryCodes.length === 0) {
+      return this.getAllInvoiceLayouts();
+    }
+    return db.select().from(invoiceLayouts)
+      .where(inArray(invoiceLayouts.countryCode, countryCodes))
+      .orderBy(invoiceLayouts.name);
+  }
+
+  async createInvoiceLayout(data: InsertInvoiceLayout): Promise<InvoiceLayout> {
+    const [created] = await db.insert(invoiceLayouts).values(data).returning();
+    return created;
+  }
+
+  async updateInvoiceLayout(id: string, data: Partial<InsertInvoiceLayout>): Promise<InvoiceLayout | undefined> {
+    const [updated] = await db.update(invoiceLayouts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(invoiceLayouts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteInvoiceLayout(id: string): Promise<boolean> {
+    const result = await db.delete(invoiceLayouts).where(eq(invoiceLayouts.id, id)).returning();
+    return result.length > 0;
   }
 }
 

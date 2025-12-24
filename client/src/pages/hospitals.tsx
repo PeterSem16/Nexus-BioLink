@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Building2, FileText, Award, Gift } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Building2, FileText, Award, Gift, ListChecks, FileEdit } from "lucide-react";
+import { HospitalFormWizard } from "@/components/hospital-form-wizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -370,6 +371,7 @@ export default function HospitalsPage() {
   const [selectedHospital, setSelectedHospital] = useState<Hospital | undefined>();
   const [hospitalToDelete, setHospitalToDelete] = useState<Hospital | null>(null);
   const [activeTab, setActiveTab] = useState("hospital");
+  const [useWizardForm, setUseWizardForm] = useState(true);
 
   const { data: hospitals = [], isLoading } = useQuery<Hospital[]>({
     queryKey: ["/api/hospitals", selectedCountries.join(",")],
@@ -609,20 +611,53 @@ export default function HospitalsPage() {
       </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={!selectedHospital && useWizardForm ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-2xl max-h-[90vh] overflow-y-auto"}>
           <DialogHeader>
-            <DialogTitle>
-              {selectedHospital ? t.hospitals.editHospital : t.hospitals.addHospital}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedHospital ? t.hospitals.editHospitalDesc : t.hospitals.addHospitalDesc}
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle>
+                  {selectedHospital ? t.hospitals.editHospital : t.hospitals.addHospital}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedHospital ? t.hospitals.editHospitalDesc : t.hospitals.addHospitalDesc}
+                </DialogDescription>
+              </div>
+              {!selectedHospital && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={useWizardForm ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseWizardForm(true)}
+                    data-testid="button-wizard-mode"
+                  >
+                    <ListChecks className="h-4 w-4 mr-1" />
+                    Wizard
+                  </Button>
+                  <Button
+                    variant={!useWizardForm ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseWizardForm(false)}
+                    data-testid="button-simple-mode"
+                  >
+                    <FileEdit className="h-4 w-4 mr-1" />
+                    {t.common?.form || "Form"}
+                  </Button>
+                </div>
+              )}
+            </div>
           </DialogHeader>
-          <HospitalForm
-            hospital={selectedHospital}
-            onClose={() => setIsFormOpen(false)}
-            onSuccess={() => setIsFormOpen(false)}
-          />
+          {!selectedHospital && useWizardForm ? (
+            <HospitalFormWizard
+              onSuccess={() => setIsFormOpen(false)}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          ) : (
+            <HospitalForm
+              hospital={selectedHospital}
+              onClose={() => setIsFormOpen(false)}
+              onSuccess={() => setIsFormOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

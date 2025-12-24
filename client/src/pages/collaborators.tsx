@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, User, MapPin, FileText, Award, Gift, Activity, ClipboardList, Upload, Download, Eye, X, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, User, MapPin, FileText, Award, Gift, Activity, ClipboardList, Upload, Download, Eye, X, Filter, ListChecks, FileEdit } from "lucide-react";
+import { CollaboratorFormWizard } from "@/components/collaborator-form-wizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1703,6 +1704,7 @@ export default function CollaboratorsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [useWizardForm, setUseWizardForm] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | undefined>();
   const [collaboratorToDelete, setCollaboratorToDelete] = useState<Collaborator | null>(null);
@@ -1980,18 +1982,51 @@ export default function CollaboratorsPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle>
+                  {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedCollaborator ? t.collaborators.editCollaborator : t.collaborators.addCollaborator}
+                </DialogDescription>
+              </div>
+              {!selectedCollaborator && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={useWizardForm ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseWizardForm(true)}
+                    data-testid="button-wizard-mode"
+                  >
+                    <ListChecks className="h-4 w-4 mr-1" />
+                    Wizard
+                  </Button>
+                  <Button
+                    variant={!useWizardForm ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseWizardForm(false)}
+                    data-testid="button-simple-mode"
+                  >
+                    <FileEdit className="h-4 w-4 mr-1" />
+                    {t.common?.form || "Form"}
+                  </Button>
+                </div>
+              )}
+            </div>
           </DialogHeader>
-          <CollaboratorForm
-            collaborator={selectedCollaborator}
-            onClose={() => setIsFormOpen(false)}
-            onSuccess={() => setIsFormOpen(false)}
-          />
+          {!selectedCollaborator && useWizardForm ? (
+            <CollaboratorFormWizard
+              onSuccess={() => setIsFormOpen(false)}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          ) : (
+            <CollaboratorForm
+              collaborator={selectedCollaborator}
+              onClose={() => setIsFormOpen(false)}
+              onSuccess={() => setIsFormOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

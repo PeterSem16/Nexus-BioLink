@@ -1244,3 +1244,73 @@ export const insertInvoiceLayoutSchema = createInsertSchema(invoiceLayouts).omit
 
 export type InsertInvoiceLayout = z.infer<typeof insertInvoiceLayoutSchema>;
 export type InvoiceLayout = typeof invoiceLayouts.$inferSelect;
+
+// Roles table - custom roles for RBAC
+export const roles = pgTable("roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  department: text("department"), // management, sales, operations, finance, customer_service, it, medical
+  isActive: boolean("is_active").notNull().default(true),
+  isSystem: boolean("is_system").notNull().default(false), // system roles cannot be deleted
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  createdBy: varchar("created_by"), // FK to users
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Role = typeof roles.$inferSelect;
+
+// Role module permissions - which modules a role can access
+export const roleModulePermissions = pgTable("role_module_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull(),
+  moduleKey: text("module_key").notNull(), // dashboard, customers, hospitals, etc.
+  access: text("access").notNull().default("visible"), // visible, hidden
+});
+
+export const insertRoleModulePermissionSchema = createInsertSchema(roleModulePermissions).omit({
+  id: true,
+});
+
+export type InsertRoleModulePermission = z.infer<typeof insertRoleModulePermissionSchema>;
+export type RoleModulePermission = typeof roleModulePermissions.$inferSelect;
+
+// Role field permissions - field-level access within modules
+export const roleFieldPermissions = pgTable("role_field_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull(),
+  moduleKey: text("module_key").notNull(),
+  fieldKey: text("field_key").notNull(),
+  permission: text("permission").notNull().default("editable"), // editable, readonly, hidden
+});
+
+export const insertRoleFieldPermissionSchema = createInsertSchema(roleFieldPermissions).omit({
+  id: true,
+});
+
+export type InsertRoleFieldPermission = z.infer<typeof insertRoleFieldPermissionSchema>;
+export type RoleFieldPermission = typeof roleFieldPermissions.$inferSelect;
+
+// User roles assignment - assign roles to users (many-to-many)
+export const userRoles = pgTable("user_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  roleId: varchar("role_id").notNull(),
+  assignedAt: timestamp("assigned_at").notNull().default(sql`now()`),
+  assignedBy: varchar("assigned_by"), // FK to users
+});
+
+export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
+export type UserRole = typeof userRoles.$inferSelect;

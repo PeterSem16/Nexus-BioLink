@@ -6,6 +6,7 @@ import {
   collaborators, collaboratorAddresses, collaboratorOtherData, collaboratorAgreements,
   customerPotentialCases, leadScoringCriteria,
   serviceConfigurations, invoiceTemplates, invoiceLayouts,
+  roles, roleModulePermissions, roleFieldPermissions, userRoles,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -30,7 +31,11 @@ import {
   type LeadScoringCriteria, type InsertLeadScoringCriteria,
   type ServiceConfiguration, type InsertServiceConfiguration,
   type InvoiceTemplate, type InsertInvoiceTemplate,
-  type InvoiceLayout, type InsertInvoiceLayout
+  type InvoiceLayout, type InsertInvoiceLayout,
+  type Role, type InsertRole,
+  type RoleModulePermission, type InsertRoleModulePermission,
+  type RoleFieldPermission, type InsertRoleFieldPermission,
+  type UserRole, type InsertUserRole
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and } from "drizzle-orm";
@@ -216,6 +221,27 @@ export interface IStorage {
   createInvoiceLayout(data: InsertInvoiceLayout): Promise<InvoiceLayout>;
   updateInvoiceLayout(id: string, data: Partial<InsertInvoiceLayout>): Promise<InvoiceLayout | undefined>;
   deleteInvoiceLayout(id: string): Promise<boolean>;
+
+  // Roles
+  getAllRoles(): Promise<Role[]>;
+  getRole(id: string): Promise<Role | undefined>;
+  createRole(data: InsertRole): Promise<Role>;
+  updateRole(id: string, data: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: string): Promise<boolean>;
+  copyRole(sourceRoleId: string, newName: string, createdBy?: string): Promise<Role>;
+
+  // Role Module Permissions
+  getRoleModulePermissions(roleId: string): Promise<RoleModulePermission[]>;
+  setRoleModulePermissions(roleId: string, permissions: InsertRoleModulePermission[]): Promise<RoleModulePermission[]>;
+
+  // Role Field Permissions
+  getRoleFieldPermissions(roleId: string): Promise<RoleFieldPermission[]>;
+  setRoleFieldPermissions(roleId: string, permissions: InsertRoleFieldPermission[]): Promise<RoleFieldPermission[]>;
+
+  // User Roles
+  getUserRoles(userId: string): Promise<UserRole[]>;
+  assignRoleToUser(data: InsertUserRole): Promise<UserRole>;
+  removeRoleFromUser(userId: string, roleId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1033,6 +1059,117 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInvoiceLayout(id: string): Promise<boolean> {
     const result = await db.delete(invoiceLayouts).where(eq(invoiceLayouts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Roles
+  async getAllRoles(): Promise<Role[]> {
+    return db.select().from(roles).orderBy(roles.name);
+  }
+
+  async getRole(id: string): Promise<Role | undefined> {
+    const [role] = await db.select().from(roles).where(eq(roles.id, id));
+    return role || undefined;
+  }
+
+  async createRole(data: InsertRole): Promise<Role> {
+    const [created] = await db.insert(roles).values(data).returning();
+    return created;
+  }
+
+  async updateRole(id: string, data: Partial<InsertRole>): Promise<Role | undefined> {
+    const [updated] = await db.update(roles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(roles.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteRole(id: string): Promise<boolean> {
+    await db.delete(roleModulePermissions).where(eq(roleModulePermissions.roleId, id));
+    await db.delete(roleFieldPermissions).where(eq(roleFieldPermissions.roleId, id));
+    await db.delete(userRoles).where(eq(userRoles.roleId, id));
+    const result = await db.delete(roles).where(eq(roles.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async copyRole(sourceRoleId: string, newName: string, createdBy?: string): Promise<Role> {
+    const sourceRole = await this.getRole(sourceRoleId);
+    if (!sourceRole) {
+      throw new Error("Source role not found");
+    }
+
+    const newRole = await this.createRole({
+      name: newName,
+      description: sourceRole.description,
+      department: sourceRole.department,
+      isActive: sourceRole.isActive,
+      isSystem: false,
+      createdBy: createdBy || null,
+    });
+
+    const modulePerms = await this.getRoleModulePermissions(sourceRoleId);
+    if (modulePerms.length > 0) {
+      const newModulePerms = modulePerms.map(p => ({
+        roleId: newRole.id,
+        moduleKey: p.moduleKey,
+        access: p.access,
+      }));
+      await this.setRoleModulePermissions(newRole.id, newModulePerms);
+    }
+
+    const fieldPerms = await this.getRoleFieldPermissions(sourceRoleId);
+    if (fieldPerms.length > 0) {
+      const newFieldPerms = fieldPerms.map(p => ({
+        roleId: newRole.id,
+        moduleKey: p.moduleKey,
+        fieldKey: p.fieldKey,
+        permission: p.permission,
+      }));
+      await this.setRoleFieldPermissions(newRole.id, newFieldPerms);
+    }
+
+    return newRole;
+  }
+
+  // Role Module Permissions
+  async getRoleModulePermissions(roleId: string): Promise<RoleModulePermission[]> {
+    return db.select().from(roleModulePermissions).where(eq(roleModulePermissions.roleId, roleId));
+  }
+
+  async setRoleModulePermissions(roleId: string, permissions: InsertRoleModulePermission[]): Promise<RoleModulePermission[]> {
+    await db.delete(roleModulePermissions).where(eq(roleModulePermissions.roleId, roleId));
+    if (permissions.length === 0) return [];
+    const created = await db.insert(roleModulePermissions).values(permissions).returning();
+    return created;
+  }
+
+  // Role Field Permissions
+  async getRoleFieldPermissions(roleId: string): Promise<RoleFieldPermission[]> {
+    return db.select().from(roleFieldPermissions).where(eq(roleFieldPermissions.roleId, roleId));
+  }
+
+  async setRoleFieldPermissions(roleId: string, permissions: InsertRoleFieldPermission[]): Promise<RoleFieldPermission[]> {
+    await db.delete(roleFieldPermissions).where(eq(roleFieldPermissions.roleId, roleId));
+    if (permissions.length === 0) return [];
+    const created = await db.insert(roleFieldPermissions).values(permissions).returning();
+    return created;
+  }
+
+  // User Roles
+  async getUserRoles(userId: string): Promise<UserRole[]> {
+    return db.select().from(userRoles).where(eq(userRoles.userId, userId));
+  }
+
+  async assignRoleToUser(data: InsertUserRole): Promise<UserRole> {
+    const [created] = await db.insert(userRoles).values(data).returning();
+    return created;
+  }
+
+  async removeRoleFromUser(userId: string, roleId: string): Promise<boolean> {
+    const result = await db.delete(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+      .returning();
     return result.length > 0;
   }
 }

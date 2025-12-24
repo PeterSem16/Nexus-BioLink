@@ -10,8 +10,9 @@ import {
   insertCollaboratorSchema, insertCollaboratorAddressSchema, insertCollaboratorOtherDataSchema, insertCollaboratorAgreementSchema,
   insertLeadScoringCriteriaSchema,
   insertServiceConfigurationSchema, insertInvoiceTemplateSchema, insertInvoiceLayoutSchema,
+  insertRoleSchema, insertRoleModulePermissionSchema, insertRoleFieldPermissionSchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria,
-  type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout
+  type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout, type Role
 } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
@@ -2755,6 +2756,286 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Failed to delete invoice layout:", error);
       res.status(500).json({ error: "Failed to delete invoice layout" });
+    }
+  });
+
+  // ===== Roles & Permissions Routes =====
+
+  app.get("/api/roles", requireAuth, async (req, res) => {
+    try {
+      const roles = await storage.getAllRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/roles/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const role = await storage.getRole(id);
+      
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      const modulePermissions = await storage.getRoleModulePermissions(id);
+      const fieldPermissions = await storage.getRoleFieldPermissions(id);
+      
+      res.json({
+        ...role,
+        modulePermissions,
+        fieldPermissions,
+      });
+    } catch (error) {
+      console.error("Failed to fetch role:", error);
+      res.status(500).json({ error: "Failed to fetch role" });
+    }
+  });
+
+  app.post("/api/roles", requireAuth, async (req, res) => {
+    try {
+      const { modulePermissions, fieldPermissions, ...roleData } = req.body;
+      
+      const validatedRole = insertRoleSchema.parse({
+        ...roleData,
+        createdBy: req.session.user!.id,
+      });
+      
+      const role = await storage.createRole(validatedRole);
+      
+      if (modulePermissions && modulePermissions.length > 0) {
+        const validModulePerms = modulePermissions.map((p: any) => ({
+          roleId: role.id,
+          moduleKey: p.moduleKey,
+          access: p.access,
+        }));
+        await storage.setRoleModulePermissions(role.id, validModulePerms);
+      }
+      
+      if (fieldPermissions && fieldPermissions.length > 0) {
+        const validFieldPerms = fieldPermissions.map((p: any) => ({
+          roleId: role.id,
+          moduleKey: p.moduleKey,
+          fieldKey: p.fieldKey,
+          permission: p.permission,
+        }));
+        await storage.setRoleFieldPermissions(role.id, validFieldPerms);
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "created_role",
+        "role",
+        role.id,
+        role.name,
+        undefined,
+        req.ip
+      );
+      
+      res.status(201).json(role);
+    } catch (error) {
+      console.error("Failed to create role:", error);
+      res.status(500).json({ error: "Failed to create role" });
+    }
+  });
+
+  app.patch("/api/roles/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { modulePermissions, fieldPermissions, ...roleData } = req.body;
+      
+      const role = await storage.updateRole(id, roleData);
+      
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      if (modulePermissions !== undefined) {
+        const validModulePerms = modulePermissions.map((p: any) => ({
+          roleId: id,
+          moduleKey: p.moduleKey,
+          access: p.access,
+        }));
+        await storage.setRoleModulePermissions(id, validModulePerms);
+      }
+      
+      if (fieldPermissions !== undefined) {
+        const validFieldPerms = fieldPermissions.map((p: any) => ({
+          roleId: id,
+          moduleKey: p.moduleKey,
+          fieldKey: p.fieldKey,
+          permission: p.permission,
+        }));
+        await storage.setRoleFieldPermissions(id, validFieldPerms);
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_role",
+        "role",
+        role.id,
+        role.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json(role);
+    } catch (error) {
+      console.error("Failed to update role:", error);
+      res.status(500).json({ error: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/roles/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      if (role.isSystem) {
+        return res.status(403).json({ error: "Cannot delete system role" });
+      }
+      
+      const deleted = await storage.deleteRole(id);
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_role",
+        "role",
+        id,
+        role.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error("Failed to delete role:", error);
+      res.status(500).json({ error: "Failed to delete role" });
+    }
+  });
+
+  app.post("/api/roles/:id/copy", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "New role name is required" });
+      }
+      
+      const newRole = await storage.copyRole(id, name, req.session.user!.id);
+
+      await logActivity(
+        req.session.user!.id,
+        "copied_role",
+        "role",
+        newRole.id,
+        `Copied from role ${id} as ${name}`,
+        undefined,
+        req.ip
+      );
+      
+      res.status(201).json(newRole);
+    } catch (error) {
+      console.error("Failed to copy role:", error);
+      res.status(500).json({ error: "Failed to copy role" });
+    }
+  });
+
+  // Update single module permission
+  app.put("/api/roles/:roleId/modules/:moduleKey", requireAuth, async (req, res) => {
+    try {
+      const { roleId, moduleKey } = req.params;
+      const { access } = req.body;
+      
+      if (!access || !["visible", "hidden"].includes(access)) {
+        return res.status(400).json({ error: "Invalid access value" });
+      }
+      
+      const role = await storage.getRole(roleId);
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      // Get current module permissions
+      const currentPerms = await storage.getRoleModulePermissions(roleId);
+      
+      // Update or add the specific module permission
+      const existingPerm = currentPerms.find(p => p.moduleKey === moduleKey);
+      if (existingPerm) {
+        // Update existing
+        const updatedPerms = currentPerms.map(p => 
+          p.moduleKey === moduleKey 
+            ? { roleId, moduleKey, access } 
+            : { roleId: p.roleId, moduleKey: p.moduleKey, access: p.access }
+        );
+        await storage.setRoleModulePermissions(roleId, updatedPerms);
+      } else {
+        // Add new
+        const newPerms = [...currentPerms.map(p => ({ 
+          roleId: p.roleId, 
+          moduleKey: p.moduleKey, 
+          access: p.access 
+        })), { roleId, moduleKey, access }];
+        await storage.setRoleModulePermissions(roleId, newPerms);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update module permission:", error);
+      res.status(500).json({ error: "Failed to update module permission" });
+    }
+  });
+
+  // Update single field permission
+  app.put("/api/roles/:roleId/modules/:moduleKey/fields/:fieldKey", requireAuth, async (req, res) => {
+    try {
+      const { roleId, moduleKey, fieldKey } = req.params;
+      const { permission } = req.body;
+      
+      if (!permission || !["editable", "readonly", "hidden"].includes(permission)) {
+        return res.status(400).json({ error: "Invalid permission value" });
+      }
+      
+      const role = await storage.getRole(roleId);
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      // Get current field permissions
+      const currentPerms = await storage.getRoleFieldPermissions(roleId);
+      
+      // Update or add the specific field permission
+      const existingPerm = currentPerms.find(p => p.moduleKey === moduleKey && p.fieldKey === fieldKey);
+      if (existingPerm) {
+        // Update existing
+        const updatedPerms = currentPerms.map(p => 
+          (p.moduleKey === moduleKey && p.fieldKey === fieldKey)
+            ? { roleId, moduleKey, fieldKey, permission } 
+            : { roleId: p.roleId, moduleKey: p.moduleKey, fieldKey: p.fieldKey, permission: p.permission }
+        );
+        await storage.setRoleFieldPermissions(roleId, updatedPerms);
+      } else {
+        // Add new
+        const newPerms = [...currentPerms.map(p => ({ 
+          roleId: p.roleId, 
+          moduleKey: p.moduleKey, 
+          fieldKey: p.fieldKey, 
+          permission: p.permission 
+        })), { roleId, moduleKey, fieldKey, permission }];
+        await storage.setRoleFieldPermissions(roleId, newPerms);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update field permission:", error);
+      res.status(500).json({ error: "Failed to update field permission" });
     }
   });
 

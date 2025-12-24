@@ -19,14 +19,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, Eye, EyeOff, Lock, Unlock } from "lucide-react";
 import { COUNTRIES } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/auth-context";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import type { ServiceConfiguration, InvoiceTemplate, InvoiceLayout, Product } from "@shared/schema";
+import type { ServiceConfiguration, InvoiceTemplate, InvoiceLayout, Product, Role, RoleModulePermission, RoleFieldPermission } from "@shared/schema";
+import { CRM_MODULES, DEPARTMENTS, type ModuleDefinition, type FieldPermission, type ModuleAccess } from "@shared/permissions-config";
 
 const serviceFormSchema = z.object({
   serviceCode: z.string().min(1, "Service code is required"),
@@ -1626,6 +1627,530 @@ function InvoiceEditorTab() {
   );
 }
 
+const roleFormSchema = z.object({
+  name: z.string().min(1, "Role name is required"),
+  description: z.string().optional(),
+  department: z.string().optional(),
+  isActive: z.boolean().default(true),
+});
+
+type RoleFormData = z.infer<typeof roleFormSchema>;
+
+interface RoleWithPermissions extends Role {
+  modulePermissions: RoleModulePermission[];
+  fieldPermissions: RoleFieldPermission[];
+}
+
+function PermissionsRolesTab() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [selectedRole, setSelectedRole] = useState<RoleWithPermissions | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [copyRoleName, setCopyRoleName] = useState("");
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
+  const [deleteRole, setDeleteRole] = useState<Role | null>(null);
+
+  const { data: roles = [], isLoading } = useQuery<Role[]>({
+    queryKey: ["/api/roles"],
+  });
+
+  const { data: roleDetails } = useQuery<RoleWithPermissions>({
+    queryKey: ["/api/roles", selectedRole?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/roles/${selectedRole?.id}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch role');
+      return response.json();
+    },
+    enabled: !!selectedRole?.id,
+  });
+
+  const form = useForm<RoleFormData>({
+    resolver: zodResolver(roleFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      department: "",
+      isActive: true,
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: RoleFormData) => apiRequest("POST", "/api/roles", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      setIsFormOpen(false);
+      form.reset();
+      toast({ title: t.konfigurator.roleCreated });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: RoleFormData & { id: string }) =>
+      apiRequest("PATCH", `/api/roles/${data.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      setIsEditing(false);
+      form.reset();
+      toast({ title: t.konfigurator.roleUpdated });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/roles/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      setDeleteRole(null);
+      if (selectedRole?.id === deleteRole?.id) {
+        setSelectedRole(null);
+      }
+      toast({ title: t.konfigurator.roleDeleted });
+    },
+    onError: () => {
+      toast({ title: t.errors.deleteFailed, variant: "destructive" });
+    },
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: ({ roleId, name }: { roleId: string; name: string }) =>
+      apiRequest("POST", `/api/roles/${roleId}/copy`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      setIsCopyDialogOpen(false);
+      setCopyRoleName("");
+      toast({ title: t.konfigurator.roleCopied });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const updateModulePermission = useMutation({
+    mutationFn: ({ roleId, moduleKey, access }: { roleId: string; moduleKey: string; access: ModuleAccess }) =>
+      apiRequest("PUT", `/api/roles/${roleId}/modules/${moduleKey}`, { access }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles", selectedRole?.id] });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const updateFieldPermission = useMutation({
+    mutationFn: ({ roleId, moduleKey, fieldKey, permission }: { roleId: string; moduleKey: string; fieldKey: string; permission: FieldPermission }) =>
+      apiRequest("PUT", `/api/roles/${roleId}/modules/${moduleKey}/fields/${fieldKey}`, { permission }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles", selectedRole?.id] });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (data: RoleFormData) => {
+    if (isEditing && selectedRole) {
+      updateMutation.mutate({ ...data, id: selectedRole.id });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEditClick = (role: Role) => {
+    setSelectedRole(role as RoleWithPermissions);
+    form.reset({
+      name: role.name,
+      description: role.description || "",
+      department: role.department || "",
+      isActive: role.isActive,
+    });
+    setIsEditing(true);
+    setIsFormOpen(true);
+  };
+
+  const handleCopyClick = (role: Role) => {
+    setSelectedRole(role as RoleWithPermissions);
+    setCopyRoleName(`${role.name} (Copy)`);
+    setIsCopyDialogOpen(true);
+  };
+
+  const toggleModuleExpand = (moduleKey: string) => {
+    setExpandedModules(prev =>
+      prev.includes(moduleKey)
+        ? prev.filter(k => k !== moduleKey)
+        : [...prev, moduleKey]
+    );
+  };
+
+  const getModuleAccess = (moduleKey: string): ModuleAccess => {
+    const moduleDef = CRM_MODULES.find(m => m.key === moduleKey);
+    const permission = roleDetails?.modulePermissions.find(p => p.moduleKey === moduleKey);
+    return (permission?.access as ModuleAccess) || moduleDef?.defaultAccess || "visible";
+  };
+
+  const getFieldPermission = (moduleKey: string, fieldKey: string): FieldPermission => {
+    const moduleDef = CRM_MODULES.find(m => m.key === moduleKey);
+    const fieldDef = moduleDef?.fields.find(f => f.key === fieldKey);
+    const permission = roleDetails?.fieldPermissions.find(
+      p => p.moduleKey === moduleKey && p.fieldKey === fieldKey
+    );
+    return (permission?.permission as FieldPermission) || fieldDef?.defaultPermission || "editable";
+  };
+
+  const getDepartmentLabel = (deptId: string | null | undefined) => {
+    if (!deptId) return "";
+    const dept = DEPARTMENTS.find(d => d.id === deptId);
+    if (!dept) return deptId;
+    const key = deptId as keyof typeof t.konfigurator.departments;
+    return t.konfigurator.departments[key] || dept.name;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-6">
+      <div className="w-1/3 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-lg font-medium">{t.konfigurator.roles}</h3>
+          <Button size="sm" onClick={() => { setIsEditing(false); form.reset(); setIsFormOpen(true); }} data-testid="button-add-role">
+            <Plus className="h-4 w-4 mr-1" />
+            {t.konfigurator.addRole}
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {roles.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">{t.konfigurator.noRoles}</p>
+          ) : (
+            roles.map((role) => (
+              <div
+                key={role.id}
+                className={`p-3 rounded-md border cursor-pointer hover-elevate ${selectedRole?.id === role.id ? 'border-primary bg-accent' : ''}`}
+                onClick={() => setSelectedRole(role as RoleWithPermissions)}
+                data-testid={`role-item-${role.id}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium truncate">{role.name}</span>
+                      {role.isSystem && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Lock className="h-3 w-3 mr-1" />
+                          {t.konfigurator.systemRole}
+                        </Badge>
+                      )}
+                      {!role.isActive && (
+                        <Badge variant="outline" className="text-xs">{t.common.inactive}</Badge>
+                      )}
+                    </div>
+                    {role.department && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {getDepartmentLabel(role.department)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); handleCopyClick(role); }}
+                      data-testid={`button-copy-role-${role.id}`}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); handleEditClick(role); }}
+                      data-testid={`button-edit-role-${role.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {!role.isSystem && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => { e.stopPropagation(); setDeleteRole(role); }}
+                        data-testid={`button-delete-role-${role.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-4">
+        {selectedRole && roleDetails ? (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-medium">{t.konfigurator.moduleAccess}</h3>
+                <p className="text-sm text-muted-foreground">{selectedRole.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {CRM_MODULES.map((module) => {
+                const access = getModuleAccess(module.key);
+                const isExpanded = expandedModules.includes(module.key);
+                const isVisible = access === "visible";
+
+                return (
+                  <div key={module.key} className="border rounded-md" data-testid={`module-${module.key}`}>
+                    <div className="p-3 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleModuleExpand(module.key)}
+                          disabled={!isVisible}
+                          data-testid={`button-expand-${module.key}`}
+                        >
+                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                        <span className="font-medium">{module.label}</span>
+                        <Badge variant={isVisible ? "default" : "secondary"} className="ml-auto">
+                          {isVisible ? (
+                            <><Eye className="h-3 w-3 mr-1" />{t.konfigurator.visible}</>
+                          ) : (
+                            <><EyeOff className="h-3 w-3 mr-1" />{t.konfigurator.hidden}</>
+                          )}
+                        </Badge>
+                      </div>
+                      <Switch
+                        checked={isVisible}
+                        onCheckedChange={(checked) => {
+                          updateModulePermission.mutate({
+                            roleId: selectedRole.id,
+                            moduleKey: module.key,
+                            access: checked ? "visible" : "hidden",
+                          });
+                        }}
+                        data-testid={`switch-module-${module.key}`}
+                      />
+                    </div>
+
+                    {isExpanded && isVisible && (
+                      <div className="border-t p-3 bg-muted/30">
+                        <h4 className="text-sm font-medium mb-3">{t.konfigurator.fieldPermissions}</h4>
+                        <div className="grid gap-2">
+                          {module.fields.map((field) => {
+                            const permission = getFieldPermission(module.key, field.key);
+                            return (
+                              <div
+                                key={field.key}
+                                className="flex items-center justify-between gap-2 p-2 rounded bg-background"
+                                data-testid={`field-${module.key}-${field.key}`}
+                              >
+                                <span className="text-sm">{field.label}</span>
+                                <Select
+                                  value={permission}
+                                  onValueChange={(value: FieldPermission) => {
+                                    updateFieldPermission.mutate({
+                                      roleId: selectedRole.id,
+                                      moduleKey: module.key,
+                                      fieldKey: field.key,
+                                      permission: value,
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-32" data-testid={`select-field-${module.key}-${field.key}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="editable">{t.konfigurator.editable}</SelectItem>
+                                    <SelectItem value="readonly">{t.konfigurator.readonly}</SelectItem>
+                                    <SelectItem value="hidden">{t.konfigurator.hidden}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-center py-10 text-muted-foreground">
+            <p>{t.konfigurator.noRoles}</p>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditing ? t.konfigurator.editRole : t.konfigurator.addRole}</DialogTitle>
+            <DialogDescription>{t.konfigurator.permissionsRolesDescription}</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.konfigurator.roleName}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-role-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.konfigurator.roleDescription}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} data-testid="textarea-role-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.konfigurator.department}</FormLabel>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-department">
+                          <SelectValue placeholder={t.konfigurator.selectDepartment} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DEPARTMENTS.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {t.konfigurator.departments[dept.id as keyof typeof t.konfigurator.departments] || dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <FormLabel>{t.common.active}</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-role-active" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
+                  {t.common.cancel}
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-role">
+                  {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t.common.save}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.konfigurator.copyRole}</DialogTitle>
+            <DialogDescription>{t.konfigurator.copyRoleDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="copyRoleName">{t.konfigurator.newRoleName}</Label>
+              <Input
+                id="copyRoleName"
+                value={copyRoleName}
+                onChange={(e) => setCopyRoleName(e.target.value)}
+                data-testid="input-copy-role-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsCopyDialogOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedRole && copyRoleName) {
+                  copyMutation.mutate({ roleId: selectedRole.id, name: copyRoleName });
+                }
+              }}
+              disabled={copyMutation.isPending || !copyRoleName}
+              data-testid="button-confirm-copy"
+            >
+              {copyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t.konfigurator.copyRole}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteRole} onOpenChange={(open) => !open && setDeleteRole(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.konfigurator.deleteRole}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteRole?.isSystem
+                ? t.konfigurator.cannotDeleteSystemRole
+                : "Are you sure you want to delete this role?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            {!deleteRole?.isSystem && (
+              <AlertDialogAction
+                onClick={() => deleteRole && deleteMutation.mutate(deleteRole.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete"
+              >
+                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t.common.delete}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 export default function ConfiguratorPage() {
   const { t } = useI18n();
 
@@ -1637,7 +2162,7 @@ export default function ConfiguratorPage() {
       />
       
       <Tabs defaultValue="services" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
           <TabsTrigger value="services" className="flex items-center gap-2" data-testid="tab-services">
             <Settings className="h-4 w-4" />
             {t.konfigurator.services}
@@ -1653,6 +2178,10 @@ export default function ConfiguratorPage() {
           <TabsTrigger value="editor" className="flex items-center gap-2" data-testid="tab-editor">
             <Layout className="h-4 w-4" />
             {t.konfigurator.invoiceEditor}
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-2" data-testid="tab-permissions">
+            <Shield className="h-4 w-4" />
+            {t.konfigurator.permissionsRoles}
           </TabsTrigger>
         </TabsList>
 
@@ -1700,6 +2229,18 @@ export default function ConfiguratorPage() {
             </CardHeader>
             <CardContent>
               <InvoiceEditorTab />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permissions">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t.konfigurator.permissionsRoles}</CardTitle>
+              <CardDescription>{t.konfigurator.permissionsRolesDescription}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PermissionsRolesTab />
             </CardContent>
           </Card>
         </TabsContent>

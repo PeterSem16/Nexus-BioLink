@@ -27,10 +27,8 @@ import {
 } from "@/components/ui/select";
 import { COUNTRIES, WORLD_COUNTRIES, CLIENT_STATUSES } from "@shared/schema";
 import type { Customer, ComplaintType, CooperationType, VipStatus, HealthInsurance } from "@shared/schema";
-import { CalendarIcon, ChevronLeft, ChevronRight, Check, User, Phone, MapPin, BarChart3, Building2, ClipboardCheck } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { ChevronLeft, ChevronRight, Check, User, Phone, MapPin, BarChart3, Building2, ClipboardCheck, CalendarIcon } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/I18nProvider";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +65,9 @@ const customerFormSchema = z.object({
   email2: z.string().optional(),
   nationalId: z.string().optional(),
   idCardNumber: z.string().optional(),
-  dateOfBirth: z.date().optional().nullable(),
+  dateOfBirthDay: z.number().nullable().optional(),
+  dateOfBirthMonth: z.number().nullable().optional(),
+  dateOfBirthYear: z.number().nullable().optional(),
   newsletter: z.boolean().default(false),
   complaintTypeId: z.string().optional(),
   cooperationTypeId: z.string().optional(),
@@ -152,7 +152,9 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
       email2: initialData?.email2 || "",
       nationalId: initialData?.nationalId || "",
       idCardNumber: initialData?.idCardNumber || "",
-      dateOfBirth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth) : undefined,
+      dateOfBirthDay: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth).getDate() : null,
+      dateOfBirthMonth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth).getMonth() + 1 : null,
+      dateOfBirthYear: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth).getFullYear() : null,
       newsletter: initialData?.newsletter || false,
       complaintTypeId: initialData?.complaintTypeId || "",
       cooperationTypeId: initialData?.cooperationTypeId || "",
@@ -379,42 +381,88 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.customers.fields.dateOfBirth}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            data-testid="wizard-input-date-of-birth"
-                          >
-                            {field.value ? format(field.value, "dd.MM.yyyy") : t.customers.fields.selectDate}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={field.onChange}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-2">
+                <Label>{t.customers.fields.dateOfBirth}</Label>
+                <div className="flex gap-2">
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirthDay"
+                    render={({ field }) => {
+                      const yearVal = form.watch("dateOfBirthYear");
+                      const monthVal = form.watch("dateOfBirthMonth");
+                      const getDaysInMonth = (year?: number | null, month?: number | null) => {
+                        if (!year || !month) return 31;
+                        return new Date(year, month, 0).getDate();
+                      };
+                      const daysInMonth = getDaysInMonth(yearVal, monthVal);
+                      const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+                      return (
+                        <Select
+                          value={field.value?.toString() || "_none"}
+                          onValueChange={(val) => field.onChange(val === "_none" ? null : parseInt(val))}
+                        >
+                          <SelectTrigger className="w-[80px]" data-testid="wizard-select-dob-day">
+                            <SelectValue placeholder={t.collaborators?.fields?.day || "Day"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">-</SelectItem>
+                            {days.map((day) => (
+                              <SelectItem key={day} value={day.toString()}>{day}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirthMonth"
+                    render={({ field }) => {
+                      const months = Array.from({ length: 12 }, (_, i) => i + 1);
+                      return (
+                        <Select
+                          value={field.value?.toString() || "_none"}
+                          onValueChange={(val) => field.onChange(val === "_none" ? null : parseInt(val))}
+                        >
+                          <SelectTrigger className="w-[80px]" data-testid="wizard-select-dob-month">
+                            <SelectValue placeholder={t.collaborators?.fields?.month || "Month"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">-</SelectItem>
+                            {months.map((month) => (
+                              <SelectItem key={month} value={month.toString()}>{month}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirthYear"
+                    render={({ field }) => {
+                      const currentYear = new Date().getFullYear();
+                      const years = Array.from({ length: 120 }, (_, i) => currentYear - i);
+                      return (
+                        <Select
+                          value={field.value?.toString() || "_none"}
+                          onValueChange={(val) => field.onChange(val === "_none" ? null : parseInt(val))}
+                        >
+                          <SelectTrigger className="w-[90px]" data-testid="wizard-select-dob-year">
+                            <SelectValue placeholder={t.collaborators?.fields?.year || "Year"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">-</SelectItem>
+                            {years.map((year) => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -430,7 +478,7 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.phone}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="wizard-input-phone" />
+                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-phone" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -443,7 +491,7 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.fields.mobile}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="wizard-input-mobile" />
+                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-mobile" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -459,7 +507,7 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.fields.mobile2}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="wizard-input-mobile2" />
+                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-mobile2" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

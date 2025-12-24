@@ -1,0 +1,932 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { COUNTRIES } from "@shared/schema";
+import type { Collaborator, Hospital, SafeUser, HealthInsurance } from "@shared/schema";
+import { ChevronLeft, ChevronRight, Check, User, Phone, CreditCard, Building2, ClipboardCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/I18nProvider";
+import { getCountryFlag } from "@/lib/countries";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+const COLLABORATOR_TYPES = [
+  { value: "doctor", labelKey: "doctor" },
+  { value: "nurse", labelKey: "nurse" },
+  { value: "midwife", labelKey: "midwife" },
+  { value: "assistant", labelKey: "assistant" },
+  { value: "other", labelKey: "other" },
+] as const;
+
+const MARITAL_STATUSES = [
+  { value: "single", labelKey: "single" },
+  { value: "married", labelKey: "married" },
+  { value: "divorced", labelKey: "divorced" },
+  { value: "widowed", labelKey: "widowed" },
+] as const;
+
+interface CollaboratorFormData {
+  countryCode: string;
+  titleBefore: string;
+  firstName: string;
+  lastName: string;
+  maidenName: string;
+  titleAfter: string;
+  birthNumber: string;
+  birthDay: number;
+  birthMonth: number;
+  birthYear: number;
+  birthPlace: string;
+  healthInsuranceId: string;
+  maritalStatus: string;
+  collaboratorType: string;
+  phone: string;
+  mobile: string;
+  mobile2: string;
+  otherContact: string;
+  email: string;
+  bankAccountIban: string;
+  swiftCode: string;
+  clientContact: boolean;
+  representativeId: string;
+  isActive: boolean;
+  svetZdravia: boolean;
+  companyName: string;
+  ico: string;
+  dic: string;
+  icDph: string;
+  companyIban: string;
+  companySwift: string;
+  monthRewards: boolean;
+  note: string;
+  hospitalId: string;
+}
+
+interface CollaboratorFormWizardProps {
+  initialData?: Collaborator | null;
+  onSuccess: () => void;
+  onCancel?: () => void;
+}
+
+const WIZARD_STEPS = [
+  { id: "personal", icon: User },
+  { id: "contact", icon: Phone },
+  { id: "banking", icon: CreditCard },
+  { id: "company", icon: Building2 },
+  { id: "review", icon: ClipboardCheck },
+];
+
+function DateFields({
+  label,
+  dayValue,
+  monthValue,
+  yearValue,
+  onDayChange,
+  onMonthChange,
+  onYearChange,
+  testIdPrefix,
+  t,
+}: {
+  label: string;
+  dayValue: number;
+  monthValue: number;
+  yearValue: number;
+  onDayChange: (val: number) => void;
+  onMonthChange: (val: number) => void;
+  onYearChange: (val: number) => void;
+  testIdPrefix: string;
+  t: any;
+}) {
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Select
+          value={dayValue?.toString() || ""}
+          onValueChange={(v) => onDayChange(parseInt(v))}
+        >
+          <SelectTrigger className="w-[80px]" data-testid={`wizard-select-${testIdPrefix}-day`}>
+            <SelectValue placeholder={t.collaborators?.fields?.day || "Day"} />
+          </SelectTrigger>
+          <SelectContent>
+            {days.map((d) => (
+              <SelectItem key={d} value={d.toString()}>
+                {d.toString().padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={monthValue?.toString() || ""}
+          onValueChange={(v) => onMonthChange(parseInt(v))}
+        >
+          <SelectTrigger className="w-[100px]" data-testid={`wizard-select-${testIdPrefix}-month`}>
+            <SelectValue placeholder={t.collaborators?.fields?.month || "Month"} />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((m) => (
+              <SelectItem key={m} value={m.toString()}>
+                {m.toString().padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={yearValue?.toString() || ""}
+          onValueChange={(v) => onYearChange(parseInt(v))}
+        >
+          <SelectTrigger className="w-[100px]" data-testid={`wizard-select-${testIdPrefix}-year`}>
+            <SelectValue placeholder={t.collaborators?.fields?.year || "Year"} />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((y) => (
+              <SelectItem key={y} value={y.toString()}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: CollaboratorFormWizardProps) {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  const [formData, setFormData] = useState<CollaboratorFormData>(() =>
+    initialData
+      ? {
+          countryCode: initialData.countryCode,
+          titleBefore: initialData.titleBefore || "",
+          firstName: initialData.firstName,
+          lastName: initialData.lastName,
+          maidenName: initialData.maidenName || "",
+          titleAfter: initialData.titleAfter || "",
+          birthNumber: initialData.birthNumber || "",
+          birthDay: initialData.birthDay || 0,
+          birthMonth: initialData.birthMonth || 0,
+          birthYear: initialData.birthYear || 0,
+          birthPlace: initialData.birthPlace || "",
+          healthInsuranceId: initialData.healthInsuranceId || "",
+          maritalStatus: initialData.maritalStatus || "",
+          collaboratorType: initialData.collaboratorType || "",
+          phone: initialData.phone || "",
+          mobile: initialData.mobile || "",
+          mobile2: initialData.mobile2 || "",
+          otherContact: initialData.otherContact || "",
+          email: initialData.email || "",
+          bankAccountIban: initialData.bankAccountIban || "",
+          swiftCode: initialData.swiftCode || "",
+          clientContact: initialData.clientContact,
+          representativeId: initialData.representativeId || "",
+          isActive: initialData.isActive,
+          svetZdravia: initialData.svetZdravia,
+          companyName: initialData.companyName || "",
+          ico: initialData.ico || "",
+          dic: initialData.dic || "",
+          icDph: initialData.icDph || "",
+          companyIban: initialData.companyIban || "",
+          companySwift: initialData.companySwift || "",
+          monthRewards: initialData.monthRewards,
+          note: initialData.note || "",
+          hospitalId: initialData.hospitalId || "",
+        }
+      : {
+          countryCode: "",
+          titleBefore: "",
+          firstName: "",
+          lastName: "",
+          maidenName: "",
+          titleAfter: "",
+          birthNumber: "",
+          birthDay: 0,
+          birthMonth: 0,
+          birthYear: 0,
+          birthPlace: "",
+          healthInsuranceId: "",
+          maritalStatus: "",
+          collaboratorType: "",
+          phone: "",
+          mobile: "",
+          mobile2: "",
+          otherContact: "",
+          email: "",
+          bankAccountIban: "",
+          swiftCode: "",
+          clientContact: false,
+          representativeId: "",
+          isActive: true,
+          svetZdravia: false,
+          companyName: "",
+          ico: "",
+          dic: "",
+          icDph: "",
+          companyIban: "",
+          companySwift: "",
+          monthRewards: false,
+          note: "",
+          hospitalId: "",
+        }
+  );
+
+  const { data: users = [] } = useQuery<SafeUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: healthInsurances = [] } = useQuery<HealthInsurance[]>({
+    queryKey: ["/api/config/health-insurance"],
+  });
+
+  const { data: hospitals = [] } = useQuery<Hospital[]>({
+    queryKey: ["/api/hospitals"],
+  });
+
+  const filteredHealthInsurances = formData.countryCode
+    ? healthInsurances.filter((hi) => hi.countryCode === formData.countryCode)
+    : healthInsurances;
+
+  const filteredHospitals = formData.countryCode
+    ? hospitals.filter((h) => h.countryCode === formData.countryCode)
+    : hospitals;
+
+  const saveMutation = useMutation({
+    mutationFn: (data: CollaboratorFormData) => {
+      if (initialData) {
+        return apiRequest("PUT", `/api/collaborators/${initialData.id}`, data);
+      } else {
+        return apiRequest("POST", "/api/collaborators", data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collaborators"] });
+      toast({ title: t.success.saved });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const progress = ((currentStep + 1) / WIZARD_STEPS.length) * 100;
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === WIZARD_STEPS.length - 1;
+
+  const validateCurrentStep = (): boolean => {
+    switch (currentStep) {
+      case 0:
+        return !!formData.firstName && !!formData.lastName && !!formData.countryCode;
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (!validateCurrentStep()) {
+      toast({ title: t.errors.required, variant: "destructive" });
+      return;
+    }
+    
+    setCompletedSteps(prev => new Set(Array.from(prev).concat(currentStep)));
+    
+    if (isLastStep) {
+      saveMutation.mutate(formData);
+    } else {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (!isFirstStep) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleStepClick = (index: number) => {
+    if (index < currentStep || completedSteps.has(index) || completedSteps.has(index - 1)) {
+      setCurrentStep(index);
+    }
+  };
+
+  const getStepTitle = (stepId: string): string => {
+    const steps = t.wizard?.steps as Record<string, string> | undefined;
+    const stepTitles: Record<string, string> = {
+      personal: steps?.personalInfo || t.collaborators?.tabs?.collaborator || "Personal Info",
+      contact: steps?.contactDetails || t.collaborators?.fields?.phone || "Contact",
+      banking: steps?.banking || t.collaborators?.fields?.bankAccountIban || "Banking",
+      company: steps?.company || t.collaborators?.fields?.companyName || "Company",
+      review: steps?.review || "Review",
+    };
+    return stepTitles[stepId] || stepId;
+  };
+
+  const getStepDescription = (stepId: string): string => {
+    const steps = t.wizard?.steps as Record<string, string> | undefined;
+    const stepDescs: Record<string, string> = {
+      personal: steps?.personalInfoDesc || "Name and basic details",
+      contact: steps?.contactDetailsDesc || "Phone, email, address",
+      banking: steps?.bankingDesc || "Bank account details",
+      company: steps?.companyDesc || "Company information (optional)",
+      review: steps?.reviewDesc || "Review and confirm",
+    };
+    return stepDescs[stepId] || "";
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.country} *</Label>
+                <Select
+                  value={formData.countryCode}
+                  onValueChange={(value) => setFormData({ ...formData, countryCode: value, healthInsuranceId: "", hospitalId: "" })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-country">
+                    <SelectValue placeholder={t.collaborators.fields.country} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {getCountryFlag(country.code)} {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.collaboratorType}</Label>
+                <Select
+                  value={formData.collaboratorType || "_none"}
+                  onValueChange={(value) => setFormData({ ...formData, collaboratorType: value === "_none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-type">
+                    <SelectValue placeholder={t.collaborators.fields.collaboratorType} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{t.common.noData}</SelectItem>
+                    {COLLABORATOR_TYPES.map((ct) => (
+                      <SelectItem key={ct.value} value={ct.value}>
+                        {(t.collaborators.types as Record<string, string>)[ct.labelKey] || ct.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.titleBefore}</Label>
+                <Input
+                  value={formData.titleBefore}
+                  onChange={(e) => setFormData({ ...formData, titleBefore: e.target.value })}
+                  data-testid="wizard-input-collaborator-title-before"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.firstName} *</Label>
+                <Input
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  data-testid="wizard-input-collaborator-firstname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.lastName} *</Label>
+                <Input
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  data-testid="wizard-input-collaborator-lastname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.titleAfter}</Label>
+                <Input
+                  value={formData.titleAfter}
+                  onChange={(e) => setFormData({ ...formData, titleAfter: e.target.value })}
+                  data-testid="wizard-input-collaborator-title-after"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DateFields
+                label={t.collaborators.fields.birthDate}
+                dayValue={formData.birthDay}
+                monthValue={formData.birthMonth}
+                yearValue={formData.birthYear}
+                onDayChange={(val) => setFormData({ ...formData, birthDay: val })}
+                onMonthChange={(val) => setFormData({ ...formData, birthMonth: val })}
+                onYearChange={(val) => setFormData({ ...formData, birthYear: val })}
+                testIdPrefix="birth"
+                t={t}
+              />
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.birthPlace}</Label>
+                <Input
+                  value={formData.birthPlace}
+                  onChange={(e) => setFormData({ ...formData, birthPlace: e.target.value })}
+                  data-testid="wizard-input-collaborator-birth-place"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.healthInsurance}</Label>
+                <Select
+                  value={formData.healthInsuranceId || "_none"}
+                  onValueChange={(value) => setFormData({ ...formData, healthInsuranceId: value === "_none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-insurance">
+                    <SelectValue placeholder={t.collaborators.fields.healthInsurance} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{t.common.noData}</SelectItem>
+                    {filteredHealthInsurances.map((hi) => (
+                      <SelectItem key={hi.id} value={hi.id}>{hi.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.maritalStatus}</Label>
+                <Select
+                  value={formData.maritalStatus || "_none"}
+                  onValueChange={(value) => setFormData({ ...formData, maritalStatus: value === "_none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-marital">
+                    <SelectValue placeholder={t.collaborators.fields.maritalStatus} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{t.common.noData}</SelectItem>
+                    {MARITAL_STATUSES.map((ms) => (
+                      <SelectItem key={ms.value} value={ms.value}>
+                        {(t.collaborators.maritalStatuses as Record<string, string>)[ms.labelKey] || ms.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 1:
+        return (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.phone}</Label>
+                <Input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+421..."
+                  data-testid="wizard-input-collaborator-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.mobile}</Label>
+                <Input
+                  type="tel"
+                  value={formData.mobile}
+                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                  placeholder="+421..."
+                  data-testid="wizard-input-collaborator-mobile"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.mobile2}</Label>
+                <Input
+                  type="tel"
+                  value={formData.mobile2}
+                  onChange={(e) => setFormData({ ...formData, mobile2: e.target.value })}
+                  placeholder="+421..."
+                  data-testid="wizard-input-collaborator-mobile2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.email}</Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  data-testid="wizard-input-collaborator-email"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.representative}</Label>
+                <Select
+                  value={formData.representativeId || "_none"}
+                  onValueChange={(value) => setFormData({ ...formData, representativeId: value === "_none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-representative">
+                    <SelectValue placeholder={t.collaborators.fields.representative} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{t.common.noData}</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.hospital}</Label>
+                <Select
+                  value={formData.hospitalId || "_none"}
+                  onValueChange={(value) => setFormData({ ...formData, hospitalId: value === "_none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="wizard-select-collaborator-hospital">
+                    <SelectValue placeholder={t.collaborators.fields.hospital} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">{t.common.noData}</SelectItem>
+                    {filteredHospitals.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.bankAccountIban}</Label>
+                <Input
+                  value={formData.bankAccountIban}
+                  onChange={(e) => setFormData({ ...formData, bankAccountIban: e.target.value })}
+                  placeholder="SK..."
+                  data-testid="wizard-input-collaborator-iban"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.swiftCode}</Label>
+                <Input
+                  value={formData.swiftCode}
+                  onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value })}
+                  data-testid="wizard-input-collaborator-swift"
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  data-testid="wizard-switch-collaborator-active"
+                />
+                <Label>{t.collaborators.fields.active}</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={formData.clientContact}
+                  onCheckedChange={(checked) => setFormData({ ...formData, clientContact: checked })}
+                  data-testid="wizard-switch-collaborator-client-contact"
+                />
+                <Label>{t.collaborators.fields.clientContact}</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={formData.svetZdravia}
+                  onCheckedChange={(checked) => setFormData({ ...formData, svetZdravia: checked })}
+                  data-testid="wizard-switch-collaborator-svet-zdravia"
+                />
+                <Label>{t.collaborators.fields.svetZdravia}</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={formData.monthRewards}
+                  onCheckedChange={(checked) => setFormData({ ...formData, monthRewards: checked })}
+                  data-testid="wizard-switch-collaborator-month-rewards"
+                />
+                <Label>{t.collaborators.fields.monthRewards}</Label>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{"Company information is optional"}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.companyName}</Label>
+                <Input
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  data-testid="wizard-input-collaborator-company-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.ico}</Label>
+                <Input
+                  value={formData.ico}
+                  onChange={(e) => setFormData({ ...formData, ico: e.target.value })}
+                  data-testid="wizard-input-collaborator-ico"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.dic}</Label>
+                <Input
+                  value={formData.dic}
+                  onChange={(e) => setFormData({ ...formData, dic: e.target.value })}
+                  data-testid="wizard-input-collaborator-dic"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.icDph}</Label>
+                <Input
+                  value={formData.icDph}
+                  onChange={(e) => setFormData({ ...formData, icDph: e.target.value })}
+                  data-testid="wizard-input-collaborator-icdph"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.companyIban}</Label>
+                <Input
+                  value={formData.companyIban}
+                  onChange={(e) => setFormData({ ...formData, companyIban: e.target.value })}
+                  data-testid="wizard-input-collaborator-company-iban"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.collaborators.fields.companySwift}</Label>
+                <Input
+                  value={formData.companySwift}
+                  onChange={(e) => setFormData({ ...formData, companySwift: e.target.value })}
+                  data-testid="wizard-input-collaborator-company-swift"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4:
+        const countryName = COUNTRIES.find(c => c.code === formData.countryCode)?.name || formData.countryCode;
+        const repName = users.find(u => u.id === formData.representativeId)?.fullName || "-";
+        const hospitalName = hospitals.find(h => h.id === formData.hospitalId)?.name || "-";
+        const collabType = formData.collaboratorType 
+          ? ((t.collaborators.types as Record<string, string>)[formData.collaboratorType] || formData.collaboratorType)
+          : "-";
+        
+        return (
+          <div className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-4">
+                <h4 className="font-medium">{getStepTitle("personal")}</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.firstName}:</span>
+                    <span className="font-medium">{formData.titleBefore} {formData.firstName} {formData.lastName} {formData.titleAfter}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.country}:</span>
+                    <span className="font-medium">{countryName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.collaboratorType}:</span>
+                    <span className="font-medium">{collabType}</span>
+                  </div>
+                  {(formData.birthDay > 0 && formData.birthMonth > 0 && formData.birthYear > 0) && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.birthDate}:</span>
+                      <span className="font-medium">{formData.birthDay}.{formData.birthMonth}.{formData.birthYear}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">{getStepTitle("contact")}</h4>
+                <div className="space-y-2 text-sm">
+                  {formData.email && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.email}:</span>
+                      <span className="font-medium">{formData.email}</span>
+                    </div>
+                  )}
+                  {formData.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.phone}:</span>
+                      <span className="font-medium">{formData.phone}</span>
+                    </div>
+                  )}
+                  {formData.mobile && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.mobile}:</span>
+                      <span className="font-medium">{formData.mobile}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.hospital}:</span>
+                    <span className="font-medium">{hospitalName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.representative}:</span>
+                    <span className="font-medium">{repName}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-4">
+                <h4 className="font-medium">{getStepTitle("banking")}</h4>
+                <div className="space-y-2 text-sm">
+                  {formData.bankAccountIban && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.bankAccountIban}:</span>
+                      <span className="font-medium">{formData.bankAccountIban}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.active}:</span>
+                    <Badge variant={formData.isActive ? "default" : "secondary"}>
+                      {formData.isActive ? t.common.yes : t.common.no}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.collaborators.fields.clientContact}:</span>
+                    <Badge variant={formData.clientContact ? "default" : "secondary"}>
+                      {formData.clientContact ? t.common.yes : t.common.no}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {formData.companyName && (
+                <div className="space-y-4">
+                  <h4 className="font-medium">{getStepTitle("company")}</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.fields.companyName}:</span>
+                      <span className="font-medium">{formData.companyName}</span>
+                    </div>
+                    {formData.ico && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t.collaborators.fields.ico}:</span>
+                        <span className="font-medium">{formData.ico}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const currentStepInfo = WIZARD_STEPS[currentStep];
+  const StepIcon = currentStepInfo?.icon || User;
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              {t.wizard?.stepOf?.replace("{current}", String(currentStep + 1)).replace("{total}", String(WIZARD_STEPS.length)) || `Step ${currentStep + 1} of ${WIZARD_STEPS.length}`}
+            </span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-4">
+          {WIZARD_STEPS.map((step, index) => {
+            const isCompleted = completedSteps.has(index);
+            const isCurrent = index === currentStep;
+            const isClickable = index < currentStep || isCompleted || completedSteps.has(index - 1);
+            const Icon = step.icon;
+            
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => handleStepClick(index)}
+                disabled={!isClickable}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                  isCurrent && "bg-primary text-primary-foreground",
+                  isCompleted && !isCurrent && "bg-primary/10 text-primary",
+                  !isCurrent && !isCompleted && "bg-muted text-muted-foreground",
+                  isClickable && !isCurrent && "hover-elevate cursor-pointer",
+                  !isClickable && "cursor-not-allowed opacity-50"
+                )}
+                data-testid={`wizard-step-${step.id}`}
+              >
+                <span className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-xs",
+                  isCurrent && "bg-primary-foreground text-primary",
+                  isCompleted && !isCurrent && "bg-primary text-primary-foreground",
+                  !isCurrent && !isCompleted && "bg-muted-foreground/20"
+                )}>
+                  {isCompleted ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+                </span>
+                <span className="hidden md:inline">{getStepTitle(step.id)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div className="border-b pb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <StepIcon className="h-5 w-5" />
+            {getStepTitle(currentStepInfo.id)}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {getStepDescription(currentStepInfo.id)}
+          </p>
+        </div>
+        
+        <div className="min-h-[300px]">
+          {renderStepContent()}
+        </div>
+      </CardContent>
+
+      <CardFooter className="flex justify-between gap-2 border-t pt-4">
+        <div>
+          {onCancel && (
+            <Button variant="ghost" onClick={onCancel} data-testid="wizard-button-cancel">
+              {t.common.cancel}
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!isFirstStep && (
+            <Button variant="outline" onClick={handlePrevious} data-testid="wizard-button-previous">
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              {t.wizard?.previous || "Previous"}
+            </Button>
+          )}
+          <Button onClick={handleNext} disabled={saveMutation.isPending} data-testid="wizard-button-next">
+            {isLastStep ? (
+              saveMutation.isPending ? t.common.loading : (t.wizard?.complete || t.common.save)
+            ) : (
+              <>
+                {t.wizard?.next || "Next"}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </>
+            )}
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}

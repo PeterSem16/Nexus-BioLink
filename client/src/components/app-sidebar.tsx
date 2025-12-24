@@ -7,7 +7,6 @@ import {
   Activity,
   Droplets,
   LogOut,
-  Package,
   FileText,
   Building2,
   Handshake,
@@ -41,7 +40,6 @@ export function AppSidebar() {
     { title: t.nav.customers, url: "/customers", icon: Users, testId: "customers" },
     { title: t.nav.hospitals, url: "/hospitals", icon: Building2, testId: "hospitals" },
     { title: t.nav.collaborators, url: "/collaborators", icon: Handshake, testId: "collaborators" },
-    { title: t.nav.products, url: "/products", icon: Package, testId: "products" },
     { title: t.nav.invoices, url: "/invoices", icon: FileText, testId: "invoices" },
   ];
 

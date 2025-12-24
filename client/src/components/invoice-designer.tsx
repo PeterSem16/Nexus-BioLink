@@ -1,0 +1,820 @@
+import { useState, useCallback } from "react";
+import { Rnd } from "react-rnd";
+import { useI18n } from "@/i18n";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Type,
+  User,
+  Building2,
+  FileText,
+  Plus,
+  Trash2,
+  Save,
+  Eye,
+  Settings,
+  GripVertical,
+  Image,
+  Table,
+  Minus,
+  Square,
+  RotateCcw,
+  Copy,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+} from "lucide-react";
+
+export interface DesignerElement {
+  id: string;
+  type: "data-field" | "text-block" | "image" | "line" | "table" | "rectangle";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  props: {
+    fieldKey?: string;
+    fieldLabel?: string;
+    text?: string;
+    fontSize?: number;
+    fontWeight?: "normal" | "bold";
+    textAlign?: "left" | "center" | "right";
+    color?: string;
+    backgroundColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    imageUrl?: string;
+    columns?: string[];
+  };
+}
+
+export interface InvoiceDesignerConfig {
+  elements: DesignerElement[];
+  paperSize: "A4" | "Letter";
+  orientation: "portrait" | "landscape";
+  margins: { top: number; bottom: number; left: number; right: number };
+}
+
+const AVAILABLE_FIELDS = {
+  customer: [
+    { key: "customer.fullName", label: "Customer Full Name" },
+    { key: "customer.firstName", label: "First Name" },
+    { key: "customer.lastName", label: "Last Name" },
+    { key: "customer.email", label: "Email" },
+    { key: "customer.phone", label: "Phone" },
+    { key: "customer.address", label: "Address" },
+    { key: "customer.city", label: "City" },
+    { key: "customer.postalCode", label: "Postal Code" },
+    { key: "customer.country", label: "Country" },
+    { key: "customer.taxId", label: "Tax ID" },
+    { key: "customer.companyName", label: "Company Name" },
+    { key: "customer.ico", label: "ICO" },
+    { key: "customer.dic", label: "DIC" },
+    { key: "customer.icDph", label: "IC DPH" },
+  ],
+  billing: [
+    { key: "billing.companyName", label: "Billing Company Name" },
+    { key: "billing.address", label: "Billing Address" },
+    { key: "billing.city", label: "Billing City" },
+    { key: "billing.postalCode", label: "Billing Postal Code" },
+    { key: "billing.country", label: "Billing Country" },
+    { key: "billing.taxId", label: "Billing Tax ID" },
+    { key: "billing.vatId", label: "Billing VAT ID" },
+    { key: "billing.bankName", label: "Bank Name" },
+    { key: "billing.iban", label: "IBAN" },
+    { key: "billing.swift", label: "SWIFT" },
+    { key: "billing.email", label: "Billing Email" },
+    { key: "billing.phone", label: "Billing Phone" },
+    { key: "billing.website", label: "Website" },
+  ],
+  invoice: [
+    { key: "invoice.number", label: "Invoice Number" },
+    { key: "invoice.date", label: "Invoice Date" },
+    { key: "invoice.dueDate", label: "Due Date" },
+    { key: "invoice.subtotal", label: "Subtotal" },
+    { key: "invoice.vatAmount", label: "VAT Amount" },
+    { key: "invoice.total", label: "Total Amount" },
+    { key: "invoice.currency", label: "Currency" },
+    { key: "invoice.paymentTerms", label: "Payment Terms" },
+    { key: "invoice.variableSymbol", label: "Variable Symbol" },
+    { key: "invoice.constantSymbol", label: "Constant Symbol" },
+  ],
+};
+
+const PAPER_SIZES = {
+  A4: { portrait: { width: 595, height: 842 }, landscape: { width: 842, height: 595 } },
+  Letter: { portrait: { width: 612, height: 792 }, landscape: { width: 792, height: 612 } },
+};
+
+const CANVAS_SCALE = 0.8;
+
+interface InvoiceDesignerProps {
+  initialConfig?: InvoiceDesignerConfig;
+  onSave: (config: InvoiceDesignerConfig) => void;
+  onCancel: () => void;
+}
+
+export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesignerProps) {
+  const { t } = useI18n();
+  const [elements, setElements] = useState<DesignerElement[]>(initialConfig?.elements || []);
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  const [paperSize, setPaperSize] = useState<"A4" | "Letter">(initialConfig?.paperSize || "A4");
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">(initialConfig?.orientation || "portrait");
+  const [margins, setMargins] = useState(initialConfig?.margins || { top: 40, bottom: 40, left: 40, right: 40 });
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [editingText, setEditingText] = useState<string | null>(null);
+
+  const canvasDimensions = PAPER_SIZES[paperSize][orientation];
+  const scaledWidth = canvasDimensions.width * CANVAS_SCALE;
+  const scaledHeight = canvasDimensions.height * CANVAS_SCALE;
+
+  const generateId = () => `el_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const addElement = useCallback((type: DesignerElement["type"], props: Partial<DesignerElement["props"]> = {}) => {
+    const newElement: DesignerElement = {
+      id: generateId(),
+      type,
+      x: 50,
+      y: 50,
+      width: type === "line" ? 200 : type === "text-block" ? 150 : 120,
+      height: type === "line" ? 2 : type === "text-block" ? 60 : 20,
+      props: {
+        fontSize: 12,
+        fontWeight: "normal",
+        textAlign: "left",
+        color: "#000000",
+        backgroundColor: "transparent",
+        borderColor: "#000000",
+        borderWidth: 0,
+        ...props,
+      },
+    };
+    setElements((prev) => [...prev, newElement]);
+    setSelectedElement(newElement.id);
+  }, []);
+
+  const addDataField = (fieldKey: string, fieldLabel: string) => {
+    addElement("data-field", { fieldKey, fieldLabel, text: `{${fieldLabel}}` });
+  };
+
+  const updateElement = useCallback((id: string, updates: Partial<DesignerElement>) => {
+    setElements((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, ...updates } : el))
+    );
+  }, []);
+
+  const updateElementProps = useCallback((id: string, propUpdates: Partial<DesignerElement["props"]>) => {
+    setElements((prev) =>
+      prev.map((el) =>
+        el.id === id ? { ...el, props: { ...el.props, ...propUpdates } } : el
+      )
+    );
+  }, []);
+
+  const deleteElement = useCallback((id: string) => {
+    setElements((prev) => prev.filter((el) => el.id !== id));
+    if (selectedElement === id) {
+      setSelectedElement(null);
+    }
+  }, [selectedElement]);
+
+  const duplicateElement = useCallback((id: string) => {
+    const element = elements.find((el) => el.id === id);
+    if (element) {
+      const newElement: DesignerElement = {
+        ...element,
+        id: generateId(),
+        x: element.x + 20,
+        y: element.y + 20,
+      };
+      setElements((prev) => [...prev, newElement]);
+      setSelectedElement(newElement.id);
+    }
+  }, [elements]);
+
+  const handleSave = () => {
+    onSave({
+      elements,
+      paperSize,
+      orientation,
+      margins,
+    });
+  };
+
+  const selectedEl = elements.find((el) => el.id === selectedElement);
+
+  const renderElement = (element: DesignerElement, isPreview = false) => {
+    const style: React.CSSProperties = {
+      width: "100%",
+      height: "100%",
+      fontSize: element.props.fontSize,
+      fontWeight: element.props.fontWeight,
+      textAlign: element.props.textAlign as React.CSSProperties["textAlign"],
+      color: element.props.color,
+      backgroundColor: element.props.backgroundColor,
+      border: element.props.borderWidth
+        ? `${element.props.borderWidth}px solid ${element.props.borderColor}`
+        : "none",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: element.props.textAlign === "center" ? "center" : element.props.textAlign === "right" ? "flex-end" : "flex-start",
+      padding: "2px 4px",
+      overflow: "hidden",
+      boxSizing: "border-box",
+    };
+
+    switch (element.type) {
+      case "data-field":
+        return (
+          <div style={style} className="select-none">
+            <span className="text-muted-foreground italic">
+              {element.props.fieldLabel || element.props.fieldKey}
+            </span>
+          </div>
+        );
+      case "text-block":
+        if (editingText === element.id && !isPreview) {
+          return (
+            <Textarea
+              value={element.props.text || ""}
+              onChange={(e) => updateElementProps(element.id, { text: e.target.value })}
+              onBlur={() => setEditingText(null)}
+              autoFocus
+              className="w-full h-full resize-none border-0 p-1"
+              style={{ fontSize: element.props.fontSize }}
+            />
+          );
+        }
+        return (
+          <div
+            style={style}
+            onDoubleClick={() => !isPreview && setEditingText(element.id)}
+            className="select-none cursor-text whitespace-pre-wrap"
+          >
+            {element.props.text || "Double-click to edit"}
+          </div>
+        );
+      case "line":
+        return (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: element.props.color || "#000000",
+            }}
+          />
+        );
+      case "rectangle":
+        return (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: element.props.backgroundColor || "transparent",
+              border: `${element.props.borderWidth || 1}px solid ${element.props.borderColor || "#000000"}`,
+            }}
+          />
+        );
+      case "table":
+        return (
+          <div style={style} className="border text-xs">
+            <table className="w-full h-full border-collapse">
+              <thead>
+                <tr className="bg-muted">
+                  <th className="border p-1">Item</th>
+                  <th className="border p-1">Qty</th>
+                  <th className="border p-1">Price</th>
+                  <th className="border p-1">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border p-1 text-muted-foreground italic">Items...</td>
+                  <td className="border p-1"></td>
+                  <td className="border p-1"></td>
+                  <td className="border p-1"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        );
+      default:
+        return <div style={style}>{element.type}</div>;
+    }
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-200px)] gap-4">
+      <div className="w-64 flex flex-col gap-4">
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              {t.konfigurator.addElements || "Add Elements"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => addElement("text-block", { text: "Text" })}
+              data-testid="button-add-text"
+            >
+              <Type className="h-4 w-4 mr-2" />
+              {t.konfigurator.textBlock || "Text Block"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => addElement("line")}
+              data-testid="button-add-line"
+            >
+              <Minus className="h-4 w-4 mr-2" />
+              {t.konfigurator.line || "Line"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => addElement("rectangle", { borderWidth: 1 })}
+              data-testid="button-add-rectangle"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              {t.konfigurator.rectangle || "Rectangle"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => addElement("table")}
+              data-testid="button-add-table"
+            >
+              <Table className="h-4 w-4 mr-2" />
+              {t.konfigurator.itemsTable || "Items Table"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <User className="h-4 w-4" />
+              {t.konfigurator.customerFields || "Customer Fields"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-32">
+              <div className="space-y-1">
+                {AVAILABLE_FIELDS.customer.map((field) => (
+                  <Button
+                    key={field.key}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs h-7"
+                    onClick={() => addDataField(field.key, field.label)}
+                    data-testid={`button-field-${field.key}`}
+                  >
+                    {field.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              {t.konfigurator.billingFields || "Billing Fields"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-32">
+              <div className="space-y-1">
+                {AVAILABLE_FIELDS.billing.map((field) => (
+                  <Button
+                    key={field.key}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs h-7"
+                    onClick={() => addDataField(field.key, field.label)}
+                    data-testid={`button-field-${field.key}`}
+                  >
+                    {field.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              {t.konfigurator.invoiceFields || "Invoice Fields"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-32">
+              <div className="space-y-1">
+                {AVAILABLE_FIELDS.invoice.map((field) => (
+                  <Button
+                    key={field.key}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs h-7"
+                    onClick={() => addDataField(field.key, field.label)}
+                    data-testid={`button-field-${field.key}`}
+                  >
+                    {field.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Select value={paperSize} onValueChange={(v) => setPaperSize(v as "A4" | "Letter")}>
+              <SelectTrigger className="w-24" data-testid="select-paper-size">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A4">A4</SelectItem>
+                <SelectItem value="Letter">Letter</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={orientation} onValueChange={(v) => setOrientation(v as "portrait" | "landscape")}>
+              <SelectTrigger className="w-28" data-testid="select-orientation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="portrait">{t.konfigurator.portrait}</SelectItem>
+                <SelectItem value="landscape">{t.konfigurator.landscape}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} data-testid="button-preview">
+              <Eye className="h-4 w-4 mr-2" />
+              {t.konfigurator.preview || "Preview"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onCancel} data-testid="button-cancel-design">
+              {t.common.cancel}
+            </Button>
+            <Button size="sm" onClick={handleSave} data-testid="button-save-design">
+              <Save className="h-4 w-4 mr-2" />
+              {t.common.save}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-4 flex justify-center">
+          <div
+            className="relative bg-white shadow-lg"
+            style={{
+              width: scaledWidth,
+              height: scaledHeight,
+              minWidth: scaledWidth,
+              minHeight: scaledHeight,
+            }}
+            onClick={() => setSelectedElement(null)}
+            data-testid="design-canvas"
+          >
+            <div
+              className="absolute border border-dashed border-muted-foreground/30"
+              style={{
+                left: margins.left * CANVAS_SCALE,
+                top: margins.top * CANVAS_SCALE,
+                right: margins.right * CANVAS_SCALE,
+                bottom: margins.bottom * CANVAS_SCALE,
+              }}
+            />
+            {elements.map((element) => (
+              <Rnd
+                key={element.id}
+                size={{ width: element.width * CANVAS_SCALE, height: element.height * CANVAS_SCALE }}
+                position={{ x: element.x * CANVAS_SCALE, y: element.y * CANVAS_SCALE }}
+                onDragStop={(e, d) => {
+                  updateElement(element.id, {
+                    x: d.x / CANVAS_SCALE,
+                    y: d.y / CANVAS_SCALE,
+                  });
+                }}
+                onResizeStop={(e, direction, ref, delta, position) => {
+                  updateElement(element.id, {
+                    width: parseInt(ref.style.width) / CANVAS_SCALE,
+                    height: parseInt(ref.style.height) / CANVAS_SCALE,
+                    x: position.x / CANVAS_SCALE,
+                    y: position.y / CANVAS_SCALE,
+                  });
+                }}
+                bounds="parent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedElement(element.id);
+                }}
+                className={`${selectedElement === element.id ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                enableResizing={selectedElement === element.id}
+                dragHandleClassName="drag-handle"
+              >
+                <div className="w-full h-full relative group">
+                  {selectedElement === element.id && (
+                    <div className="absolute -top-6 left-0 flex items-center gap-1 bg-primary text-primary-foreground rounded px-1 py-0.5 text-xs drag-handle cursor-move">
+                      <GripVertical className="h-3 w-3" />
+                      <span className="capitalize">{element.type.replace("-", " ")}</span>
+                    </div>
+                  )}
+                  {renderElement(element)}
+                </div>
+              </Rnd>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="w-64">
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              {t.konfigurator.properties || "Properties"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedEl ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary" className="capitalize">
+                    {selectedEl.type.replace("-", " ")}
+                  </Badge>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => duplicateElement(selectedEl.id)}
+                      data-testid="button-duplicate"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => deleteElement(selectedEl.id)}
+                      data-testid="button-delete-element"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {(selectedEl.type === "text-block" || selectedEl.type === "data-field") && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">{t.konfigurator.fontSize || "Font Size"}</label>
+                      <Input
+                        type="number"
+                        value={selectedEl.props.fontSize || 12}
+                        onChange={(e) => updateElementProps(selectedEl.id, { fontSize: parseInt(e.target.value) || 12 })}
+                        className="h-8"
+                        data-testid="input-font-size"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">{t.konfigurator.fontWeight || "Font Weight"}</label>
+                      <Select
+                        value={selectedEl.props.fontWeight || "normal"}
+                        onValueChange={(v) => updateElementProps(selectedEl.id, { fontWeight: v as "normal" | "bold" })}
+                      >
+                        <SelectTrigger className="h-8" data-testid="select-font-weight">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="bold">Bold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">{t.konfigurator.textAlign || "Text Align"}</label>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant={selectedEl.props.textAlign === "left" ? "default" : "outline"}
+                          className="h-8 w-8"
+                          onClick={() => updateElementProps(selectedEl.id, { textAlign: "left" })}
+                        >
+                          <AlignLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant={selectedEl.props.textAlign === "center" ? "default" : "outline"}
+                          className="h-8 w-8"
+                          onClick={() => updateElementProps(selectedEl.id, { textAlign: "center" })}
+                        >
+                          <AlignCenter className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant={selectedEl.props.textAlign === "right" ? "default" : "outline"}
+                          className="h-8 w-8"
+                          onClick={() => updateElementProps(selectedEl.id, { textAlign: "right" })}
+                        >
+                          <AlignRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">{t.konfigurator.color || "Color"}</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={selectedEl.props.color || "#000000"}
+                      onChange={(e) => updateElementProps(selectedEl.id, { color: e.target.value })}
+                      className="w-12 h-8 p-1"
+                      data-testid="input-color"
+                    />
+                    <Input
+                      value={selectedEl.props.color || "#000000"}
+                      onChange={(e) => updateElementProps(selectedEl.id, { color: e.target.value })}
+                      className="h-8 flex-1"
+                    />
+                  </div>
+                </div>
+
+                {(selectedEl.type === "rectangle" || selectedEl.type === "text-block") && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">{t.konfigurator.backgroundColor || "Background"}</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={selectedEl.props.backgroundColor || "#ffffff"}
+                        onChange={(e) => updateElementProps(selectedEl.id, { backgroundColor: e.target.value })}
+                        className="w-12 h-8 p-1"
+                        data-testid="input-bg-color"
+                      />
+                      <Input
+                        value={selectedEl.props.backgroundColor || "transparent"}
+                        onChange={(e) => updateElementProps(selectedEl.id, { backgroundColor: e.target.value })}
+                        className="h-8 flex-1"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedEl.type !== "line" && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">{t.konfigurator.border || "Border"}</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        value={selectedEl.props.borderWidth || 0}
+                        onChange={(e) => updateElementProps(selectedEl.id, { borderWidth: parseInt(e.target.value) || 0 })}
+                        className="w-16 h-8"
+                        min={0}
+                        max={10}
+                        data-testid="input-border-width"
+                      />
+                      <Input
+                        type="color"
+                        value={selectedEl.props.borderColor || "#000000"}
+                        onChange={(e) => updateElementProps(selectedEl.id, { borderColor: e.target.value })}
+                        className="w-12 h-8 p-1"
+                        data-testid="input-border-color"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-muted-foreground">X</label>
+                    <Input
+                      type="number"
+                      value={Math.round(selectedEl.x)}
+                      onChange={(e) => updateElement(selectedEl.id, { x: parseInt(e.target.value) || 0 })}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground">Y</label>
+                    <Input
+                      type="number"
+                      value={Math.round(selectedEl.y)}
+                      onChange={(e) => updateElement(selectedEl.id, { y: parseInt(e.target.value) || 0 })}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground">W</label>
+                    <Input
+                      type="number"
+                      value={Math.round(selectedEl.width)}
+                      onChange={(e) => updateElement(selectedEl.id, { width: parseInt(e.target.value) || 50 })}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground">H</label>
+                    <Input
+                      type="number"
+                      value={Math.round(selectedEl.height)}
+                      onChange={(e) => updateElement(selectedEl.id, { height: parseInt(e.target.value) || 20 })}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {t.konfigurator.selectElement || "Select an element to edit its properties"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{t.konfigurator.invoicePreview || "Invoice Preview"}</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center p-4 bg-muted rounded-lg">
+            <div
+              className="relative bg-white shadow-lg"
+              style={{
+                width: canvasDimensions.width,
+                height: canvasDimensions.height,
+                transform: "scale(0.7)",
+                transformOrigin: "top center",
+              }}
+            >
+              {elements.map((element) => (
+                <div
+                  key={element.id}
+                  style={{
+                    position: "absolute",
+                    left: element.x,
+                    top: element.y,
+                    width: element.width,
+                    height: element.height,
+                  }}
+                >
+                  {renderElement(element, true)}
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
+              {t.common.close || "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

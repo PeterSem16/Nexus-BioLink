@@ -54,6 +54,7 @@ export interface Translations {
     select: string;
     form: string;
     wizard: string;
+    close: string;
   };
   dashboard: {
     title: string;
@@ -575,6 +576,25 @@ export interface Translations {
     layoutUpdated: string;
     layoutDeleted: string;
     layoutFormDescription: string;
+    addElements: string;
+    textBlock: string;
+    line: string;
+    rectangle: string;
+    itemsTable: string;
+    customerFields: string;
+    billingFields: string;
+    invoiceFields: string;
+    preview: string;
+    properties: string;
+    fontWeight: string;
+    textAlign: string;
+    color: string;
+    backgroundColor: string;
+    border: string;
+    selectElement: string;
+    invoicePreview: string;
+    designInvoice: string;
+    openDesigner: string;
   };
   auth: {
     login: string;
@@ -813,6 +833,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Select',
       form: 'Form',
       wizard: 'Wizard',
+      close: 'Close',
     },
     dashboard: {
       title: 'Dashboard',
@@ -1334,6 +1355,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Layout updated successfully',
       layoutDeleted: 'Layout deleted successfully',
       layoutFormDescription: 'Configure page layout and typography',
+      addElements: 'Add Elements',
+      textBlock: 'Text Block',
+      line: 'Line',
+      rectangle: 'Rectangle',
+      itemsTable: 'Items Table',
+      customerFields: 'Customer Fields',
+      billingFields: 'Billing Fields',
+      invoiceFields: 'Invoice Fields',
+      preview: 'Preview',
+      properties: 'Properties',
+      fontWeight: 'Font Weight',
+      textAlign: 'Text Align',
+      color: 'Color',
+      backgroundColor: 'Background Color',
+      border: 'Border',
+      selectElement: 'Select an element to edit its properties',
+      invoicePreview: 'Invoice Preview',
+      designInvoice: 'Design Invoice',
+      openDesigner: 'Open Designer',
     },
     auth: {
       login: 'Login',
@@ -1570,6 +1610,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Vybrať',
       form: 'Formulár',
       wizard: 'Sprievodca',
+      close: 'Zavrieť',
     },
     dashboard: {
       title: 'Prehľad',
@@ -2091,6 +2132,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Rozloženie bolo úspešne aktualizované',
       layoutDeleted: 'Rozloženie bolo úspešne odstránené',
       layoutFormDescription: 'Konfigurácia rozloženia stránky a typografie',
+      addElements: 'Pridať prvky',
+      textBlock: 'Textový blok',
+      line: 'Čiara',
+      rectangle: 'Obdĺžnik',
+      itemsTable: 'Tabuľka položiek',
+      customerFields: 'Polia zákazníka',
+      billingFields: 'Fakturačné polia',
+      invoiceFields: 'Polia faktúry',
+      preview: 'Náhľad',
+      properties: 'Vlastnosti',
+      fontWeight: 'Hrúbka písma',
+      textAlign: 'Zarovnanie textu',
+      color: 'Farba',
+      backgroundColor: 'Farba pozadia',
+      border: 'Okraj',
+      selectElement: 'Vyberte prvok pre úpravu vlastností',
+      invoicePreview: 'Náhľad faktúry',
+      designInvoice: 'Navrhnúť faktúru',
+      openDesigner: 'Otvoriť návrhára',
     },
     auth: {
       login: 'Prihlásenie',
@@ -2327,6 +2387,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Vybrat',
       form: 'Formulář',
       wizard: 'Průvodce',
+      close: 'Zavřít',
     },
     dashboard: {
       title: 'Přehled',
@@ -2848,6 +2909,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Rozvržení bylo úspěšně aktualizováno',
       layoutDeleted: 'Rozvržení bylo úspěšně odstraněno',
       layoutFormDescription: 'Konfigurace rozvržení stránky a typografie',
+      addElements: 'Přidat prvky',
+      textBlock: 'Textový blok',
+      line: 'Čára',
+      rectangle: 'Obdélník',
+      itemsTable: 'Tabulka položek',
+      customerFields: 'Pole zákazníka',
+      billingFields: 'Fakturační pole',
+      invoiceFields: 'Pole faktury',
+      preview: 'Náhled',
+      properties: 'Vlastnosti',
+      fontWeight: 'Tloušťka písma',
+      textAlign: 'Zarovnání textu',
+      color: 'Barva',
+      backgroundColor: 'Barva pozadí',
+      border: 'Okraj',
+      selectElement: 'Vyberte prvek pro úpravu vlastností',
+      invoicePreview: 'Náhled faktury',
+      designInvoice: 'Navrhnout fakturu',
+      openDesigner: 'Otevřít návrhář',
     },
     auth: {
       login: 'Přihlášení',
@@ -3047,6 +3127,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Kiválasztás',
       form: 'Űrlap',
       wizard: 'Varázsló',
+      close: 'Bezárás',
     },
     dashboard: {
       title: 'Irányítópult',
@@ -3568,6 +3649,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Elrendezés sikeresen frissítve',
       layoutDeleted: 'Elrendezés sikeresen törölve',
       layoutFormDescription: 'Oldal elrendezés és tipográfia konfigurálása',
+      addElements: 'Elemek hozzáadása',
+      textBlock: 'Szövegblokk',
+      line: 'Vonal',
+      rectangle: 'Téglalap',
+      itemsTable: 'Tételek táblázat',
+      customerFields: 'Ügyfél mezők',
+      billingFields: 'Számlázási mezők',
+      invoiceFields: 'Számla mezők',
+      preview: 'Előnézet',
+      properties: 'Tulajdonságok',
+      fontWeight: 'Betű vastagság',
+      textAlign: 'Szöveg igazítás',
+      color: 'Szín',
+      backgroundColor: 'Háttérszín',
+      border: 'Szegély',
+      selectElement: 'Válasszon elemet a tulajdonságok szerkesztéséhez',
+      invoicePreview: 'Számla előnézet',
+      designInvoice: 'Számla tervezése',
+      openDesigner: 'Tervező megnyitása',
     },
     auth: {
       login: 'Bejelentkezés',
@@ -3767,6 +3867,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Selectați',
       form: 'Formular',
       wizard: 'Asistent',
+      close: 'Închide',
     },
     dashboard: {
       title: 'Panou de control',
@@ -4288,6 +4389,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Aspect actualizat cu succes',
       layoutDeleted: 'Aspect șters cu succes',
       layoutFormDescription: 'Configurați aspectul paginii și tipografia',
+      addElements: 'Adăugați elemente',
+      textBlock: 'Bloc de text',
+      line: 'Linie',
+      rectangle: 'Dreptunghi',
+      itemsTable: 'Tabel articole',
+      customerFields: 'Câmpuri client',
+      billingFields: 'Câmpuri facturare',
+      invoiceFields: 'Câmpuri factură',
+      preview: 'Previzualizare',
+      properties: 'Proprietăți',
+      fontWeight: 'Grosime font',
+      textAlign: 'Aliniere text',
+      color: 'Culoare',
+      backgroundColor: 'Culoare fundal',
+      border: 'Bordură',
+      selectElement: 'Selectați un element pentru a edita proprietățile',
+      invoicePreview: 'Previzualizare factură',
+      designInvoice: 'Proiectare factură',
+      openDesigner: 'Deschide designer',
     },
     auth: {
       login: 'Autentificare',
@@ -4487,6 +4607,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Seleziona',
       form: 'Modulo',
       wizard: 'Procedura guidata',
+      close: 'Chiudi',
     },
     dashboard: {
       title: 'Dashboard',
@@ -5008,6 +5129,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Layout aggiornato con successo',
       layoutDeleted: 'Layout eliminato con successo',
       layoutFormDescription: 'Configura layout pagina e tipografia',
+      addElements: 'Aggiungi elementi',
+      textBlock: 'Blocco di testo',
+      line: 'Linea',
+      rectangle: 'Rettangolo',
+      itemsTable: 'Tabella articoli',
+      customerFields: 'Campi cliente',
+      billingFields: 'Campi fatturazione',
+      invoiceFields: 'Campi fattura',
+      preview: 'Anteprima',
+      properties: 'Proprietà',
+      fontWeight: 'Peso font',
+      textAlign: 'Allineamento testo',
+      color: 'Colore',
+      backgroundColor: 'Colore sfondo',
+      border: 'Bordo',
+      selectElement: 'Seleziona un elemento per modificare le proprietà',
+      invoicePreview: 'Anteprima fattura',
+      designInvoice: 'Progetta fattura',
+      openDesigner: 'Apri designer',
     },
     auth: {
       login: 'Accesso',
@@ -5207,6 +5347,7 @@ export const translations: Record<Locale, Translations> = {
       select: 'Auswählen',
       form: 'Formular',
       wizard: 'Assistent',
+      close: 'Schließen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -5728,6 +5869,25 @@ export const translations: Record<Locale, Translations> = {
       layoutUpdated: 'Layout erfolgreich aktualisiert',
       layoutDeleted: 'Layout erfolgreich gelöscht',
       layoutFormDescription: 'Seitenlayout und Typografie konfigurieren',
+      addElements: 'Elemente hinzufügen',
+      textBlock: 'Textblock',
+      line: 'Linie',
+      rectangle: 'Rechteck',
+      itemsTable: 'Artikeltabelle',
+      customerFields: 'Kundenfelder',
+      billingFields: 'Rechnungsfelder',
+      invoiceFields: 'Rechnungsfelder',
+      preview: 'Vorschau',
+      properties: 'Eigenschaften',
+      fontWeight: 'Schriftgewicht',
+      textAlign: 'Textausrichtung',
+      color: 'Farbe',
+      backgroundColor: 'Hintergrundfarbe',
+      border: 'Rahmen',
+      selectElement: 'Wählen Sie ein Element aus, um seine Eigenschaften zu bearbeiten',
+      invoicePreview: 'Rechnungsvorschau',
+      designInvoice: 'Rechnung entwerfen',
+      openDesigner: 'Designer öffnen',
     },
     auth: {
       login: 'Anmeldung',

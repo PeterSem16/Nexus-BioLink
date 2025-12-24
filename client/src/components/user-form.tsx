@@ -65,13 +65,16 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     queryKey: ["/api/roles"],
   });
   
-  // Get active roles or fallback to legacy options
+  // Get active roles
   const activeRoles = roles.filter(r => r.isActive);
-  const hasCustomRoles = activeRoles.length > 0;
+  
+  // Check if we have system roles with legacyRole mapping (needed for proper user management)
+  const systemRolesWithLegacy = activeRoles.filter(r => (r as any).legacyRole);
+  const hasSystemRoles = systemRolesWithLegacy.length > 0;
   
   // Map legacy role to roleId using legacyRole field
   const getLegacyRoleId = (legacyRoleValue: string): string => {
-    if (!hasCustomRoles) return "";
+    if (!hasSystemRoles) return "";
     // Find role by legacyRole field instead of name
     const matchingRole = activeRoles.find(r => (r as any).legacyRole === legacyRoleValue);
     return matchingRole?.id || "";
@@ -91,19 +94,19 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     },
   });
   
-  // Auto-set roleId for legacy users when custom roles are loaded
+  // Auto-set roleId for legacy users when system roles are loaded
   useEffect(() => {
     const currentRoleId = form.getValues("roleId");
     const legacyRole = initialData?.role;
     
-    // If user has no roleId but has legacy role and custom roles exist, set roleId
-    if (hasCustomRoles && !currentRoleId && legacyRole) {
+    // If user has no roleId but has legacy role and system roles exist, set roleId
+    if (hasSystemRoles && !currentRoleId && legacyRole) {
       const mappedRoleId = getLegacyRoleId(legacyRole);
       if (mappedRoleId) {
         form.setValue("roleId", mappedRoleId);
       }
     }
-  }, [hasCustomRoles, activeRoles, initialData?.role]);
+  }, [hasSystemRoles, activeRoles, initialData?.role]);
   
   const handleFormSubmit = (data: UserFormData) => {
     const submitData = { ...data };
@@ -112,7 +115,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     }
     
     // Map roleId to legacy role field using legacyRole from the role definition
-    if (submitData.roleId && hasCustomRoles) {
+    if (submitData.roleId && hasSystemRoles) {
       const selectedRole = activeRoles.find(r => r.id === submitData.roleId);
       if (selectedRole && (selectedRole as any).legacyRole) {
         submitData.role = (selectedRole as any).legacyRole as "admin" | "manager" | "user";
@@ -211,7 +214,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             )}
           />
 
-          {hasCustomRoles ? (
+          {hasSystemRoles ? (
             <FormField
               control={form.control}
               name="roleId"

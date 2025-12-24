@@ -872,8 +872,22 @@ function InvoiceEditorTab() {
   });
 
   const saveDesignMutation = useMutation({
-    mutationFn: (data: { id: string; layoutConfig: string }) =>
-      apiRequest("PATCH", `/api/configurator/invoice-layouts/${data.id}`, { layoutConfig: data.layoutConfig }),
+    mutationFn: (data: { layout: InvoiceLayout; layoutConfig: string }) =>
+      apiRequest("PATCH", `/api/configurator/invoice-layouts/${data.layout.id}`, {
+        name: data.layout.name,
+        countryCode: data.layout.countryCode,
+        isDefault: data.layout.isDefault,
+        isActive: data.layout.isActive,
+        paperSize: data.layout.paperSize,
+        orientation: data.layout.orientation,
+        marginTop: data.layout.marginTop,
+        marginBottom: data.layout.marginBottom,
+        marginLeft: data.layout.marginLeft,
+        marginRight: data.layout.marginRight,
+        fontSize: data.layout.fontSize,
+        fontFamily: data.layout.fontFamily,
+        layoutConfig: data.layoutConfig,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/configurator/invoice-layouts"] });
       setDesigningLayout(null);
@@ -888,7 +902,7 @@ function InvoiceEditorTab() {
   const handleSaveDesign = (config: InvoiceDesignerConfig) => {
     if (designingLayout) {
       saveDesignMutation.mutate({
-        id: designingLayout.id,
+        layout: designingLayout,
         layoutConfig: JSON.stringify(config),
       });
     }

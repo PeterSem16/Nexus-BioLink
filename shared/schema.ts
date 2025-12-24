@@ -1157,3 +1157,90 @@ export const insertLeadScoringCriteriaSchema = createInsertSchema(leadScoringCri
 
 export type InsertLeadScoringCriteria = z.infer<typeof insertLeadScoringCriteriaSchema>;
 export type LeadScoringCriteria = typeof leadScoringCriteria.$inferSelect;
+
+// Service configurations for Konfigurator
+export const serviceConfigurations = pgTable("service_configurations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceCode: text("service_code").notNull(), // e.g., "CORD_BLOOD", "CORD_TISSUE"
+  serviceName: text("service_name").notNull(), // Display name
+  description: text("description"),
+  countryCode: text("country_code").notNull(), // Country this config applies to
+  isActive: boolean("is_active").notNull().default(true),
+  basePrice: decimal("base_price", { precision: 12, scale: 2 }),
+  currency: text("currency").notNull().default("EUR"),
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }),
+  processingDays: integer("processing_days"), // Standard processing time
+  storageYears: integer("storage_years"), // Storage duration
+  additionalOptions: text("additional_options"), // JSON string of extra options
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertServiceConfigurationSchema = createInsertSchema(serviceConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertServiceConfiguration = z.infer<typeof insertServiceConfigurationSchema>;
+export type ServiceConfiguration = typeof serviceConfigurations.$inferSelect;
+
+// Invoice templates for Konfigurator
+export const invoiceTemplates = pgTable("invoice_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  countryCode: text("country_code").notNull(),
+  languageCode: text("language_code").notNull().default("en"), // Template language
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  templateType: text("template_type").notNull().default("standard"), // standard, proforma, credit_note
+  headerHtml: text("header_html"), // Custom header content
+  footerHtml: text("footer_html"), // Custom footer content
+  logoPath: text("logo_path"), // Path to logo file
+  primaryColor: text("primary_color").default("#6B2346"), // Brand color
+  showVat: boolean("show_vat").notNull().default(true),
+  showPaymentQr: boolean("show_payment_qr").notNull().default(false),
+  paymentInstructions: text("payment_instructions"),
+  legalText: text("legal_text"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertInvoiceTemplateSchema = createInsertSchema(invoiceTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertInvoiceTemplate = z.infer<typeof insertInvoiceTemplateSchema>;
+export type InvoiceTemplate = typeof invoiceTemplates.$inferSelect;
+
+// Invoice layout configurations - for the invoice editor
+export const invoiceLayouts = pgTable("invoice_layouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  countryCode: text("country_code").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  layoutConfig: text("layout_config").notNull(), // JSON configuration of layout
+  paperSize: text("paper_size").notNull().default("A4"), // A4, Letter, etc.
+  orientation: text("orientation").notNull().default("portrait"),
+  marginTop: integer("margin_top").default(20),
+  marginBottom: integer("margin_bottom").default(20),
+  marginLeft: integer("margin_left").default(15),
+  marginRight: integer("margin_right").default(15),
+  fontSize: integer("font_size").default(10),
+  fontFamily: text("font_family").default("Arial"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertInvoiceLayoutSchema = createInsertSchema(invoiceLayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertInvoiceLayout = z.infer<typeof insertInvoiceLayoutSchema>;
+export type InvoiceLayout = typeof invoiceLayouts.$inferSelect;

@@ -155,14 +155,26 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
 
   const generateId = () => `el_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+  const getDefaultDimensions = (type: DesignerElement["type"]) => {
+    switch (type) {
+      case "line": return { width: 200, height: 2 };
+      case "text-block": return { width: 150, height: 60 };
+      case "image": return { width: 120, height: 80 };
+      case "table": return { width: 400, height: 150 };
+      case "rectangle": return { width: 150, height: 100 };
+      default: return { width: 120, height: 20 };
+    }
+  };
+
   const addElement = useCallback((type: DesignerElement["type"], props: Partial<DesignerElement["props"]> = {}) => {
+    const dimensions = getDefaultDimensions(type);
     const newElement: DesignerElement = {
       id: generateId(),
       type,
       x: 50,
       y: 50,
-      width: type === "line" ? 200 : type === "text-block" ? 150 : 120,
-      height: type === "line" ? 2 : type === "text-block" ? 60 : 20,
+      width: dimensions.width,
+      height: dimensions.height,
       props: {
         fontSize: 12,
         fontWeight: "normal",
@@ -176,6 +188,45 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
     };
     setElements((prev) => [...prev, newElement]);
     setSelectedElement(newElement.id);
+  }, []);
+
+  const loadDefaultTemplate = useCallback(() => {
+    const defaultElements: DesignerElement[] = [
+      { id: generateId(), type: "image", x: 40, y: 40, width: 120, height: 60, props: { imageUrl: "", backgroundColor: "transparent" } },
+      { id: generateId(), type: "text-block", x: 40, y: 110, width: 200, height: 25, props: { text: "INVOICE", fontSize: 24, fontWeight: "bold", color: "#1a1a1a" } },
+      { id: generateId(), type: "data-field", x: 380, y: 40, width: 170, height: 20, props: { fieldKey: "billing.companyName", fieldLabel: "Billing Company Name", text: "{Billing Company Name}", fontSize: 14, fontWeight: "bold" } },
+      { id: generateId(), type: "data-field", x: 380, y: 65, width: 170, height: 18, props: { fieldKey: "billing.address", fieldLabel: "Billing Address", text: "{Billing Address}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 380, y: 85, width: 170, height: 18, props: { fieldKey: "billing.city", fieldLabel: "Billing City", text: "{Billing City}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 380, y: 105, width: 170, height: 18, props: { fieldKey: "billing.taxId", fieldLabel: "Billing Tax ID", text: "{Billing Tax ID}", fontSize: 10 } },
+      { id: generateId(), type: "line", x: 40, y: 145, width: 515, height: 2, props: { color: "#e0e0e0" } },
+      { id: generateId(), type: "text-block", x: 40, y: 160, width: 100, height: 18, props: { text: "Invoice Number:", fontSize: 10, fontWeight: "bold", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 145, y: 160, width: 100, height: 18, props: { fieldKey: "invoice.number", fieldLabel: "Invoice Number", text: "{Invoice Number}", fontSize: 10 } },
+      { id: generateId(), type: "text-block", x: 40, y: 180, width: 100, height: 18, props: { text: "Date:", fontSize: 10, fontWeight: "bold", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 145, y: 180, width: 100, height: 18, props: { fieldKey: "invoice.date", fieldLabel: "Invoice Date", text: "{Invoice Date}", fontSize: 10 } },
+      { id: generateId(), type: "text-block", x: 40, y: 200, width: 100, height: 18, props: { text: "Due Date:", fontSize: 10, fontWeight: "bold", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 145, y: 200, width: 100, height: 18, props: { fieldKey: "invoice.dueDate", fieldLabel: "Due Date", text: "{Due Date}", fontSize: 10 } },
+      { id: generateId(), type: "text-block", x: 40, y: 240, width: 100, height: 18, props: { text: "Bill To:", fontSize: 12, fontWeight: "bold", color: "#1a1a1a" } },
+      { id: generateId(), type: "data-field", x: 40, y: 260, width: 200, height: 18, props: { fieldKey: "customer.fullName", fieldLabel: "Customer Full Name", text: "{Customer Full Name}", fontSize: 11, fontWeight: "bold" } },
+      { id: generateId(), type: "data-field", x: 40, y: 280, width: 200, height: 18, props: { fieldKey: "customer.address", fieldLabel: "Address", text: "{Address}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 40, y: 300, width: 200, height: 18, props: { fieldKey: "customer.city", fieldLabel: "City", text: "{City}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 40, y: 320, width: 200, height: 18, props: { fieldKey: "customer.email", fieldLabel: "Email", text: "{Email}", fontSize: 10 } },
+      { id: generateId(), type: "table", x: 40, y: 360, width: 515, height: 180, props: { fontSize: 10 } },
+      { id: generateId(), type: "line", x: 40, y: 560, width: 515, height: 2, props: { color: "#e0e0e0" } },
+      { id: generateId(), type: "text-block", x: 380, y: 580, width: 80, height: 18, props: { text: "Subtotal:", fontSize: 10, textAlign: "right", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 470, y: 580, width: 85, height: 18, props: { fieldKey: "invoice.subtotal", fieldLabel: "Subtotal", text: "{Subtotal}", fontSize: 10, textAlign: "right" } },
+      { id: generateId(), type: "text-block", x: 380, y: 600, width: 80, height: 18, props: { text: "VAT:", fontSize: 10, textAlign: "right", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 470, y: 600, width: 85, height: 18, props: { fieldKey: "invoice.vatAmount", fieldLabel: "VAT Amount", text: "{VAT Amount}", fontSize: 10, textAlign: "right" } },
+      { id: generateId(), type: "text-block", x: 380, y: 625, width: 80, height: 22, props: { text: "Total:", fontSize: 14, fontWeight: "bold", textAlign: "right", color: "#1a1a1a" } },
+      { id: generateId(), type: "data-field", x: 470, y: 625, width: 85, height: 22, props: { fieldKey: "invoice.total", fieldLabel: "Total Amount", text: "{Total Amount}", fontSize: 14, fontWeight: "bold", textAlign: "right" } },
+      { id: generateId(), type: "line", x: 40, y: 660, width: 515, height: 2, props: { color: "#e0e0e0" } },
+      { id: generateId(), type: "text-block", x: 40, y: 680, width: 100, height: 18, props: { text: "Bank Details:", fontSize: 10, fontWeight: "bold", color: "#666666" } },
+      { id: generateId(), type: "data-field", x: 40, y: 700, width: 250, height: 18, props: { fieldKey: "billing.bankName", fieldLabel: "Bank Name", text: "{Bank Name}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 40, y: 720, width: 250, height: 18, props: { fieldKey: "billing.iban", fieldLabel: "IBAN", text: "{IBAN}", fontSize: 10 } },
+      { id: generateId(), type: "data-field", x: 40, y: 740, width: 150, height: 18, props: { fieldKey: "billing.swift", fieldLabel: "SWIFT", text: "{SWIFT}", fontSize: 10 } },
+      { id: generateId(), type: "text-block", x: 40, y: 780, width: 515, height: 30, props: { text: "Thank you for your business!", fontSize: 10, textAlign: "center", color: "#666666" } },
+    ];
+    setElements(defaultElements);
+    setSelectedElement(null);
   }, []);
 
   const addDataField = (fieldKey: string, fieldLabel: string) => {
@@ -323,6 +374,35 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
             </table>
           </div>
         );
+      case "image":
+        return (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: element.props.backgroundColor || "transparent",
+              border: element.props.borderWidth
+                ? `${element.props.borderWidth}px solid ${element.props.borderColor}`
+                : "none",
+            }}
+          >
+            {element.props.imageUrl ? (
+              <img
+                src={element.props.imageUrl}
+                alt="Logo/Image"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-muted-foreground text-xs">
+                <Image className="h-6 w-6 mb-1" />
+                <span>Add image URL</span>
+              </div>
+            )}
+          </div>
+        );
       default:
         return <div style={style}>{element.type}</div>;
     }
@@ -378,6 +458,16 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
             >
               <Table className="h-4 w-4 mr-2" />
               {t.konfigurator.itemsTable || "Items Table"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => addElement("image", { imageUrl: "" })}
+              data-testid="button-add-image"
+            >
+              <Image className="h-4 w-4 mr-2" />
+              {t.konfigurator.image || "Image / Logo"}
             </Button>
           </CardContent>
         </Card>
@@ -485,6 +575,10 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
                 <SelectItem value="landscape">{t.konfigurator.landscape}</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="outline" size="sm" onClick={loadDefaultTemplate} data-testid="button-load-template">
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {t.konfigurator.loadDefaultTemplate || "Load Template"}
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} data-testid="button-preview">
@@ -542,7 +636,7 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
                   });
                 }}
                 bounds="parent"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   setSelectedElement(element.id);
                 }}
@@ -700,6 +794,22 @@ export function InvoiceDesigner({ initialConfig, onSave, onCancel }: InvoiceDesi
                         className="h-8 flex-1"
                       />
                     </div>
+                  </div>
+                )}
+
+                {selectedEl.type === "image" && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">{t.konfigurator.imageUrl || "Image URL"}</label>
+                    <Input
+                      value={selectedEl.props.imageUrl || ""}
+                      onChange={(e) => updateElementProps(selectedEl.id, { imageUrl: e.target.value })}
+                      placeholder="https://..."
+                      className="h-8"
+                      data-testid="input-image-url"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t.konfigurator.imageUrlHint || "Enter the URL of your logo or image"}
+                    </p>
                   </div>
                 )}
 

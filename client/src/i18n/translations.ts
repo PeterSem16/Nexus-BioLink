@@ -595,6 +595,10 @@ export interface Translations {
     invoicePreview: string;
     designInvoice: string;
     openDesigner: string;
+    image: string;
+    imageUrl: string;
+    imageUrlHint: string;
+    loadDefaultTemplate: string;
   };
   auth: {
     login: string;
@@ -1374,6 +1378,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Invoice Preview',
       designInvoice: 'Design Invoice',
       openDesigner: 'Open Designer',
+      image: 'Image / Logo',
+      imageUrl: 'Image URL',
+      imageUrlHint: 'Enter the URL of your logo or image',
+      loadDefaultTemplate: 'Load Template',
     },
     auth: {
       login: 'Login',
@@ -2151,6 +2159,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Náhľad faktúry',
       designInvoice: 'Navrhnúť faktúru',
       openDesigner: 'Otvoriť návrhára',
+      image: 'Obrázok / Logo',
+      imageUrl: 'URL obrázka',
+      imageUrlHint: 'Zadajte URL vášho loga alebo obrázka',
+      loadDefaultTemplate: 'Načítať šablónu',
     },
     auth: {
       login: 'Prihlásenie',
@@ -2928,6 +2940,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Náhled faktury',
       designInvoice: 'Navrhnout fakturu',
       openDesigner: 'Otevřít návrhář',
+      image: 'Obrázek / Logo',
+      imageUrl: 'URL obrázku',
+      imageUrlHint: 'Zadejte URL vašeho loga nebo obrázku',
+      loadDefaultTemplate: 'Načíst šablonu',
     },
     auth: {
       login: 'Přihlášení',
@@ -3668,6 +3684,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Számla előnézet',
       designInvoice: 'Számla tervezése',
       openDesigner: 'Tervező megnyitása',
+      image: 'Kép / Logó',
+      imageUrl: 'Kép URL',
+      imageUrlHint: 'Adja meg a logó vagy kép URL-jét',
+      loadDefaultTemplate: 'Sablon betöltése',
     },
     auth: {
       login: 'Bejelentkezés',
@@ -4408,6 +4428,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Previzualizare factură',
       designInvoice: 'Proiectare factură',
       openDesigner: 'Deschide designer',
+      image: 'Imagine / Logo',
+      imageUrl: 'URL imagine',
+      imageUrlHint: 'Introduceți URL-ul logo-ului sau imaginii',
+      loadDefaultTemplate: 'Încărcare șablon',
     },
     auth: {
       login: 'Autentificare',
@@ -5148,6 +5172,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Anteprima fattura',
       designInvoice: 'Progetta fattura',
       openDesigner: 'Apri designer',
+      image: 'Immagine / Logo',
+      imageUrl: 'URL immagine',
+      imageUrlHint: 'Inserisci l\'URL del tuo logo o immagine',
+      loadDefaultTemplate: 'Carica modello',
     },
     auth: {
       login: 'Accesso',
@@ -5888,6 +5916,10 @@ export const translations: Record<Locale, Translations> = {
       invoicePreview: 'Rechnungsvorschau',
       designInvoice: 'Rechnung entwerfen',
       openDesigner: 'Designer öffnen',
+      image: 'Bild / Logo',
+      imageUrl: 'Bild-URL',
+      imageUrlHint: 'Geben Sie die URL Ihres Logos oder Bildes ein',
+      loadDefaultTemplate: 'Vorlage laden',
     },
     auth: {
       login: 'Anmeldung',

@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { GlobalSearch } from "@/components/global-search";
 import { CountryFilterProvider, useCountryFilter } from "@/contexts/country-filter-context";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { PermissionsProvider } from "@/contexts/permissions-context";
 import { I18nProvider } from "@/i18n";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -89,8 +90,9 @@ function AuthenticatedApp() {
 
   return (
     <CountryFilterProvider>
-      <I18nWrapper userCountries={user?.assignedCountries || []}>
-        <SidebarProvider style={style as React.CSSProperties}>
+      <PermissionsProvider>
+        <I18nWrapper userCountries={user?.assignedCountries || []}>
+          <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex h-screen w-full">
             <AppSidebar />
             <div className="flex flex-col flex-1 overflow-hidden">
@@ -122,9 +124,10 @@ function AuthenticatedApp() {
               </main>
             </div>
           </div>
-        </SidebarProvider>
-        <Toaster />
-      </I18nWrapper>
+          </SidebarProvider>
+          <Toaster />
+        </I18nWrapper>
+      </PermissionsProvider>
     </CountryFilterProvider>
   );
 }

@@ -13,6 +13,7 @@ import {
   Cog
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermissions } from "@/contexts/permissions-context";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,21 +34,21 @@ import { CountryFilter } from "./country-filter";
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
+  const { canAccessModule } = usePermissions();
   const { t } = useI18n();
 
-  const mainNavItems = [
-    { title: t.nav.dashboard, url: "/", icon: LayoutDashboard, testId: "dashboard" },
-    { title: t.nav.customers, url: "/customers", icon: Users, testId: "customers" },
-    { title: t.nav.hospitals, url: "/hospitals", icon: Building2, testId: "hospitals" },
-    { title: t.nav.collaborators, url: "/collaborators", icon: Handshake, testId: "collaborators" },
-    { title: t.nav.invoices, url: "/invoices", icon: FileText, testId: "invoices" },
+  const allNavItems = [
+    { title: t.nav.dashboard, url: "/", icon: LayoutDashboard, testId: "dashboard", moduleKey: "dashboard" },
+    { title: t.nav.customers, url: "/customers", icon: Users, testId: "customers", moduleKey: "customers" },
+    { title: t.nav.hospitals, url: "/hospitals", icon: Building2, testId: "hospitals", moduleKey: "hospitals" },
+    { title: t.nav.collaborators, url: "/collaborators", icon: Handshake, testId: "collaborators", moduleKey: "collaborators" },
+    { title: t.nav.invoices, url: "/invoices", icon: FileText, testId: "invoices", moduleKey: "invoices" },
+    { title: t.nav.users, url: "/users", icon: UserCog, testId: "users", moduleKey: "users" },
+    { title: t.nav.settings, url: "/settings", icon: Settings, testId: "settings", moduleKey: "settings" },
+    { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator", moduleKey: "configurator" },
   ];
 
-  const adminNavItems = [
-    { title: t.nav.users, url: "/users", icon: UserCog, testId: "users" },
-    { title: t.nav.settings, url: "/settings", icon: Settings, testId: "settings" },
-    { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator" },
-  ];
+  const visibleNavItems = allNavItems.filter(item => canAccessModule(item.moduleKey));
 
   const handleLogout = async () => {
     await logout();
@@ -83,27 +84,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.testId}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location === item.url}
-                  >
-                    <Link href={item.url} data-testid={`nav-${item.testId}`}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminNavItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.testId}>
                   <SidebarMenuButton 
                     asChild 

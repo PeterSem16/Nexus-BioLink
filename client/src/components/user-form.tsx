@@ -61,7 +61,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
   const { t } = useI18n();
   const isEditing = !!initialData;
   
-  const { data: roles = [] } = useQuery<Role[]>({
+  const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: ["/api/roles"],
   });
   
@@ -214,7 +214,14 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             )}
           />
 
-          {hasSystemRoles ? (
+          {rolesLoading ? (
+            <FormItem>
+              <FormLabel>{t.users.role}</FormLabel>
+              <div className="h-9 flex items-center text-sm text-muted-foreground">
+                {t.common.loading}...
+              </div>
+            </FormItem>
+          ) : hasSystemRoles ? (
             <FormField
               control={form.control}
               name="roleId"
@@ -223,7 +230,8 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
                   <FormLabel>{t.users.role}</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
-                    value={field.value}
+                    value={field.value || ""}
+                    key={`role-select-${field.value}`}
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-role">

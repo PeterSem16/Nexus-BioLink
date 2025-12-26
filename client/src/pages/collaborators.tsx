@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/i18n";
+import { usePermissions } from "@/contexts/permissions-context";
 import {
   Dialog,
   DialogContent,
@@ -1698,6 +1699,7 @@ export default function CollaboratorsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { selectedCountries } = useCountryFilter();
+  const { canAdd, canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCountry, setFilterCountry] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -1816,22 +1818,26 @@ export default function CollaboratorsPage() {
       header: t.common.actions,
       cell: (c: Collaborator) => (
         <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => handleEdit(c)}
-            data-testid={`button-edit-collaborator-${c.id}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => handleDelete(c)}
-            data-testid={`button-delete-collaborator-${c.id}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canEdit("collaborators") && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => handleEdit(c)}
+              data-testid={`button-edit-collaborator-${c.id}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {canEdit("collaborators") && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => handleDelete(c)}
+              data-testid={`button-delete-collaborator-${c.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -1840,10 +1846,12 @@ export default function CollaboratorsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t.collaborators.title} description={t.collaborators.description}>
-        <Button onClick={handleAddNew} data-testid="button-add-collaborator">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.collaborators.addCollaborator}
-        </Button>
+        {canAdd("collaborators") && (
+          <Button onClick={handleAddNew} data-testid="button-add-collaborator">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.collaborators.addCollaborator}
+          </Button>
+        )}
       </PageHeader>
 
       <Card>

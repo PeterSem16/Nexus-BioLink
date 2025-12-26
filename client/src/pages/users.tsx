@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, UserCheck, UserX, Search, Filter } from "lucide-react";
 import { useI18n } from "@/i18n";
+import { usePermissions } from "@/contexts/permissions-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import type { User } from "@shared/schema";
 export default function UsersPage() {
   const { toast } = useToast();
   const { t } = useI18n();
+  const { canAdd, canEdit } = usePermissions();
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -179,28 +181,32 @@ export default function UsersPage() {
               <UserCheck className="h-4 w-4" />
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingUser(user);
-            }}
-            data-testid={`button-edit-user-${user.id}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeletingUser(user);
-            }}
-            data-testid={`button-delete-user-${user.id}`}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {canEdit("users") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingUser(user);
+              }}
+              data-testid={`button-edit-user-${user.id}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {canEdit("users") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingUser(user);
+              }}
+              data-testid={`button-delete-user-${user.id}`}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -212,10 +218,12 @@ export default function UsersPage() {
         title={t.users.title}
         description={t.users.description}
       >
-        <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-user">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.users.addUser}
-        </Button>
+        {canAdd("users") && (
+          <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-user">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.users.addUser}
+          </Button>
+        )}
       </PageHeader>
 
       <Card>

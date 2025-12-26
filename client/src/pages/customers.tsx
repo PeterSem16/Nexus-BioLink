@@ -38,6 +38,7 @@ import { CustomerForm, type CustomerFormData } from "@/components/customer-form"
 import { CustomerFormWizard, type CustomerFormData as WizardCustomerFormData } from "@/components/customer-form-wizard";
 import { PotentialCaseForm, EmbeddedPotentialCaseForm } from "@/components/potential-case-form";
 import { useCountryFilter } from "@/contexts/country-filter-context";
+import { usePermissions } from "@/contexts/permissions-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getCountryFlag, getCountryName } from "@/lib/countries";
@@ -1016,6 +1017,7 @@ export default function CustomersPage() {
   const { toast } = useToast();
   const { t } = useI18n();
   const { selectedCountries, availableCountries } = useCountryFilter();
+  const { canAdd, canEdit } = usePermissions();
   const [search, setSearch] = useState("");
   const [phoneFilter, setPhoneFilter] = useState("");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("_all");
@@ -1273,28 +1275,32 @@ export default function CustomersPage() {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingCustomer(customer);
-            }}
-            data-testid={`button-edit-customer-${customer.id}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeletingCustomer(customer);
-            }}
-            data-testid={`button-delete-customer-${customer.id}`}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {canEdit("customers") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingCustomer(customer);
+              }}
+              data-testid={`button-edit-customer-${customer.id}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {canEdit("customers") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingCustomer(customer);
+              }}
+              data-testid={`button-delete-customer-${customer.id}`}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -1306,10 +1312,12 @@ export default function CustomersPage() {
         title={t.customers.title}
         description={t.customers.description}
       >
-        <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-customer">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.customers.addCustomer}
-        </Button>
+        {canAdd("customers") && (
+          <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-customer">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.customers.addCustomer}
+          </Button>
+        )}
       </PageHeader>
 
       <Card>

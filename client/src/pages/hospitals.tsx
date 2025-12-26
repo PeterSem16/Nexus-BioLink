@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/i18n";
+import { usePermissions } from "@/contexts/permissions-context";
 import {
   Dialog,
   DialogContent,
@@ -365,6 +366,7 @@ export default function HospitalsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { selectedCountries } = useCountryFilter();
+  const { canAdd, canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -479,22 +481,26 @@ export default function HospitalsPage() {
       header: t.common.actions,
       cell: (hospital: Hospital) => (
         <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => handleEdit(hospital)}
-            data-testid={`button-edit-hospital-${hospital.id}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => handleDelete(hospital)}
-            data-testid={`button-delete-hospital-${hospital.id}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canEdit("hospitals") && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => handleEdit(hospital)}
+              data-testid={`button-edit-hospital-${hospital.id}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {canEdit("hospitals") && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => handleDelete(hospital)}
+              data-testid={`button-delete-hospital-${hospital.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -503,10 +509,12 @@ export default function HospitalsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t.hospitals.title} description={t.hospitals.description}>
-        <Button onClick={handleAddNew} data-testid="button-add-hospital">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.hospitals.addHospital}
-        </Button>
+        {canAdd("hospitals") && (
+          <Button onClick={handleAddNew} data-testid="button-add-hospital">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.hospitals.addHospital}
+          </Button>
+        )}
       </PageHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

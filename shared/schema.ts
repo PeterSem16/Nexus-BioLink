@@ -186,6 +186,7 @@ export const laboratories = pgTable("laboratories", {
 // Hospitals - main hospital management module
 export const hospitals = pgTable("hospitals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  legacyId: text("legacy_id"), // Legacy ID from previous CRM
   isActive: boolean("is_active").notNull().default(true), // Aktívna nemocnica
   name: text("name").notNull(), // Meno
   fullName: text("full_name"), // Plné meno
@@ -831,6 +832,7 @@ export type AddressType = typeof ADDRESS_TYPES[number]["value"];
 // Collaborators table - main collaborator data
 export const collaborators = pgTable("collaborators", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  legacyId: text("legacy_id"), // Legacy ID from previous CRM
   
   // Basic info
   countryCode: text("country_code").notNull(),

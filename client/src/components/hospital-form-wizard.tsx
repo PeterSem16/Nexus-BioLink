@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useModuleFieldPermissions } from "@/components/ui/permission-field";
 
 interface HospitalFormData {
+  legacyId: string;
   isActive: boolean;
   name: string;
   fullName: string;
@@ -66,6 +67,7 @@ export function HospitalFormWizard({ initialData, onSuccess, onCancel }: Hospita
   const [formData, setFormData] = useState<HospitalFormData>(() =>
     initialData
       ? {
+          legacyId: initialData.legacyId || "",
           isActive: initialData.isActive,
           name: initialData.name,
           fullName: initialData.fullName || "",
@@ -82,6 +84,7 @@ export function HospitalFormWizard({ initialData, onSuccess, onCancel }: Hospita
           svetZdravia: initialData.svetZdravia,
         }
       : {
+          legacyId: "",
           isActive: true,
           name: "",
           fullName: "",
@@ -209,6 +212,19 @@ export function HospitalFormWizard({ initialData, onSuccess, onCancel }: Hospita
         return (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
+              {!isHidden("legacy_id") && (
+                <div className="space-y-2">
+                  <Label>{t.hospitals.legacyId}</Label>
+                  <Input
+                    value={formData.legacyId}
+                    onChange={(e) => setFormData({ ...formData, legacyId: e.target.value })}
+                    placeholder={t.hospitals.legacyId}
+                    data-testid="wizard-input-hospital-legacy-id"
+                    disabled={isReadonly("legacy_id")}
+                    className={isReadonly("legacy_id") ? "bg-muted" : ""}
+                  />
+                </div>
+              )}
               {!isHidden("name") && (
                 <div className="space-y-2">
                   <Label>{t.hospitals.name} *</Label>
@@ -462,6 +478,12 @@ export function HospitalFormWizard({ initialData, onSuccess, onCancel }: Hospita
               <div className="space-y-4">
                 <h4 className="font-medium">{getStepTitle("basic")}</h4>
                 <div className="space-y-2 text-sm">
+                  {formData.legacyId && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.hospitals.legacyId}:</span>
+                      <span className="font-medium">{formData.legacyId}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t.hospitals.name}:</span>
                     <span className="font-medium">{formData.name}</span>

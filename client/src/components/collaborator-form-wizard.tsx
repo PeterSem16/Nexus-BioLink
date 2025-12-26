@@ -41,6 +41,7 @@ const MARITAL_STATUSES = [
 ] as const;
 
 interface CollaboratorFormData {
+  legacyId: string;
   countryCode: string;
   titleBefore: string;
   firstName: string;
@@ -181,6 +182,7 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
   const [formData, setFormData] = useState<CollaboratorFormData>(() =>
     initialData
       ? {
+          legacyId: initialData.legacyId || "",
           countryCode: initialData.countryCode,
           titleBefore: initialData.titleBefore || "",
           firstName: initialData.firstName,
@@ -217,6 +219,7 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
           hospitalId: initialData.hospitalId || "",
         }
       : {
+          legacyId: "",
           countryCode: "",
           titleBefore: "",
           firstName: "",
@@ -372,6 +375,19 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
         return (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
+              {!isHidden("legacy_id") && (
+                <div className="space-y-2">
+                  <Label>{t.collaborators.legacyId}</Label>
+                  <Input
+                    value={formData.legacyId}
+                    onChange={(e) => setFormData({ ...formData, legacyId: e.target.value })}
+                    placeholder={t.collaborators.legacyId}
+                    data-testid="wizard-input-collaborator-legacy-id"
+                    disabled={isReadonly("legacy_id")}
+                    className={isReadonly("legacy_id") ? "bg-muted" : ""}
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>{t.collaborators.fields.country} *</Label>
                 <Select
@@ -390,6 +406,8 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t.collaborators.fields.collaboratorType}</Label>
                 <Select
@@ -800,6 +818,12 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
               <div className="space-y-4">
                 <h4 className="font-medium">{getStepTitle("personal")}</h4>
                 <div className="space-y-2 text-sm">
+                  {formData.legacyId && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.collaborators.legacyId}:</span>
+                      <span className="font-medium">{formData.legacyId}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t.collaborators.fields.firstName}:</span>
                     <span className="font-medium">{formData.titleBefore} {formData.firstName} {formData.lastName} {formData.titleAfter}</span>

@@ -281,6 +281,7 @@ export interface Translations {
     deleteConfirm: string;
     searchPlaceholder: string;
     noHospitals: string;
+    legacyId: string;
     name: string;
     fullName: string;
     streetNumber: string;
@@ -313,6 +314,7 @@ export interface Translations {
     deleteConfirm: string;
     searchPlaceholder: string;
     noCollaborators: string;
+    legacyId: string;
     tabs: {
       collaborator: string;
       addresses: string;
@@ -1129,6 +1131,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this hospital?',
       searchPlaceholder: 'Search hospitals...',
       noHospitals: 'No hospitals found',
+      legacyId: 'Legacy ID',
       name: 'Name',
       fullName: 'Full Name',
       streetNumber: 'Street and Number',
@@ -1161,6 +1164,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this collaborator?',
       searchPlaceholder: 'Search collaborators...',
       noCollaborators: 'No collaborators found',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Collaborator',
         addresses: 'Addresses',
@@ -1975,6 +1979,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Naozaj chcete odstrániť túto nemocnicu?',
       searchPlaceholder: 'Hľadať nemocnice...',
       noHospitals: 'Žiadne nemocnice nenájdené',
+      legacyId: 'Legacy ID',
       name: 'Názov',
       fullName: 'Plný názov',
       streetNumber: 'Ulica a číslo',
@@ -2007,6 +2012,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Naozaj chcete odstrániť tohto spolupracovníka?',
       searchPlaceholder: 'Hľadať spolupracovníkov...',
       noCollaborators: 'Nenašli sa žiadni spolupracovníci',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Spolupracovník',
         addresses: 'Adresy',
@@ -2821,6 +2827,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Opravdu chcete odstranit tuto nemocnici?',
       searchPlaceholder: 'Hledat nemocnice...',
       noHospitals: 'Žádné nemocnice nenalezeny',
+      legacyId: 'Legacy ID',
       name: 'Název',
       fullName: 'Plný název',
       streetNumber: 'Ulice a číslo',
@@ -2853,6 +2860,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Opravdu chcete odstranit tohoto spolupracovníka?',
       searchPlaceholder: 'Hledat spolupracovníky...',
       noCollaborators: 'Nebyli nalezeni žádní spolupracovníci',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Spolupracovník',
         addresses: 'Adresy',
@@ -3630,6 +3638,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Biztosan törölni szeretné ezt a kórházat?',
       searchPlaceholder: 'Kórházak keresése...',
       noHospitals: 'Nem található kórház',
+      legacyId: 'Legacy ID',
       name: 'Név',
       fullName: 'Teljes név',
       streetNumber: 'Utca és házszám',
@@ -3662,6 +3671,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Biztosan törölni szeretné ezt a munkatársat?',
       searchPlaceholder: 'Munkatársak keresése...',
       noCollaborators: 'Nem található munkatárs',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Munkatárs',
         addresses: 'Címek',
@@ -4439,6 +4449,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sigur doriți să ștergeți acest spital?',
       searchPlaceholder: 'Căutare spitale...',
       noHospitals: 'Nu s-au găsit spitale',
+      legacyId: 'Legacy ID',
       name: 'Nume',
       fullName: 'Nume complet',
       streetNumber: 'Stradă și număr',
@@ -4471,6 +4482,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sigur doriți să ștergeți acest colaborator?',
       searchPlaceholder: 'Caută colaboratori...',
       noCollaborators: 'Nu s-au găsit colaboratori',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Colaborator',
         addresses: 'Adrese',
@@ -5248,6 +5260,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sei sicuro di voler eliminare questo ospedale?',
       searchPlaceholder: 'Cerca ospedali...',
       noHospitals: 'Nessun ospedale trovato',
+      legacyId: 'Legacy ID',
       name: 'Nome',
       fullName: 'Nome completo',
       streetNumber: 'Via e numero',
@@ -5280,6 +5293,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sei sicuro di voler eliminare questo collaboratore?',
       searchPlaceholder: 'Cerca collaboratori...',
       noCollaborators: 'Nessun collaboratore trovato',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Collaboratore',
         addresses: 'Indirizzi',
@@ -6057,6 +6071,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sind Sie sicher, dass Sie dieses Krankenhaus löschen möchten?',
       searchPlaceholder: 'Krankenhäuser suchen...',
       noHospitals: 'Keine Krankenhäuser gefunden',
+      legacyId: 'Legacy ID',
       name: 'Name',
       fullName: 'Vollständiger Name',
       streetNumber: 'Straße und Nummer',
@@ -6089,6 +6104,7 @@ export const translations: Record<Locale, Translations> = {
       deleteConfirm: 'Sind Sie sicher, dass Sie diesen Mitarbeiter löschen möchten?',
       searchPlaceholder: 'Mitarbeiter suchen...',
       noCollaborators: 'Keine Mitarbeiter gefunden',
+      legacyId: 'Legacy ID',
       tabs: {
         collaborator: 'Mitarbeiter',
         addresses: 'Adressen',

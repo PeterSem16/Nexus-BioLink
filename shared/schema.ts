@@ -1256,6 +1256,10 @@ export const departments = pgTable("departments", {
   parentId: varchar("parent_id"), // FK to self for hierarchy
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  contactFirstName: text("contact_first_name"),
+  contactLastName: text("contact_last_name"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

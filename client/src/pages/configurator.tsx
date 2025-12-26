@@ -28,7 +28,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { ServiceConfiguration, InvoiceTemplate, InvoiceLayout, Product, Role, RoleModulePermission, RoleFieldPermission, Department } from "@shared/schema";
 import { CRM_MODULES, DEPARTMENTS, type ModuleDefinition, type FieldPermission, type ModuleAccess } from "@shared/permissions-config";
-import { Building2 } from "lucide-react";
+import { Building2, User, Mail, Phone } from "lucide-react";
+import { DepartmentTree } from "@/components/department-tree";
 
 const serviceFormSchema = z.object({
   serviceCode: z.string().min(1, "Service code is required"),
@@ -1646,6 +1647,10 @@ const departmentFormSchema = z.object({
   name: z.string().min(1, "Department name is required"),
   description: z.string().optional(),
   parentId: z.string().optional().nullable(),
+  contactFirstName: z.string().optional().nullable(),
+  contactLastName: z.string().optional().nullable(),
+  contactEmail: z.string().email().optional().nullable().or(z.literal("")),
+  contactPhone: z.string().optional().nullable(),
 });
 
 type DepartmentFormData = z.infer<typeof departmentFormSchema>;
@@ -1704,6 +1709,10 @@ function PermissionsRolesTab() {
       name: "",
       description: "",
       parentId: null,
+      contactFirstName: "",
+      contactLastName: "",
+      contactEmail: "",
+      contactPhone: "",
     },
   });
 
@@ -1762,8 +1771,38 @@ function PermissionsRolesTab() {
       name: dept.name,
       description: dept.description || "",
       parentId: dept.parentId || null,
+      contactFirstName: dept.contactFirstName || "",
+      contactLastName: dept.contactLastName || "",
+      contactEmail: dept.contactEmail || "",
+      contactPhone: dept.contactPhone || "",
     });
     setIsEditingDept(true);
+    setIsDeptFormOpen(true);
+  };
+
+  const moveDeptMutation = useMutation({
+    mutationFn: ({ deptId, newParentId }: { deptId: string; newParentId: string | null }) =>
+      apiRequest("PATCH", `/api/departments/${deptId}`, { parentId: newParentId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      toast({ title: t.konfigurator.departmentUpdated });
+    },
+    onError: () => {
+      toast({ title: t.errors.saveFailed, variant: "destructive" });
+    },
+  });
+
+  const handleAddDeptWithParent = (parentId?: string) => {
+    setIsEditingDept(false);
+    deptForm.reset({
+      name: "",
+      description: "",
+      parentId: parentId || null,
+      contactFirstName: "",
+      contactLastName: "",
+      contactEmail: "",
+      contactPhone: "",
+    });
     setIsDeptFormOpen(true);
   };
 
@@ -1923,10 +1962,8 @@ function PermissionsRolesTab() {
 
   const getDepartmentLabel = (deptId: string | null | undefined) => {
     if (!deptId) return "";
-    const dept = DEPARTMENTS.find(d => d.id === deptId);
-    if (!dept) return deptId;
-    const key = deptId as keyof typeof t.konfigurator.departments;
-    return t.konfigurator.departments[key] || dept.name;
+    const dept = dbDepartments.find(d => d.id === deptId);
+    return dept?.name || deptId;
   };
 
   if (isLoading) {
@@ -1957,56 +1994,20 @@ function PermissionsRolesTab() {
           </div>
 
           {showDepartments && (
-            <div className="border-t p-3 space-y-3">
-              <div className="flex justify-end">
-                <Button size="sm" onClick={() => { setIsEditingDept(false); deptForm.reset(); setIsDeptFormOpen(true); }} data-testid="button-add-department">
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t.konfigurator.addDepartment}
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {dbDepartments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">{t.konfigurator.noDepartments}</p>
-                ) : (
-                  dbDepartments.map((dept) => (
-                    <div
-                      key={dept.id}
-                      className="p-2 rounded-md border flex items-center justify-between gap-2"
-                      data-testid={`department-item-${dept.id}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-sm truncate">{dept.name}</span>
-                        {dept.parentId && (
-                          <p className="text-xs text-muted-foreground">
-                            {getParentDeptName(dept.parentId)}
-                          </p>
-                        )}
-                        {dept.description && (
-                          <p className="text-xs text-muted-foreground truncate">{dept.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleEditDeptClick(dept)}
-                          data-testid={`button-edit-dept-${dept.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setDeleteDept(dept)}
-                          data-testid={`button-delete-dept-${dept.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+            <div className="border-t p-3">
+              <DepartmentTree
+                departments={dbDepartments}
+                onEdit={handleEditDeptClick}
+                onDelete={setDeleteDept}
+                onAdd={handleAddDeptWithParent}
+                onMove={(deptId, newParentId) => moveDeptMutation.mutate({ deptId, newParentId })}
+                translations={{
+                  addDepartment: t.konfigurator.addDepartment,
+                  addSubDepartment: t.konfigurator.addSubDepartment || "Add sub-department",
+                  noDepartments: t.konfigurator.noDepartments,
+                  contactPerson: t.konfigurator.contactPerson || "Contact Person",
+                }}
+              />
             </div>
           )}
         </div>
@@ -2279,16 +2280,17 @@ function PermissionsRolesTab() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.konfigurator.department}</FormLabel>
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <Select value={field.value || "none"} onValueChange={(val) => field.onChange(val === "none" ? "" : val)}>
                       <FormControl>
                         <SelectTrigger data-testid="select-department">
                           <SelectValue placeholder={t.konfigurator.selectDepartment} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {DEPARTMENTS.map((dept) => (
+                        <SelectItem value="none">{t.konfigurator.noParent}</SelectItem>
+                        {dbDepartments.map((dept) => (
                           <SelectItem key={dept.id} value={dept.id}>
-                            {t.konfigurator.departments[dept.id as keyof typeof t.konfigurator.departments] || dept.name}
+                            {dept.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2445,6 +2447,76 @@ function PermissionsRolesTab() {
                   </FormItem>
                 )}
               />
+
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  {t.konfigurator.contactPerson || "Contact Person"}
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={deptForm.control}
+                    name="contactFirstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.customers.firstName || "First Name"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} data-testid="input-dept-contact-firstname" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deptForm.control}
+                    name="contactLastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.customers.lastName || "Last Name"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} data-testid="input-dept-contact-lastname" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <FormField
+                    control={deptForm.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {t.common.email || "Email"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} type="email" data-testid="input-dept-contact-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deptForm.control}
+                    name="contactPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {t.common.phone || "Phone"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} type="tel" data-testid="input-dept-contact-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDeptFormOpen(false)}>
                   {t.common.cancel}

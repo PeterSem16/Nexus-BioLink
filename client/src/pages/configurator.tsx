@@ -2426,14 +2426,14 @@ function PermissionsRolesTab() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.konfigurator.parentDepartment}</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || null)}>
+                    <Select value={field.value || "none"} onValueChange={(val) => field.onChange(val === "none" ? null : val)}>
                       <FormControl>
                         <SelectTrigger data-testid="select-parent-dept">
                           <SelectValue placeholder={t.konfigurator.noParent} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">{t.konfigurator.noParent}</SelectItem>
+                        <SelectItem value="none">{t.konfigurator.noParent}</SelectItem>
                         {dbDepartments.filter(d => d.id !== editingDept?.id).map((dept) => (
                           <SelectItem key={dept.id} value={dept.id}>
                             {dept.name}

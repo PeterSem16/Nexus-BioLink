@@ -52,7 +52,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { type Campaign, type CampaignTemplate, COUNTRIES } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { sk } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -324,19 +324,20 @@ function CampaignCalendar({
   }, [currentMonth]);
 
   const getCampaignsForDay = (day: Date) => {
+    const dayStart = startOfDay(day);
     return campaigns.filter((campaign) => {
       if (!campaign.startDate && !campaign.endDate) return false;
-      const start = campaign.startDate ? new Date(campaign.startDate) : null;
-      const end = campaign.endDate ? new Date(campaign.endDate) : null;
+      const start = campaign.startDate ? startOfDay(new Date(campaign.startDate)) : null;
+      const end = campaign.endDate ? endOfDay(new Date(campaign.endDate)) : null;
       
       if (start && end) {
-        return day >= start && day <= end;
+        return isWithinInterval(dayStart, { start, end });
       }
       if (start) {
-        return isSameDay(day, start);
+        return isSameDay(dayStart, start);
       }
       if (end) {
-        return isSameDay(day, end);
+        return isSameDay(dayStart, endOfDay(new Date(campaign.endDate)));
       }
       return false;
     });

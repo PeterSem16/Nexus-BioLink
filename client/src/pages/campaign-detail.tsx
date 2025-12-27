@@ -34,6 +34,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { CriteriaBuilder, type CriteriaGroup, criteriaToDescription } from "@/components/criteria-builder";
 
 type EnrichedContact = CampaignContact & { customer?: Customer };
 
@@ -76,6 +77,75 @@ function StatsCard({
         <div className="text-2xl font-bold">{value}</div>
         {description && (
           <p className="text-xs text-muted-foreground">{description}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CriteriaCard({ campaign }: { campaign: Campaign }) {
+  const { toast } = useToast();
+  const [criteria, setCriteria] = useState<CriteriaGroup[]>(() => {
+    try {
+      return campaign.criteria ? JSON.parse(campaign.criteria) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const saveCriteriaMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PATCH", `/api/campaigns/${campaign.id}`, {
+        criteria: JSON.stringify(criteria),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Criteria saved successfully" });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaign.id] });
+    },
+    onError: () => {
+      toast({ title: "Failed to save criteria", variant: "destructive" });
+    },
+  });
+
+  const handleCriteriaChange = (newCriteria: CriteriaGroup[]) => {
+    setCriteria(newCriteria);
+    setHasChanges(true);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle>Target Criteria</CardTitle>
+            <CardDescription>
+              Define which customers should be included in this campaign
+            </CardDescription>
+          </div>
+          {hasChanges && (
+            <Button
+              onClick={() => saveCriteriaMutation.mutate()}
+              disabled={saveCriteriaMutation.isPending}
+              data-testid="button-save-criteria"
+            >
+              {saveCriteriaMutation.isPending ? "Saving..." : "Save Criteria"}
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <CriteriaBuilder
+          criteria={criteria}
+          onChange={handleCriteriaChange}
+          readonly={campaign.status !== "draft"}
+        />
+        {campaign.status !== "draft" && (
+          <p className="text-sm text-muted-foreground mt-4 italic">
+            Criteria can only be edited when the campaign is in draft status.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -526,25 +596,7 @@ export default function CampaignDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Target Criteria</CardTitle>
-              <CardDescription>
-                Define which customers should be included in this campaign
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Use the criteria builder to filter customers based on various attributes like 
-                status, service type, location, and more.
-              </p>
-              {campaign.criteria && (
-                <pre className="mt-4 p-4 bg-muted rounded-md text-sm overflow-auto">
-                  {campaign.criteria}
-                </pre>
-              )}
-            </CardContent>
-          </Card>
+          <CriteriaCard campaign={campaign} />
         </TabsContent>
 
         <TabsContent value="reporting" className="space-y-6">

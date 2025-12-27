@@ -3598,6 +3598,50 @@ export async function registerRoutes(
     }
   });
 
+  // Bulk update campaign contacts
+  app.post("/api/campaigns/:id/contacts/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const { contactIds, status, priority, assignedTo } = req.body;
+      if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
+        return res.status(400).json({ error: "contactIds is required and must be a non-empty array" });
+      }
+
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (priority !== undefined) updateData.priority = priority;
+      if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
+
+      let updatedCount = 0;
+      for (const contactId of contactIds) {
+        try {
+          const existingContact = await storage.getCampaignContact(contactId);
+          if (existingContact && existingContact.campaignId === req.params.id) {
+            await storage.updateCampaignContact(contactId, updateData);
+            
+            if (status && status !== existingContact.status) {
+              await storage.createCampaignContactHistory({
+                campaignContactId: contactId,
+                userId: req.session.user!.id,
+                action: "status_change",
+                previousStatus: existingContact.status,
+                newStatus: status,
+                notes: "Bulk update",
+              });
+            }
+            updatedCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to update contact ${contactId}:`, err);
+        }
+      }
+
+      res.json({ count: updatedCount });
+    } catch (error) {
+      console.error("Failed to bulk update contacts:", error);
+      res.status(500).json({ error: "Failed to bulk update contacts" });
+    }
+  });
+
   // Campaign Schedule endpoints
   app.get("/api/campaigns/:id/schedule", requireAuth, async (req, res) => {
     try {

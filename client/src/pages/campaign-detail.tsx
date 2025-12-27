@@ -6,14 +6,21 @@ import { useAuth } from "@/contexts/auth-context";
 import { 
   ArrowLeft, Users, Settings, BarChart3, FileText, 
   Play, Pause, CheckCircle, Clock, Phone, User, Calendar,
-  RefreshCw, Download, Filter
+  RefreshCw, Download, Filter, MoreHorizontal, Trash2, CheckCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DataTable } from "@/components/data-table";
+import { DataTable, type SortConfig } from "@/components/data-table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -110,7 +117,7 @@ function CriteriaCard({ campaign }: { campaign: Campaign }) {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaign.id] });
     },
     onError: () => {
-      toast({ title: t.common?.error || "Failed to save criteria", variant: "destructive" });
+      toast({ title: "Chyba pri ukladaní kritérií", variant: "destructive" });
     },
   });
 
@@ -175,7 +182,7 @@ function SchedulingCard({ campaign }: { campaign: Campaign }) {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaign.id] });
     },
     onError: () => {
-      toast({ title: t.common?.error || "Failed to save schedule", variant: "destructive" });
+      toast({ title: "Chyba pri ukladaní rozvrhu", variant: "destructive" });
     },
   });
 
@@ -229,6 +236,8 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [contactFilters, setContactFilters] = useState<CampaignContactFilters>({});
   const [selectedContact, setSelectedContact] = useState<EnrichedContact | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   const { data: campaign, isLoading: loadingCampaign } = useQuery<Campaign>({
     queryKey: ["/api/campaigns", campaignId],
@@ -304,6 +313,57 @@ export default function CampaignDetailPage() {
     },
   });
 
+  const bulkUpdateContactsMutation = useMutation({
+    mutationFn: async ({ contactIds, data }: { contactIds: string[]; data: any }) => {
+      return apiRequest("POST", `/api/campaigns/${campaignId}/contacts/bulk-update`, { contactIds, ...data });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Kontakty aktualizované", description: `${data.count || selectedContacts.size} kontaktov bolo aktualizovaných.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "stats"] });
+      setSelectedContacts(new Set());
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa aktualizovať kontakty.", variant: "destructive" });
+    },
+  });
+
+  const handleBulkStatusUpdate = (newStatus: string) => {
+    if (selectedContacts.size === 0) return;
+    bulkUpdateContactsMutation.mutate({ 
+      contactIds: Array.from(selectedContacts), 
+      data: { status: newStatus } 
+    });
+  };
+
+  const handleExportContacts = () => {
+    const dataToExport = selectedContacts.size > 0
+      ? filteredContacts.filter((c: any) => selectedContacts.has(c.id))
+      : filteredContacts;
+    
+    const headers = ["Meno", "Priezvisko", "Email", "Telefón", "Status", "Pokusy", "Posledný pokus", "Krajina"];
+    const rows = dataToExport.map((c: any) => [
+      c.customer?.firstName || "",
+      c.customer?.lastName || "",
+      c.customer?.email || "",
+      c.customer?.phone || "",
+      c.status,
+      c.attemptCount || 0,
+      c.lastAttemptAt ? format(new Date(c.lastAttemptAt), "yyyy-MM-dd HH:mm") : "",
+      c.customer?.country || "",
+    ]);
+    
+    const csvContent = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `campaign-${campaign?.name || campaignId}-contacts.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Export dokončený", description: `${dataToExport.length} kontaktov bolo exportovaných.` });
+  };
+
   if (loadingCampaign) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -335,11 +395,13 @@ export default function CampaignDetailPage() {
   const contactColumns = [
     {
       key: "customer",
-      header: t.campaigns?.detail?.contacts || "Contact",
+      header: t.campaigns?.detail?.contacts || "Kontakt",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.customer ? `${contact.customer.lastName} ${contact.customer.firstName}` : "",
       cell: (contact: EnrichedContact) => (
         <div>
           <div className="font-medium">
-            {contact.customer ? `${contact.customer.firstName} ${contact.customer.lastName}` : (t.common?.unknown || "Unknown")}
+            {contact.customer ? `${contact.customer.firstName} ${contact.customer.lastName}` : "Neznámy"}
           </div>
           <div className="text-sm text-muted-foreground">
             {contact.customer?.phone || contact.customer?.email || "-"}
@@ -348,8 +410,22 @@ export default function CampaignDetailPage() {
       ),
     },
     {
+      key: "country",
+      header: "Krajina",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.customer?.country || "",
+      cell: (contact: EnrichedContact) => {
+        const countryCode = contact.customer?.country;
+        if (!countryCode) return <span>-</span>;
+        const countryData = COUNTRIES[countryCode as keyof typeof COUNTRIES] as { name: string } | undefined;
+        return <span>{countryData?.name || countryCode}</span>;
+      },
+    },
+    {
       key: "status",
       header: t.campaigns?.status || "Status",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.status,
       cell: (contact: EnrichedContact) => (
         <Badge className={CONTACT_STATUS_COLORS[contact.status] || ""}>
           {contact.status.replace("_", " ")}
@@ -358,23 +434,48 @@ export default function CampaignDetailPage() {
     },
     {
       key: "attemptCount",
-      header: t.campaigns?.detail?.avgAttempts?.split(" ")[0] || "Attempts",
+      header: "Pokusy",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.attemptCount || 0,
       cell: (contact: EnrichedContact) => (
         <span>{contact.attemptCount || 0}</span>
       ),
     },
     {
       key: "lastAttemptAt",
-      header: t.common?.lastAttempt || "Last Attempt",
+      header: "Posledný pokus",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.lastAttemptAt ? new Date(contact.lastAttemptAt) : null,
       cell: (contact: EnrichedContact) => (
         <span>
-          {contact.lastAttemptAt ? format(new Date(contact.lastAttemptAt), "PP p") : "-"}
+          {contact.lastAttemptAt ? format(new Date(contact.lastAttemptAt), "dd.MM.yyyy HH:mm") : "-"}
         </span>
       ),
     },
     {
+      key: "priorityScore",
+      header: "Priorita",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.priorityScore || 0,
+      cell: (contact: EnrichedContact) => {
+        const score = contact.priorityScore || 50;
+        const colors = score >= 75 
+          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+          : score >= 50 
+          ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+          : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return (
+          <Badge variant="outline" className={colors}>
+            {score >= 75 ? "Vysoká" : score >= 50 ? "Stredná" : "Nízka"}
+          </Badge>
+        );
+      },
+    },
+    {
       key: "assignedTo",
-      header: t.common?.operator || "Operator",
+      header: "Operátor",
+      sortable: true,
+      sortValue: (contact: EnrichedContact) => contact.assignedTo || "",
       cell: (contact: EnrichedContact) => (
         <span>{contact.assignedTo || "-"}</span>
       ),
@@ -397,7 +498,7 @@ export default function CampaignDetailPage() {
             </Badge>
           </div>
           <p className="text-muted-foreground">
-            {campaign.description || (t.common?.noDescription || "No description")}
+            {campaign.description || "Bez popisu"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -407,7 +508,7 @@ export default function CampaignDetailPage() {
               data-testid="button-activate-campaign"
             >
               <Play className="w-4 h-4 mr-2" />
-              {t.common?.activate || "Activate"}
+              Aktivovať
             </Button>
           )}
           {campaign.status === "active" && (
@@ -417,7 +518,7 @@ export default function CampaignDetailPage() {
               data-testid="button-pause-campaign"
             >
               <Pause className="w-4 h-4 mr-2" />
-              {t.common?.pause || "Pause"}
+              Pozastaviť
             </Button>
           )}
           {campaign.status === "paused" && (
@@ -426,7 +527,7 @@ export default function CampaignDetailPage() {
               data-testid="button-resume-campaign"
             >
               <Play className="w-4 h-4 mr-2" />
-              {t.common?.resume || "Resume"}
+              Obnoviť
             </Button>
           )}
         </div>
@@ -581,13 +682,48 @@ export default function CampaignDetailPage() {
 
         <TabsContent value="contacts" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <CampaignContactsFilter
-              filters={contactFilters}
-              onFiltersChange={setContactFilters}
-              onClear={() => setContactFilters({})}
-              countryCodes={campaign.countryCodes || []}
-            />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CampaignContactsFilter
+                filters={contactFilters}
+                onFiltersChange={setContactFilters}
+                onClear={() => setContactFilters({})}
+                countryCodes={campaign.countryCodes || []}
+              />
+              {selectedContacts.size > 0 && (
+                <div className="flex items-center gap-2 pl-2 border-l">
+                  <span className="text-sm font-medium">
+                    {selectedContacts.size} vybraných
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid="button-bulk-actions">
+                        <MoreHorizontal className="w-4 h-4 mr-2" />
+                        Hromadné akcie
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleBulkStatusUpdate("completed")} data-testid="menu-bulk-completed">
+                        <CheckCheck className="w-4 h-4 mr-2" />
+                        Označiť ako dokončené
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkStatusUpdate("not_interested")} data-testid="menu-bulk-not-interested">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Označiť ako nezaujíma
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkStatusUpdate("pending")} data-testid="menu-bulk-pending">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Resetovať na čakajúce
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedContacts(new Set())} data-testid="menu-clear-selection">
+                        Zrušiť výber
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">
                 {filteredContacts.length} / {contacts.length} kontaktov
               </span>
@@ -598,11 +734,15 @@ export default function CampaignDetailPage() {
                 data-testid="button-generate-contacts"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${generateContactsMutation.isPending ? "animate-spin" : ""}`} />
-                {t.campaigns?.detail?.generateContacts || "Generovať kontakty"}
+                Generovať
               </Button>
-              <Button variant="outline" data-testid="button-export-contacts">
+              <Button 
+                variant="outline" 
+                onClick={handleExportContacts}
+                data-testid="button-export-contacts"
+              >
                 <Download className="w-4 h-4 mr-2" />
-                {t.campaigns?.detail?.exportContacts || "Export"}
+                {selectedContacts.size > 0 ? `Export (${selectedContacts.size})` : "Export"}
               </Button>
             </div>
           </div>
@@ -614,9 +754,14 @@ export default function CampaignDetailPage() {
           ) : (
             <DataTable
               columns={contactColumns}
-              data={filteredContacts}
+              data={filteredContacts as EnrichedContact[]}
               getRowKey={(contact) => contact.id}
               onRowClick={(contact) => setSelectedContact(contact)}
+              selectable
+              selectedKeys={selectedContacts}
+              onSelectionChange={setSelectedContacts}
+              sortConfig={sortConfig}
+              onSortChange={setSortConfig}
             />
           )}
         </TabsContent>

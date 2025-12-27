@@ -35,6 +35,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { CriteriaBuilder, type CriteriaGroup, criteriaToDescription } from "@/components/criteria-builder";
+import { ScheduleEditor, type ScheduleConfig, getDefaultScheduleConfig } from "@/components/schedule-editor";
 
 type EnrichedContact = CampaignContact & { customer?: Customer };
 
@@ -145,6 +146,75 @@ function CriteriaCard({ campaign }: { campaign: Campaign }) {
         {campaign.status !== "draft" && (
           <p className="text-sm text-muted-foreground mt-4 italic">
             Criteria can only be edited when the campaign is in draft status.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SchedulingCard({ campaign }: { campaign: Campaign }) {
+  const { toast } = useToast();
+  const [schedule, setSchedule] = useState<ScheduleConfig>(() => {
+    try {
+      return campaign.settings ? JSON.parse(campaign.settings) : getDefaultScheduleConfig();
+    } catch {
+      return getDefaultScheduleConfig();
+    }
+  });
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const saveScheduleMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PATCH", `/api/campaigns/${campaign.id}`, {
+        settings: JSON.stringify(schedule),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Schedule saved successfully" });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaign.id] });
+    },
+    onError: () => {
+      toast({ title: "Failed to save schedule", variant: "destructive" });
+    },
+  });
+
+  const handleScheduleChange = (newSchedule: ScheduleConfig) => {
+    setSchedule(newSchedule);
+    setHasChanges(true);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle>Scheduling</CardTitle>
+            <CardDescription>
+              Configure working hours and contact frequency limits
+            </CardDescription>
+          </div>
+          {hasChanges && (
+            <Button
+              onClick={() => saveScheduleMutation.mutate()}
+              disabled={saveScheduleMutation.isPending}
+              data-testid="button-save-schedule"
+            >
+              {saveScheduleMutation.isPending ? "Saving..." : "Save Schedule"}
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ScheduleEditor
+          schedule={schedule}
+          onChange={handleScheduleChange}
+          readonly={campaign.status !== "draft"}
+        />
+        {campaign.status !== "draft" && (
+          <p className="text-sm text-muted-foreground mt-4 italic">
+            Schedule can only be edited when the campaign is in draft status.
           </p>
         )}
       </CardContent>
@@ -567,20 +637,7 @@ export default function CampaignDetailPage() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduling</CardTitle>
-              <CardDescription>
-                Configure working hours and contact frequency limits
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Scheduling settings will be available here. Configure when operators can make calls 
-                and how often contacts should be attempted.
-              </p>
-            </CardContent>
-          </Card>
+          <SchedulingCard campaign={campaign} />
 
           <Card>
             <CardHeader>

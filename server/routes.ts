@@ -12,8 +12,10 @@ import {
   insertServiceConfigurationSchema, insertInvoiceTemplateSchema, insertInvoiceLayoutSchema,
   insertRoleSchema, insertRoleModulePermissionSchema, insertRoleFieldPermissionSchema,
   insertSavedSearchSchema,
+  insertCampaignSchema, insertCampaignContactSchema, insertCampaignContactHistorySchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria,
-  type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout, type Role
+  type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout, type Role,
+  type Campaign, type CampaignContact
 } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
@@ -3346,5 +3348,283 @@ export async function registerRoutes(
     }
   });
 
+  // ============= Campaigns Routes =============
+
+  app.get("/api/campaigns", requireAuth, async (req, res) => {
+    try {
+      const campaigns = await storage.getAllCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Failed to fetch campaigns:", error);
+      res.status(500).json({ error: "Failed to fetch campaigns" });
+    }
+  });
+
+  app.get("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Failed to fetch campaign:", error);
+      res.status(500).json({ error: "Failed to fetch campaign" });
+    }
+  });
+
+  app.post("/api/campaigns", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertCampaignSchema.parse({
+        ...req.body,
+        createdBy: req.session.user!.id,
+      });
+      const campaign = await storage.createCampaign(validatedData);
+      await logActivity(
+        req.session.user!.id,
+        "created_campaign",
+        "campaign",
+        campaign.id,
+        campaign.name,
+        undefined,
+        req.ip
+      );
+      res.status(201).json(campaign);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Failed to create campaign:", error);
+      res.status(500).json({ error: "Failed to create campaign" });
+    }
+  });
+
+  app.patch("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.updateCampaign(req.params.id, req.body);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      await logActivity(
+        req.session.user!.id,
+        "updated_campaign",
+        "campaign",
+        campaign.id,
+        campaign.name,
+        undefined,
+        req.ip
+      );
+      res.json(campaign);
+    } catch (error) {
+      console.error("Failed to update campaign:", error);
+      res.status(500).json({ error: "Failed to update campaign" });
+    }
+  });
+
+  app.delete("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      const deleted = await storage.deleteCampaign(req.params.id);
+      await logActivity(
+        req.session.user!.id,
+        "deleted_campaign",
+        "campaign",
+        req.params.id,
+        campaign.name,
+        undefined,
+        req.ip
+      );
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error("Failed to delete campaign:", error);
+      res.status(500).json({ error: "Failed to delete campaign" });
+    }
+  });
+
+  // Preview customers matching campaign criteria
+  app.post("/api/campaigns/:id/preview", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      let customers = await storage.getAllCustomers();
+      
+      // Filter by campaign country codes
+      if (campaign.countryCodes && campaign.countryCodes.length > 0) {
+        customers = customers.filter(c => campaign.countryCodes.includes(c.countryCode));
+      }
+      
+      // Apply criteria filtering if exists
+      if (campaign.criteria) {
+        try {
+          const criteria = JSON.parse(campaign.criteria);
+          customers = applyCustomerCriteria(customers, criteria);
+        } catch (e) {
+          // Invalid criteria JSON, return all customers
+        }
+      }
+      
+      res.json({ count: customers.length, customers: customers.slice(0, 100) });
+    } catch (error) {
+      console.error("Failed to preview campaign:", error);
+      res.status(500).json({ error: "Failed to preview campaign" });
+    }
+  });
+
+  // Generate contacts from criteria
+  app.post("/api/campaigns/:id/generate-contacts", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      // Delete existing contacts
+      await storage.deleteCampaignContactsByCampaign(req.params.id);
+      
+      let customers = await storage.getAllCustomers();
+      
+      // Filter by campaign country codes
+      if (campaign.countryCodes && campaign.countryCodes.length > 0) {
+        customers = customers.filter(c => campaign.countryCodes.includes(c.countryCode));
+      }
+      
+      // Apply criteria filtering if exists
+      if (campaign.criteria) {
+        try {
+          const criteria = JSON.parse(campaign.criteria);
+          customers = applyCustomerCriteria(customers, criteria);
+        } catch (e) {
+          // Invalid criteria JSON
+        }
+      }
+      
+      // Create contacts
+      const contactsData = customers.map(c => ({
+        campaignId: req.params.id,
+        customerId: c.id,
+        status: "pending" as const,
+      }));
+      
+      const contacts = await storage.createCampaignContacts(contactsData);
+      
+      await logActivity(
+        req.session.user!.id,
+        "generated_campaign_contacts",
+        "campaign",
+        campaign.id,
+        campaign.name,
+        { count: contacts.length },
+        req.ip
+      );
+      
+      res.json({ count: contacts.length });
+    } catch (error) {
+      console.error("Failed to generate campaign contacts:", error);
+      res.status(500).json({ error: "Failed to generate campaign contacts" });
+    }
+  });
+
+  // Campaign Contacts
+  app.get("/api/campaigns/:id/contacts", requireAuth, async (req, res) => {
+    try {
+      const contacts = await storage.getCampaignContacts(req.params.id);
+      
+      // Enrich with customer data
+      const enrichedContacts = await Promise.all(
+        contacts.map(async (contact) => {
+          const customer = await storage.getCustomer(contact.customerId);
+          return { ...contact, customer };
+        })
+      );
+      
+      res.json(enrichedContacts);
+    } catch (error) {
+      console.error("Failed to fetch campaign contacts:", error);
+      res.status(500).json({ error: "Failed to fetch campaign contacts" });
+    }
+  });
+
+  app.patch("/api/campaigns/:campaignId/contacts/:contactId", requireAuth, async (req, res) => {
+    try {
+      const existingContact = await storage.getCampaignContact(req.params.contactId);
+      if (!existingContact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      
+      const previousStatus = existingContact.status;
+      const contact = await storage.updateCampaignContact(req.params.contactId, req.body);
+      
+      // Log history if status changed
+      if (req.body.status && req.body.status !== previousStatus) {
+        await storage.createCampaignContactHistory({
+          campaignContactId: req.params.contactId,
+          userId: req.session.user!.id,
+          action: "status_change",
+          previousStatus,
+          newStatus: req.body.status,
+          notes: req.body.notes || null,
+        });
+      } else if (req.body.notes) {
+        await storage.createCampaignContactHistory({
+          campaignContactId: req.params.contactId,
+          userId: req.session.user!.id,
+          action: "note_added",
+          notes: req.body.notes,
+        });
+      }
+      
+      res.json(contact);
+    } catch (error) {
+      console.error("Failed to update campaign contact:", error);
+      res.status(500).json({ error: "Failed to update campaign contact" });
+    }
+  });
+
+  app.get("/api/campaigns/:campaignId/contacts/:contactId/history", requireAuth, async (req, res) => {
+    try {
+      const history = await storage.getCampaignContactHistory(req.params.contactId);
+      res.json(history);
+    } catch (error) {
+      console.error("Failed to fetch contact history:", error);
+      res.status(500).json({ error: "Failed to fetch contact history" });
+    }
+  });
+
   return httpServer;
+}
+
+// Helper function to apply customer criteria
+function applyCustomerCriteria(customers: Customer[], criteria: any): Customer[] {
+  if (!criteria || !criteria.filters || !Array.isArray(criteria.filters)) {
+    return customers;
+  }
+  
+  return customers.filter(customer => {
+    return criteria.filters.every((filter: any) => {
+      const value = customer[filter.field as keyof Customer];
+      
+      switch (filter.operator) {
+        case "equals":
+          return value === filter.value;
+        case "not_equals":
+          return value !== filter.value;
+        case "contains":
+          return String(value || "").toLowerCase().includes(String(filter.value).toLowerCase());
+        case "starts_with":
+          return String(value || "").toLowerCase().startsWith(String(filter.value).toLowerCase());
+        case "is_empty":
+          return !value;
+        case "is_not_empty":
+          return !!value;
+        default:
+          return true;
+      }
+    });
+  });
 }

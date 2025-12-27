@@ -687,27 +687,47 @@ function CustomerDetailsContent({
               <p className="text-sm text-muted-foreground">{t.customers.details?.noInvoices || "No invoices generated yet."}</p>
             ) : (
               <div className="space-y-2">
-                {customerInvoices.map((inv) => (
-                  <div 
-                    key={inv.id} 
-                    className="flex items-center justify-between p-2 rounded-md bg-muted/50"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{inv.invoiceNumber}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(inv.generatedAt), "MMM dd, yyyy")} - {parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadPdf(inv.id, inv.invoiceNumber)}
-                      data-testid={`button-download-invoice-${inv.id}`}
+                {(() => {
+                  const uniqueCompanies = Array.from(new Set(customerInvoices.map(inv => inv.billingCompanyName).filter(Boolean))) as string[];
+                  const companyColors = [
+                    'border-l-4 border-l-blue-500',
+                    'border-l-4 border-l-emerald-500',
+                    'border-l-4 border-l-amber-500',
+                    'border-l-4 border-l-purple-500',
+                    'border-l-4 border-l-rose-500',
+                    'border-l-4 border-l-cyan-500',
+                  ];
+                  const getCompanyColor = (companyName: string | null) => {
+                    if (!companyName || uniqueCompanies.length <= 1) return '';
+                    const index = uniqueCompanies.indexOf(companyName);
+                    return companyColors[index % companyColors.length];
+                  };
+                  
+                  return customerInvoices.map((inv) => (
+                    <div 
+                      key={inv.id} 
+                      className={`flex items-center justify-between p-2 rounded-md bg-muted/50 ${getCompanyColor(inv.billingCompanyName)}`}
                     >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div>
+                        <p className="font-medium text-sm">{inv.invoiceNumber}</p>
+                        {inv.billingCompanyName && (
+                          <p className="text-xs font-medium text-foreground/70">{inv.billingCompanyName}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(inv.generatedAt), "dd.MM.yyyy")} - {parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownloadPdf(inv.id, inv.invoiceNumber)}
+                        data-testid={`button-download-invoice-${inv.id}`}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ));
+                })()}
               </div>
             )}
           </div>

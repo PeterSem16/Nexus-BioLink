@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Pencil, Trash2, Search, Megaphone, PlayCircle, CheckCircle, Clock, XCircle, ExternalLink, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Megaphone, PlayCircle, CheckCircle, Clock, XCircle, ExternalLink, FileText, Calendar, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/auth-context";
 import { useCountryFilter } from "@/contexts/country-filter-context";
@@ -52,7 +52,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { type Campaign, type CampaignTemplate, COUNTRIES } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from "date-fns";
+import { sk } from "date-fns/locale";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const campaignFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -292,12 +294,160 @@ function CampaignForm({
   );
 }
 
+function CampaignCalendar({ 
+  campaigns, 
+  onCampaignClick 
+}: { 
+  campaigns: Campaign[];
+  onCampaignClick: (campaign: Campaign) => void;
+}) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const days = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    const allDays = eachDayOfInterval({ start, end });
+    
+    const startDay = start.getDay();
+    const paddingDays = startDay === 0 ? 6 : startDay - 1;
+    const prevMonth = subMonths(start, 1);
+    const prevMonthEnd = endOfMonth(prevMonth);
+    
+    const paddedDays: Date[] = [];
+    for (let i = paddingDays - 1; i >= 0; i--) {
+      const day = new Date(prevMonthEnd);
+      day.setDate(prevMonthEnd.getDate() - i);
+      paddedDays.push(day);
+    }
+    
+    return [...paddedDays, ...allDays];
+  }, [currentMonth]);
+
+  const getCampaignsForDay = (day: Date) => {
+    return campaigns.filter((campaign) => {
+      if (!campaign.startDate && !campaign.endDate) return false;
+      const start = campaign.startDate ? new Date(campaign.startDate) : null;
+      const end = campaign.endDate ? new Date(campaign.endDate) : null;
+      
+      if (start && end) {
+        return day >= start && day <= end;
+      }
+      if (start) {
+        return isSameDay(day, start);
+      }
+      if (end) {
+        return isSameDay(day, end);
+      }
+      return false;
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      draft: "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200",
+      active: "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200",
+      paused: "bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200",
+      completed: "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200",
+      cancelled: "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200",
+    };
+    return colors[status] || colors.draft;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">
+          {format(currentMonth, "LLLL yyyy", { locale: sk })}
+        </h3>
+        <div className="flex gap-2">
+          <Button 
+            size="icon" 
+            variant="outline"
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            data-testid="button-prev-month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="outline"
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            data-testid="button-next-month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {["Po", "Ut", "St", "Št", "Pi", "So", "Ne"].map((day) => (
+          <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+            {day}
+          </div>
+        ))}
+        
+        {days.map((day, index) => {
+          const dayCampaigns = getCampaignsForDay(day);
+          const isCurrentMonth = isSameMonth(day, currentMonth);
+          const isCurrentDay = isToday(day);
+          
+          return (
+            <div
+              key={index}
+              className={`min-h-[100px] border rounded-md p-1 ${
+                isCurrentMonth ? "bg-card" : "bg-muted/30"
+              } ${isCurrentDay ? "ring-2 ring-primary" : ""}`}
+            >
+              <div className={`text-sm font-medium mb-1 ${
+                isCurrentMonth ? "" : "text-muted-foreground"
+              }`}>
+                {format(day, "d")}
+              </div>
+              <div className="space-y-0.5">
+                {dayCampaigns.slice(0, 3).map((campaign) => (
+                  <Tooltip key={campaign.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={() => onCampaignClick(campaign)}
+                        className={`text-xs px-1 py-0.5 rounded truncate cursor-pointer ${getStatusColor(campaign.status)}`}
+                        data-testid={`calendar-campaign-${campaign.id}`}
+                      >
+                        {campaign.name}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-sm">
+                        <p className="font-medium">{campaign.name}</p>
+                        <p className="text-muted-foreground">
+                          {campaign.startDate && format(new Date(campaign.startDate), "dd.MM.yyyy")}
+                          {campaign.startDate && campaign.endDate && " - "}
+                          {campaign.endDate && format(new Date(campaign.endDate), "dd.MM.yyyy")}
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {dayCampaigns.length > 3 && (
+                  <div className="text-xs text-muted-foreground pl-1">
+                    +{dayCampaigns.length - 3} ďalšie
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { selectedCountries } = useCountryFilter();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
@@ -487,7 +637,7 @@ export default function CampaignsPage() {
 
       <div className="flex-1 overflow-auto p-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -498,16 +648,41 @@ export default function CampaignsPage() {
                 data-testid="input-search-campaigns"
               />
             </div>
+            <div className="flex gap-1">
+              <Button
+                size="icon"
+                variant={viewMode === "list" ? "default" : "ghost"}
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant={viewMode === "calendar" ? "default" : "ghost"}
+                onClick={() => setViewMode("calendar")}
+                data-testid="button-view-calendar"
+              >
+                <Calendar className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent data-tour="campaign-list">
-            <DataTable
-              columns={columns}
-              data={filteredCampaigns}
-              isLoading={isLoading}
-              emptyMessage={t.campaigns?.noCampaigns || "No campaigns found"}
-              getRowKey={(campaign) => campaign.id}
-              onRowClick={(campaign) => setLocation(`/campaigns/${campaign.id}`)}
-            />
+            {viewMode === "list" ? (
+              <DataTable
+                columns={columns}
+                data={filteredCampaigns}
+                isLoading={isLoading}
+                emptyMessage={t.campaigns?.noCampaigns || "No campaigns found"}
+                getRowKey={(campaign) => campaign.id}
+                onRowClick={(campaign) => setLocation(`/campaigns/${campaign.id}`)}
+              />
+            ) : (
+              <CampaignCalendar 
+                campaigns={filteredCampaigns} 
+                onCampaignClick={(campaign) => setLocation(`/campaigns/${campaign.id}`)}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

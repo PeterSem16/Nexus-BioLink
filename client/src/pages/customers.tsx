@@ -1452,7 +1452,7 @@ export default function CustomersPage() {
         description={t.customers.description}
       >
         {canAdd("customers") && (
-          <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-customer">
+          <Button onClick={() => setIsFormOpen(true)} data-testid="button-add-customer" data-tour="add-customer">
             <Plus className="h-4 w-4 mr-2" />
             {t.customers.addCustomer}
           </Button>
@@ -1462,7 +1462,7 @@ export default function CustomersPage() {
       <Card>
         <CardContent className="p-4">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4" data-tour="customer-search">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -1484,7 +1484,7 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4" data-tour="customer-filters">
               <div className="min-w-[150px]">
                 <Select value={countryFilter} onValueChange={setCountryFilter}>
                   <SelectTrigger data-testid="select-filter-country">

@@ -21,6 +21,7 @@ export function CountryFilter() {
           variant="outline" 
           className="w-full justify-between gap-2"
           data-testid="button-country-filter"
+          data-tour="country-filter"
         >
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4" />

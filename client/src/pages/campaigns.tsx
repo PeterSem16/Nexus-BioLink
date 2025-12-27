@@ -451,7 +451,7 @@ export default function CampaignsPage() {
         title={t.campaigns?.title || "Campaigns"}
         description={t.campaigns?.description || "Manage marketing and sales campaigns"}
       >
-        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-campaign">
+        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-campaign" data-tour="create-campaign">
           <Plus className="h-4 w-4 mr-2" />
           {t.campaigns?.addCampaign || "Add Campaign"}
         </Button>
@@ -471,7 +471,7 @@ export default function CampaignsPage() {
               />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent data-tour="campaign-list">
             <DataTable
               columns={columns}
               data={filteredCampaigns}

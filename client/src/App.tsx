@@ -12,6 +12,7 @@ import { PermissionsProvider } from "@/contexts/permissions-context";
 import { I18nProvider } from "@/i18n";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { TourProvider, TourTrigger } from "@/components/tour-provider";
 import Dashboard from "@/pages/dashboard";
 import UsersPage from "@/pages/users";
 import CustomersPage from "@/pages/customers";
@@ -94,6 +95,7 @@ function AuthenticatedApp() {
     <CountryFilterProvider>
       <PermissionsProvider>
         <I18nWrapper userCountries={user?.assignedCountries || []}>
+          <TourProvider>
           <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex h-screen w-full">
             <AppSidebar />
@@ -102,6 +104,7 @@ function AuthenticatedApp() {
                 <SidebarTrigger data-testid="button-sidebar-toggle" />
                 <div className="flex items-center gap-2">
                   <GlobalSearch />
+                  <TourTrigger />
                   <ThemeToggle />
                 </div>
               </header>
@@ -129,6 +132,7 @@ function AuthenticatedApp() {
             </div>
           </div>
           </SidebarProvider>
+          </TourProvider>
           <Toaster />
         </I18nWrapper>
       </PermissionsProvider>

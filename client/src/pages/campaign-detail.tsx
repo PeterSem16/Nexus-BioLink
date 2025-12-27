@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { CriteriaBuilder, type CriteriaGroup, criteriaToDescription } from "@/components/criteria-builder";
 import { ScheduleEditor, type ScheduleConfig, getDefaultScheduleConfig } from "@/components/schedule-editor";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 type EnrichedContact = CampaignContact & { customer?: Customer };
 
@@ -681,31 +682,133 @@ export default function CampaignDetailPage() {
             />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Over Time</CardTitle>
-              <CardDescription>
-                Track campaign progress and conversion rates over time
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-64 flex items-center justify-center">
-              <p className="text-muted-foreground">
-                Charts and detailed analytics will be displayed here.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Status Distribution</CardTitle>
+                <CardDescription>
+                  Breakdown of contacts by their current status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {stats && stats.totalContacts > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Pending", value: stats.pendingContacts || 0, color: "#94a3b8" },
+                          { name: "Contacted", value: stats.contactedContacts || 0, color: "#60a5fa" },
+                          { name: "Completed", value: stats.completedContacts || 0, color: "#4ade80" },
+                          { name: "No Answer", value: stats.noAnswerContacts || 0, color: "#facc15" },
+                          { name: "Not Interested", value: stats.notInterestedContacts || 0, color: "#a1a1aa" },
+                          { name: "Failed", value: stats.failedContacts || 0, color: "#f87171" },
+                        ].filter(d => d.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {[
+                          { color: "#94a3b8" },
+                          { color: "#60a5fa" },
+                          { color: "#4ade80" },
+                          { color: "#facc15" },
+                          { color: "#a1a1aa" },
+                          { color: "#f87171" },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    No data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Attempt Distribution</CardTitle>
+                <CardDescription>
+                  Number of contacts by attempt count
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {contacts.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart
+                      data={(() => {
+                        const attemptCounts: Record<number, number> = {};
+                        contacts.forEach(c => {
+                          const attempts = c.attemptCount || 0;
+                          attemptCounts[attempts] = (attemptCounts[attempts] || 0) + 1;
+                        });
+                        return Object.entries(attemptCounts)
+                          .map(([attempts, count]) => ({
+                            attempts: `${attempts} attempts`,
+                            count,
+                          }))
+                          .sort((a, b) => parseInt(a.attempts) - parseInt(b.attempts));
+                      })()}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <XAxis dataKey="attempts" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    No data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Operator Performance</CardTitle>
-              <CardDescription>
-                Compare operator metrics and productivity
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+              <div>
+                <CardTitle>Campaign Summary</CardTitle>
+                <CardDescription>
+                  Key performance indicators for this campaign
+                </CardDescription>
+              </div>
+              <Button variant="outline" data-testid="button-export-report">
+                <Download className="w-4 h-4 mr-2" />
+                Export Report
+              </Button>
             </CardHeader>
-            <CardContent className="h-48 flex items-center justify-center">
-              <p className="text-muted-foreground">
-                Operator statistics and leaderboard will be displayed here.
-              </p>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Contacts</p>
+                  <p className="text-2xl font-bold">{stats?.totalContacts || 0}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Success Rate</p>
+                  <p className="text-2xl font-bold">
+                    {((stats?.completedContacts || 0) / Math.max(stats?.totalContacts || 1, 1) * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">{stats?.pendingContacts || 0}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Callback Scheduled</p>
+                  <p className="text-2xl font-bold">{stats?.callbackContacts || 0}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

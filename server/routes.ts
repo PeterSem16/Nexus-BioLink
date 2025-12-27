@@ -3456,7 +3456,7 @@ export async function registerRoutes(
       
       // Filter by campaign country codes
       if (campaign.countryCodes && campaign.countryCodes.length > 0) {
-        customers = customers.filter(c => campaign.countryCodes.includes(c.countryCode));
+        customers = customers.filter(c => campaign.countryCodes.includes(c.country));
       }
       
       // Apply criteria filtering if exists
@@ -3491,7 +3491,7 @@ export async function registerRoutes(
       
       // Filter by campaign country codes
       if (campaign.countryCodes && campaign.countryCodes.length > 0) {
-        customers = customers.filter(c => campaign.countryCodes.includes(c.countryCode));
+        customers = customers.filter(c => campaign.countryCodes.includes(c.country));
       }
       
       // Apply criteria filtering if exists
@@ -3504,11 +3504,13 @@ export async function registerRoutes(
         }
       }
       
-      // Create contacts
+      // Create contacts with default values for required fields
       const contactsData = customers.map(c => ({
         campaignId: req.params.id,
         customerId: c.id,
         status: "pending" as const,
+        attemptCount: 0,
+        priorityScore: 50, // Default priority
       }));
       
       const contacts = await storage.createCampaignContacts(contactsData);
@@ -3593,6 +3595,146 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Failed to fetch contact history:", error);
       res.status(500).json({ error: "Failed to fetch contact history" });
+    }
+  });
+
+  // Campaign Schedule endpoints
+  app.get("/api/campaigns/:id/schedule", requireAuth, async (req, res) => {
+    try {
+      const schedule = await storage.getCampaignSchedule(req.params.id);
+      res.json(schedule || null);
+    } catch (error) {
+      console.error("Failed to fetch campaign schedule:", error);
+      res.status(500).json({ error: "Failed to fetch campaign schedule" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/schedule", requireAuth, async (req, res) => {
+    try {
+      const existing = await storage.getCampaignSchedule(req.params.id);
+      if (existing) {
+        const updated = await storage.updateCampaignSchedule(req.params.id, req.body);
+        res.json(updated);
+      } else {
+        const schedule = await storage.createCampaignSchedule({
+          campaignId: req.params.id,
+          ...req.body,
+        });
+        res.json(schedule);
+      }
+    } catch (error) {
+      console.error("Failed to save campaign schedule:", error);
+      res.status(500).json({ error: "Failed to save campaign schedule" });
+    }
+  });
+
+  // Campaign Operator Settings endpoints
+  app.get("/api/campaigns/:id/operators", requireAuth, async (req, res) => {
+    try {
+      const operators = await storage.getCampaignOperators(req.params.id);
+      res.json(operators);
+    } catch (error) {
+      console.error("Failed to fetch campaign operators:", error);
+      res.status(500).json({ error: "Failed to fetch campaign operators" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/operators", requireAuth, async (req, res) => {
+    try {
+      const operator = await storage.createCampaignOperatorSetting({
+        campaignId: req.params.id,
+        ...req.body,
+      });
+      res.json(operator);
+    } catch (error) {
+      console.error("Failed to add campaign operator:", error);
+      res.status(500).json({ error: "Failed to add campaign operator" });
+    }
+  });
+
+  app.patch("/api/campaigns/:campaignId/operators/:operatorId", requireAuth, async (req, res) => {
+    try {
+      const operator = await storage.updateCampaignOperatorSetting(req.params.operatorId, req.body);
+      if (!operator) {
+        return res.status(404).json({ error: "Operator setting not found" });
+      }
+      res.json(operator);
+    } catch (error) {
+      console.error("Failed to update campaign operator:", error);
+      res.status(500).json({ error: "Failed to update campaign operator" });
+    }
+  });
+
+  app.delete("/api/campaigns/:campaignId/operators/:operatorId", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCampaignOperatorSetting(req.params.operatorId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Operator setting not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to remove campaign operator:", error);
+      res.status(500).json({ error: "Failed to remove campaign operator" });
+    }
+  });
+
+  // Contact Sessions endpoints
+  app.get("/api/campaigns/:campaignId/contacts/:contactId/sessions", requireAuth, async (req, res) => {
+    try {
+      const sessions = await storage.getContactSessions(req.params.contactId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Failed to fetch contact sessions:", error);
+      res.status(500).json({ error: "Failed to fetch contact sessions" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/contacts/:contactId/sessions", requireAuth, async (req, res) => {
+    try {
+      const session = await storage.createContactSession({
+        campaignContactId: req.params.contactId,
+        operatorId: req.session.user!.id,
+        ...req.body,
+      });
+      res.json(session);
+    } catch (error) {
+      console.error("Failed to create contact session:", error);
+      res.status(500).json({ error: "Failed to create contact session" });
+    }
+  });
+
+  app.patch("/api/campaigns/:campaignId/contacts/:contactId/sessions/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const session = await storage.updateContactSession(req.params.sessionId, req.body);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      console.error("Failed to update contact session:", error);
+      res.status(500).json({ error: "Failed to update contact session" });
+    }
+  });
+
+  // Campaign Stats endpoint
+  app.get("/api/campaigns/:id/stats", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getCampaignStats(req.params.id);
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to fetch campaign stats:", error);
+      res.status(500).json({ error: "Failed to fetch campaign stats" });
+    }
+  });
+
+  // Campaign Metrics Snapshots
+  app.get("/api/campaigns/:id/metrics", requireAuth, async (req, res) => {
+    try {
+      const metrics = await storage.getCampaignMetrics(req.params.id);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Failed to fetch campaign metrics:", error);
+      res.status(500).json({ error: "Failed to fetch campaign metrics" });
     }
   });
 

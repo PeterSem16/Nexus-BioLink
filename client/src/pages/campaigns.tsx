@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Pencil, Trash2, Search, Megaphone, PlayCircle, CheckCircle, Clock, XCircle, ExternalLink, FileText, Calendar, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Megaphone, PlayCircle, CheckCircle, Clock, XCircle, ExternalLink, FileText, Calendar, LayoutList, ChevronLeft, ChevronRight, BarChart3, TrendingUp, Phone, RefreshCw, Users } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/auth-context";
 import { useCountryFilter } from "@/contexts/country-filter-context";
@@ -452,6 +452,8 @@ export default function CampaignsPage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<CampaignTemplate | null>(null);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
@@ -629,10 +631,20 @@ export default function CampaignsPage() {
         title={t.campaigns?.title || "Campaigns"}
         description={t.campaigns?.description || "Manage marketing and sales campaigns"}
       >
-        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-campaign" data-tour="create-campaign">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.campaigns?.addCampaign || "Add Campaign"}
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsComparisonOpen(true)} 
+            data-testid="button-compare-campaigns"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Porovnať kampane
+          </Button>
+          <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-campaign" data-tour="create-campaign">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.campaigns?.addCampaign || "Add Campaign"}
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="flex-1 overflow-auto p-6">
@@ -774,6 +786,153 @@ export default function CampaignsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isComparisonOpen} onOpenChange={(open) => {
+        setIsComparisonOpen(open);
+        if (!open) setSelectedForComparison([]);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Porovnanie kampaní</DialogTitle>
+            <DialogDescription>
+              Vyberte kampane na porovnanie ich výkonnosti
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Vybrať kampane (max 4)</Label>
+              <div className="grid gap-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                {campaigns.map((campaign) => (
+                  <div key={campaign.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`compare-${campaign.id}`}
+                      checked={selectedForComparison.includes(campaign.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked && selectedForComparison.length < 4) {
+                          setSelectedForComparison([...selectedForComparison, campaign.id]);
+                        } else if (!checked) {
+                          setSelectedForComparison(selectedForComparison.filter(id => id !== campaign.id));
+                        }
+                      }}
+                      data-testid={`checkbox-compare-${campaign.id}`}
+                    />
+                    <Label htmlFor={`compare-${campaign.id}`} className="flex-1 cursor-pointer">
+                      {campaign.name}
+                    </Label>
+                    <Badge variant="outline" className="text-xs">
+                      {campaign.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedForComparison.length >= 2 && (
+              <div className="space-y-4">
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-4">Porovnanie vybraných kampaní</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2 font-medium">Metrika</th>
+                          {selectedForComparison.map(id => {
+                            const campaign = campaigns.find(c => c.id === id);
+                            return (
+                              <th key={id} className="text-center p-2 font-medium min-w-[120px]">
+                                {campaign?.name}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="p-2 text-muted-foreground">Typ</td>
+                          {selectedForComparison.map(id => {
+                            const campaign = campaigns.find(c => c.id === id);
+                            return (
+                              <td key={id} className="text-center p-2">
+                                <Badge variant="outline">{campaign?.type}</Badge>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr className="border-b">
+                          <td className="p-2 text-muted-foreground">Stav</td>
+                          {selectedForComparison.map(id => {
+                            const campaign = campaigns.find(c => c.id === id);
+                            return (
+                              <td key={id} className="text-center p-2">
+                                {getStatusBadge(campaign?.status || "draft")}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr className="border-b">
+                          <td className="p-2 text-muted-foreground">Obdobie</td>
+                          {selectedForComparison.map(id => {
+                            const campaign = campaigns.find(c => c.id === id);
+                            return (
+                              <td key={id} className="text-center p-2 text-xs">
+                                {campaign?.startDate && format(new Date(campaign.startDate), "dd.MM.yy")}
+                                {campaign?.startDate && campaign?.endDate && " - "}
+                                {campaign?.endDate && format(new Date(campaign.endDate), "dd.MM.yy")}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr className="border-b">
+                          <td className="p-2 text-muted-foreground">Krajiny</td>
+                          {selectedForComparison.map(id => {
+                            const campaign = campaigns.find(c => c.id === id);
+                            return (
+                              <td key={id} className="text-center p-2">
+                                <div className="flex justify-center gap-1">
+                                  {campaign?.countryCodes?.map((code) => {
+                                    const country = COUNTRIES.find(c => c.code === code);
+                                    return <span key={code}>{country?.flag}</span>;
+                                  })}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Pre zobrazenie detailných štatistík kontaktov otvorte jednotlivé kampane.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {selectedForComparison.length < 2 && (
+              <div className="text-center text-muted-foreground py-8">
+                Vyberte aspoň 2 kampane na porovnanie
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsComparisonOpen(false);
+                setSelectedForComparison([]);
+              }}
+              data-testid="button-close-comparison"
+            >
+              Zavrieť
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

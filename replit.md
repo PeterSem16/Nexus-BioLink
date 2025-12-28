@@ -65,6 +65,33 @@ The system supports sending emails and SMS to customers:
 - **SMS**: Via Twilio API (set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`)
 - When credentials are not configured, messages are simulated (logged but not actually sent)
 
+### Built-in SIP Phone (WebRTC)
+The system includes a built-in SIP phone for operators to make calls directly from the CRM:
+- **Library**: SIP.js for WebRTC-based SIP calling
+- **Component**: `client/src/components/sip-phone.tsx`
+- **Features**: Dial pad, mute/hold controls, volume slider, call duration timer
+- **Configuration**: Operators configure their Asterisk server credentials (server address, username, password)
+- **Integration**: Floating phone button available on campaign detail pages
+
+To use the SIP phone:
+1. Click the phone icon in the bottom-right corner of campaign detail page
+2. Configure SIP settings (server address like `pbx.example.com`, username, password)
+3. Click "Pripojiť" to connect to the Asterisk server via WebSocket (wss://server/ws)
+4. Enter phone number and click the call button
+
+### Campaign Management
+The system includes comprehensive campaign management for marketing and sales:
+- **Templates**: Save campaign configurations as reusable templates
+- **Cloning**: Duplicate existing campaigns with all settings
+- **Operator Scripts**: Text-based scripts for call center agents
+- **Contact Filtering**: Filter contacts by status, country, lead score
+- **Bulk Actions**: Update multiple contact statuses at once
+- **CSV Export**: Export contacts with Slovak character support
+- **Scheduling**: Configure working hours and contact frequency limits
+- **KPI Reporting**: Dashboard with conversion rates, completion rates, status breakdowns
+- **Calendar View**: Month-based calendar showing campaign timelines
+- **Campaign Comparison**: Side-by-side comparison of up to 4 campaigns
+
 ### Key Design Patterns
 - Shared schema definitions between frontend and backend via `@shared/*` path alias
 - Zod schemas generated from Drizzle for validation (drizzle-zod)

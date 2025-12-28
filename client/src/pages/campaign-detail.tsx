@@ -48,6 +48,7 @@ import { CampaignContactsFilter, type CampaignContactFilters, applyContactFilter
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { SipPhoneFloating } from "@/components/sip-phone";
 
 type EnrichedContact = CampaignContact & { customer?: Customer };
 
@@ -219,13 +220,8 @@ function SchedulingCard({ campaign }: { campaign: Campaign }) {
         <ScheduleEditor
           schedule={schedule}
           onChange={handleScheduleChange}
-          readonly={campaign.status !== "draft"}
+          readonly={false}
         />
-        {campaign.status !== "draft" && (
-          <p className="text-sm text-muted-foreground mt-4 italic">
-            Schedule can only be edited when the campaign is in draft status.
-          </p>
-        )}
       </CardContent>
     </Card>
   );
@@ -1221,6 +1217,18 @@ Príklad:
           )}
         </DialogContent>
       </Dialog>
+
+      <SipPhoneFloating 
+        onCallStart={(number) => {
+          toast({ title: "Hovor začatý", description: `Volanie na ${number}` });
+        }}
+        onCallEnd={(duration, status) => {
+          toast({ 
+            title: "Hovor ukončený", 
+            description: `Trvanie: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")}` 
+          });
+        }}
+      />
     </div>
   );
 }

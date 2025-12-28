@@ -25,7 +25,9 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { type Campaign, type CampaignContact, type Customer, COUNTRIES } from "@shared/schema";
+import { type Campaign, type CampaignContact, type Customer, COUNTRIES, type OperatorScript, operatorScriptSchema } from "@shared/schema";
+import { ScriptBuilder } from "@/components/script-builder";
+import { ScriptRunner } from "@/components/script-runner";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -239,6 +241,9 @@ export default function CampaignDetailPage() {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [scriptContent, setScriptContent] = useState<string>("");
   const [scriptModified, setScriptModified] = useState(false);
+  const [structuredScript, setStructuredScript] = useState<OperatorScript | null>(null);
+  const [scriptMode, setScriptMode] = useState<"builder" | "preview" | "legacy">("builder");
+  const [structuredScriptModified, setStructuredScriptModified] = useState(false);
 
   const { data: campaign, isLoading: loadingCampaign } = useQuery<Campaign>({
     queryKey: ["/api/campaigns", campaignId],
@@ -372,8 +377,38 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     if (campaign?.script !== undefined) {
-      setScriptContent(campaign.script || "");
+      const scriptValue = campaign.script || "";
+      setScriptContent(scriptValue);
       setScriptModified(false);
+      
+      // Try to parse as structured script
+      try {
+        if (scriptValue.startsWith("{")) {
+          const parsed = JSON.parse(scriptValue);
+          const validated = operatorScriptSchema.safeParse(parsed);
+          if (validated.success) {
+            setStructuredScript(validated.data);
+            setScriptMode("builder");
+          } else {
+            // Invalid JSON structure, keep as legacy but init empty structured
+            setStructuredScript({ version: 1, steps: [] });
+            setScriptMode("legacy");
+          }
+        } else if (scriptValue.trim()) {
+          // Plain text script - keep in legacy mode
+          setStructuredScript({ version: 1, steps: [] });
+          setScriptMode("legacy");
+        } else {
+          // Empty script - start fresh in builder mode
+          setStructuredScript({ version: 1, steps: [] });
+          setScriptMode("builder");
+        }
+      } catch {
+        // JSON parse error, keep as legacy
+        setStructuredScript({ version: 1, steps: [] });
+        setScriptMode("legacy");
+      }
+      setStructuredScriptModified(false);
     }
   }, [campaign?.script]);
 
@@ -1081,24 +1116,92 @@ export default function CampaignDetailPage() {
                   Skript pre operátorov
                 </CardTitle>
                 <CardDescription>
-                  Inštrukcie pre call centrum a operátorov pri kontaktovaní klientov
+                  Interaktívny skript s výberovými poľami, zaškrtávacími tlačidlami a ďalšími prvkami
                 </CardDescription>
               </div>
-              <Button
-                onClick={() => saveScriptMutation.mutate(scriptContent)}
-                disabled={!scriptModified || saveScriptMutation.isPending}
-                data-testid="button-save-script"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {saveScriptMutation.isPending ? "Ukladám..." : "Uložiť skript"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={scriptMode}
+                  onValueChange={(v) => setScriptMode(v as "builder" | "preview" | "legacy")}
+                >
+                  <SelectTrigger className="w-40" data-testid="select-script-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="builder">Editor</SelectItem>
+                    <SelectItem value="preview">Náhľad</SelectItem>
+                    <SelectItem value="legacy">Textový režim</SelectItem>
+                  </SelectContent>
+                </Select>
+                {scriptMode !== "legacy" && (
+                  <Button
+                    onClick={() => {
+                      if (structuredScript) {
+                        saveScriptMutation.mutate(JSON.stringify(structuredScript));
+                        setStructuredScriptModified(false);
+                      }
+                    }}
+                    disabled={!structuredScriptModified || saveScriptMutation.isPending}
+                    data-testid="button-save-structured-script"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {saveScriptMutation.isPending ? "Ukladám..." : "Uložiť skript"}
+                  </Button>
+                )}
+                {scriptMode === "legacy" && (
+                  <Button
+                    onClick={() => saveScriptMutation.mutate(scriptContent)}
+                    disabled={!scriptModified || saveScriptMutation.isPending}
+                    data-testid="button-save-script"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {saveScriptMutation.isPending ? "Ukladám..." : "Uložiť skript"}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="script-editor">Obsah skriptu</Label>
-                <Textarea
-                  id="script-editor"
-                  placeholder="Napíšte skript pre operátorov...
+            <CardContent>
+              {scriptMode === "builder" && (
+                <div className="min-h-[500px]">
+                  <ScriptBuilder
+                    script={structuredScript}
+                    onChange={(newScript) => {
+                      setStructuredScript(newScript);
+                      setStructuredScriptModified(true);
+                    }}
+                    isSaving={saveScriptMutation.isPending}
+                  />
+                  {structuredScriptModified && (
+                    <div className="mt-4 flex items-center gap-2">
+                      <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20">
+                        Neuložené zmeny
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {scriptMode === "preview" && structuredScript && (
+                <div className="min-h-[500px]">
+                  <ScriptRunner
+                    script={structuredScript}
+                    onComplete={(session) => {
+                      toast({ 
+                        title: "Skript dokončený", 
+                        description: `Vyplnených ${session.responses.length} odpovedí` 
+                      });
+                    }}
+                  />
+                </div>
+              )}
+              
+              {scriptMode === "legacy" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="script-editor">Obsah skriptu (textový režim)</Label>
+                    <Textarea
+                      id="script-editor"
+                      placeholder="Napíšte skript pre operátorov...
 
 Príklad:
 1. Pozdrav: 'Dobrý deň, volám z [Názov spoločnosti]...'
@@ -1108,49 +1211,51 @@ Príklad:
    - Otázka 1
    - Otázka 2
 5. Záver hovoru: 'Ďakujem za váš čas...'"
-                  value={scriptContent}
-                  onChange={(e) => {
-                    setScriptContent(e.target.value);
-                    setScriptModified(true);
-                  }}
-                  className="min-h-[400px] font-mono text-sm"
-                  data-testid="textarea-script"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {scriptModified && (
-                  <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20">
-                    Neuložené zmeny
-                  </Badge>
-                )}
-                {!scriptModified && scriptContent && (
-                  <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">
-                    Uložené
-                  </Badge>
-                )}
-                {!scriptContent && (
-                  <span>Zatiaľ žiadny skript - pridajte inštrukcie pre operátorov</span>
-                )}
-              </div>
+                      value={scriptContent.startsWith("{") ? "" : scriptContent}
+                      onChange={(e) => {
+                        setScriptContent(e.target.value);
+                        setScriptModified(true);
+                      }}
+                      className="min-h-[400px] font-mono text-sm"
+                      data-testid="textarea-script"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {scriptModified && (
+                      <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20">
+                        Neuložené zmeny
+                      </Badge>
+                    )}
+                    {!scriptModified && scriptContent && !scriptContent.startsWith("{") && (
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">
+                        Uložené
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Tipy pre písanie skriptu</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-                <li>Začnite s jasným pozdravom a predstavením</li>
-                <li>Overujte identitu klienta pred zdieľaním citlivých informácií</li>
-                <li>Majte pripravené odpovede na časté námietky</li>
-                <li>Používajte jednoduchý a zrozumiteľný jazyk</li>
-                <li>Ukončite hovor pozitívne a zhrnúť ďalšie kroky</li>
-                <li>Zaznamenajte výsledok hovoru a prípadné poznámky</li>
-              </ul>
-            </CardContent>
-          </Card>
+          {scriptMode === "builder" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Návod na tvorbu skriptu</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
+                  <li><strong>Kroky:</strong> Rozdeľte skript do logických krokov (napr. Pozdrav, Overenie, Ponuka, Záver)</li>
+                  <li><strong>Nadpisy a odseky:</strong> Použite pre textové inštrukcie a informácie</li>
+                  <li><strong>Výberové polia:</strong> Pre otázky s jednoznačnou odpoveďou (napr. "Má záujem?" - Áno/Nie/Premyslí si)</li>
+                  <li><strong>Zaškrtávacie polia:</strong> Pre zoznam položiek, ktoré treba overiť alebo splniť</li>
+                  <li><strong>Textové polia:</strong> Pre poznámky a voľné odpovede klienta</li>
+                  <li><strong>Poznámky:</strong> Pre dôležité upozornenia a tipy pre operátora</li>
+                  <li><strong>Výsledok hovoru:</strong> Pre zaznamenanie finálneho stavu hovoru</li>
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -1607,3 +1607,79 @@ export const insertCampaignMetricsSnapshotSchema = createInsertSchema(campaignMe
 
 export type InsertCampaignMetricsSnapshot = z.infer<typeof insertCampaignMetricsSnapshotSchema>;
 export type CampaignMetricsSnapshot = typeof campaignMetricsSnapshots.$inferSelect;
+
+// Operator Script Types - structured interactive scripts for call center agents
+export const scriptElementTypes = [
+  "heading",
+  "paragraph", 
+  "select",
+  "multiselect",
+  "checkbox",
+  "checkboxGroup",
+  "radio",
+  "textInput",
+  "textarea",
+  "divider",
+  "note",
+  "outcome"
+] as const;
+
+export type ScriptElementType = typeof scriptElementTypes[number];
+
+export const scriptElementSchema = z.object({
+  id: z.string(),
+  type: z.enum(scriptElementTypes),
+  label: z.string().optional(),
+  content: z.string().optional(),
+  placeholder: z.string().optional(),
+  required: z.boolean().optional().default(false),
+  options: z.array(z.object({
+    value: z.string(),
+    label: z.string(),
+    nextStepId: z.string().optional(),
+  })).optional(),
+  style: z.enum(["default", "info", "warning", "success", "error"]).optional(),
+  size: z.enum(["sm", "md", "lg"]).optional(),
+});
+
+export type ScriptElement = z.infer<typeof scriptElementSchema>;
+
+export const scriptStepSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  elements: z.array(scriptElementSchema),
+  nextStepId: z.string().optional(),
+  isEndStep: z.boolean().optional().default(false),
+});
+
+export type ScriptStep = z.infer<typeof scriptStepSchema>;
+
+export const operatorScriptSchema = z.object({
+  version: z.number().default(1),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  steps: z.array(scriptStepSchema),
+  startStepId: z.string().optional(),
+});
+
+export type OperatorScript = z.infer<typeof operatorScriptSchema>;
+
+export const scriptResponseSchema = z.object({
+  elementId: z.string(),
+  value: z.union([z.string(), z.array(z.string()), z.boolean()]),
+  timestamp: z.string(),
+});
+
+export type ScriptResponse = z.infer<typeof scriptResponseSchema>;
+
+export const scriptSessionSchema = z.object({
+  scriptVersion: z.number(),
+  currentStepId: z.string(),
+  completedStepIds: z.array(z.string()),
+  responses: z.array(scriptResponseSchema),
+  startedAt: z.string(),
+  completedAt: z.string().optional(),
+});
+
+export type ScriptSession = z.infer<typeof scriptSessionSchema>;

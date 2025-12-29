@@ -879,6 +879,113 @@ export function SipPhoneFloating({
   );
 }
 
+interface CallCustomerButtonProps {
+  phoneNumber: string;
+  customerId?: string;
+  customerName?: string;
+  campaignId?: string;
+  variant?: "icon" | "default" | "small";
+}
+
+export function CallCustomerButton({ 
+  phoneNumber, 
+  customerId, 
+  customerName, 
+  campaignId,
+  variant = "default" 
+}: CallCustomerButtonProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: authData } = useQuery<{ user: User | null }>({
+    queryKey: ["/api/auth/me"],
+  });
+  
+  const currentUser = authData?.user;
+  const hasSipEnabled = currentUser && (currentUser as any).sipEnabled;
+
+  if (!hasSipEnabled || !phoneNumber) {
+    return null;
+  }
+
+  if (variant === "icon") {
+    return (
+      <>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => setIsOpen(true)}
+          data-testid="button-call-customer-icon"
+          title={`Zavolať na ${phoneNumber}`}
+        >
+          <PhoneCall className="h-4 w-4 text-green-600" />
+        </Button>
+        
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogContent className="max-w-sm p-0 overflow-hidden">
+            <SipPhone 
+              initialNumber={phoneNumber}
+              customerId={customerId}
+              customerName={customerName}
+              campaignId={campaignId}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  if (variant === "small") {
+    return (
+      <>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setIsOpen(true)}
+          data-testid="button-call-customer-small"
+          className="gap-1"
+        >
+          <PhoneCall className="h-3 w-3" />
+          Zavolať
+        </Button>
+        
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogContent className="max-w-sm p-0 overflow-hidden">
+            <SipPhone 
+              initialNumber={phoneNumber}
+              customerId={customerId}
+              customerName={customerName}
+              campaignId={campaignId}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Button
+        onClick={() => setIsOpen(true)}
+        data-testid="button-call-customer"
+        className="gap-2"
+      >
+        <PhoneCall className="h-4 w-4" />
+        Zavolať {phoneNumber}
+      </Button>
+      
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <SipPhone 
+            initialNumber={phoneNumber}
+            customerId={customerId}
+            customerName={customerName}
+            campaignId={campaignId}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 interface SipPhoneHeaderButtonProps {
   user: { sipEnabled?: boolean } | null;
 }
@@ -902,8 +1009,8 @@ export function SipPhoneHeaderButton({ user }: SipPhoneHeaderButtonProps) {
       </Button>
       
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-md p-0">
-          <SipPhone compact />
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <SipPhone />
         </DialogContent>
       </Dialog>
     </>

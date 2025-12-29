@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +38,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { CustomerForm, type CustomerFormData } from "@/components/customer-form";
 import { CustomerFormWizard, type CustomerFormData as WizardCustomerFormData } from "@/components/customer-form-wizard";
 import { PotentialCaseForm, EmbeddedPotentialCaseForm } from "@/components/potential-case-form";
+import { CallCustomerButton } from "@/components/sip-phone";
 import { useCountryFilter } from "@/contexts/country-filter-context";
 import { usePermissions } from "@/contexts/permissions-context";
 import { useToast } from "@/hooks/use-toast";
@@ -540,7 +541,17 @@ function CustomerDetailsContent({
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">{t.customers.details?.phone || "Phone"}</p>
-            <p className="mt-1">{customer.phone || "-"}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span>{customer.phone || "-"}</span>
+              {customer.phone && (
+                <CallCustomerButton 
+                  phoneNumber={customer.phone}
+                  customerId={customer.id}
+                  customerName={`${customer.firstName} ${customer.lastName}`}
+                  variant="icon"
+                />
+              )}
+            </div>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">{t.customers.details?.serviceType || "Service Type"}</p>
@@ -817,6 +828,29 @@ function CustomerDetailsContent({
                     {sendSmsMutation.isPending ? (t.customers.details?.sending || "Sending...") : (t.customers.details?.sendSms || "Send SMS")}
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t.customers.details?.noPhone || "No phone number on file for this customer."}</p>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h4 className="font-semibold flex items-center gap-2">
+              <PhoneCall className="h-4 w-4" />
+              {t.customers.details?.sipCall || "SIP Call"}
+            </h4>
+            {customer.phone ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t.customers.details?.sipCallDescription || "Use SIP phone to call the customer directly. The call will be logged automatically."}
+                </p>
+                <CallCustomerButton 
+                  phoneNumber={customer.phone}
+                  customerId={customer.id}
+                  customerName={`${customer.firstName} ${customer.lastName}`}
+                />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{t.customers.details?.noPhone || "No phone number on file for this customer."}</p>
@@ -1388,7 +1422,15 @@ export default function CustomersPage() {
       header: "",
       className: "text-right",
       cell: (customer: Customer) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {customer.phone && (
+            <CallCustomerButton 
+              phoneNumber={customer.phone}
+              customerId={customer.id}
+              customerName={`${customer.firstName} ${customer.lastName}`}
+              variant="icon"
+            />
+          )}
           {customer.clientStatus === "potential" && (
             <Button
               variant="ghost"

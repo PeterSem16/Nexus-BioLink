@@ -1975,44 +1975,47 @@ function PermissionsRolesTab() {
   }
 
   return (
-    <div className="flex gap-6">
-      <div className="w-1/3 space-y-4">
-        <div className="border rounded-md">
-          <div
-            className="p-3 flex items-center justify-between gap-2 cursor-pointer hover-elevate"
-            onClick={() => setShowDepartments(!showDepartments)}
-            data-testid="toggle-departments-section"
-          >
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <h3 className="text-md font-medium">{t.konfigurator.departmentsManagement}</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">{dbDepartments.length}</Badge>
-              {showDepartments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </div>
+    <div className="space-y-6">
+      {/* Department Management - Full Width */}
+      <div className="border rounded-md">
+        <div
+          className="p-3 flex items-center justify-between gap-2 cursor-pointer hover-elevate"
+          onClick={() => setShowDepartments(!showDepartments)}
+          data-testid="toggle-departments-section"
+        >
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <h3 className="text-md font-medium">{t.konfigurator.departmentsManagement}</h3>
           </div>
-
-          {showDepartments && (
-            <div className="border-t p-3">
-              <DepartmentTree
-                departments={dbDepartments}
-                onEdit={handleEditDeptClick}
-                onDelete={setDeleteDept}
-                onAdd={handleAddDeptWithParent}
-                onMove={(deptId, newParentId) => moveDeptMutation.mutate({ deptId, newParentId })}
-                translations={{
-                  addDepartment: t.konfigurator.addDepartment,
-                  addSubDepartment: t.konfigurator.addSubDepartment || "Add sub-department",
-                  noDepartments: t.konfigurator.noDepartments,
-                  contactPerson: t.konfigurator.contactPerson || "Contact Person",
-                }}
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">{dbDepartments.length}</Badge>
+            {showDepartments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        {showDepartments && (
+          <div className="border-t p-3">
+            <DepartmentTree
+              departments={dbDepartments}
+              onEdit={handleEditDeptClick}
+              onDelete={setDeleteDept}
+              onAdd={handleAddDeptWithParent}
+              onMove={(deptId, newParentId) => moveDeptMutation.mutate({ deptId, newParentId })}
+              translations={{
+                addDepartment: t.konfigurator.addDepartment,
+                addSubDepartment: t.konfigurator.addSubDepartment || "Add sub-department",
+                noDepartments: t.konfigurator.noDepartments,
+                contactPerson: t.konfigurator.contactPerson || "Contact Person",
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Roles & Permissions - Two Column Layout */}
+      <div className="flex gap-6">
+        <div className="w-1/3 space-y-4">
+          <div className="flex items-center justify-between gap-2">
           <h3 className="text-lg font-medium">{t.konfigurator.roles}</h3>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} data-testid="button-seed-roles">
@@ -2238,6 +2241,7 @@ function PermissionsRolesTab() {
             <p>{t.konfigurator.noRoles}</p>
           </div>
         )}
+      </div>
       </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

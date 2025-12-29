@@ -27,7 +27,8 @@ import {
 import { COUNTRIES, WORLD_COUNTRIES } from "@shared/schema";
 import { CLIENT_STATUSES } from "@shared/schema";
 import type { Customer, ComplaintType, CooperationType, VipStatus, HealthInsurance } from "@shared/schema";
-import { CalendarIcon, Copy } from "lucide-react";
+import { CalendarIcon, Copy, PhoneCall } from "lucide-react";
+import { CallCustomerButton } from "@/components/sip-phone";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -457,14 +458,24 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t.customers.phone}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          data-testid="input-phone"
-                          disabled={isReadonly("phone")}
-                          className={isReadonly("phone") ? "bg-muted" : ""}
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            data-testid="input-phone"
+                            disabled={isReadonly("phone")}
+                            className={isReadonly("phone") ? "bg-muted" : ""}
+                          />
+                        </FormControl>
+                        {initialData?.id && field.value && (
+                          <CallCustomerButton 
+                            phoneNumber={field.value}
+                            customerId={initialData.id}
+                            customerName={`${initialData.firstName} ${initialData.lastName}`}
+                            variant="icon"
+                          />
+                        )}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -477,14 +488,24 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t.customers.fields.mobile}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          data-testid="input-mobile"
-                          disabled={isReadonly("mobile")}
-                          className={isReadonly("mobile") ? "bg-muted" : ""}
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            data-testid="input-mobile"
+                            disabled={isReadonly("mobile")}
+                            className={isReadonly("mobile") ? "bg-muted" : ""}
+                          />
+                        </FormControl>
+                        {initialData?.id && field.value && (
+                          <CallCustomerButton 
+                            phoneNumber={field.value}
+                            customerId={initialData.id}
+                            customerName={`${initialData.firstName} ${initialData.lastName}`}
+                            variant="icon"
+                          />
+                        )}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -497,14 +518,24 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t.customers.fields.mobile2}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          data-testid="input-mobile2"
-                          disabled={isReadonly("mobile_2")}
-                          className={isReadonly("mobile_2") ? "bg-muted" : ""}
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            data-testid="input-mobile2"
+                            disabled={isReadonly("mobile_2")}
+                            className={isReadonly("mobile_2") ? "bg-muted" : ""}
+                          />
+                        </FormControl>
+                        {initialData?.id && field.value && (
+                          <CallCustomerButton 
+                            phoneNumber={field.value}
+                            customerId={initialData.id}
+                            customerName={`${initialData.firstName} ${initialData.lastName}`}
+                            variant="icon"
+                          />
+                        )}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

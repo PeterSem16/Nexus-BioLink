@@ -1247,8 +1247,8 @@ function LeadScoringCriteriaManager({ countries }: { countries: readonly { code:
 }
 
 interface SipSettingsFormData {
-  serverAddress: string;
-  serverPort: number;
+  server: string;
+  port: number;
   wsPath: string;
   realm: string;
   transport: string;
@@ -1256,8 +1256,8 @@ interface SipSettingsFormData {
 }
 
 const defaultSipSettings: SipSettingsFormData = {
-  serverAddress: "",
-  serverPort: 5060,
+  server: "",
+  port: 5060,
   wsPath: "/ws",
   realm: "",
   transport: "wss",
@@ -1278,8 +1278,8 @@ function SipSettingsTab() {
   useEffect(() => {
     if (sipSettings) {
       setFormData({
-        serverAddress: sipSettings.serverAddress || "",
-        serverPort: sipSettings.serverPort || 5060,
+        server: sipSettings.server || "",
+        port: sipSettings.port || 5060,
         wsPath: sipSettings.wsPath || "/ws",
         realm: sipSettings.realm || "",
         transport: sipSettings.transport || "wss",
@@ -1289,7 +1289,7 @@ function SipSettingsTab() {
   }, [sipSettings]);
 
   const handleSave = async () => {
-    if (!formData.serverAddress.trim()) {
+    if (!formData.server.trim()) {
       toast({ title: "Adresa servera je povinná", variant: "destructive" });
       return;
     }
@@ -1356,8 +1356,8 @@ function SipSettingsTab() {
               <Input
                 id="server-address"
                 placeholder="pbx.example.com"
-                value={formData.serverAddress}
-                onChange={(e) => setFormData({ ...formData, serverAddress: e.target.value })}
+                value={formData.server}
+                onChange={(e) => setFormData({ ...formData, server: e.target.value })}
                 disabled={!isAdmin}
                 data-testid="input-sip-server-address"
               />
@@ -1372,8 +1372,8 @@ function SipSettingsTab() {
                 id="server-port"
                 type="number"
                 placeholder="5060"
-                value={formData.serverPort}
-                onChange={(e) => setFormData({ ...formData, serverPort: parseInt(e.target.value) || 5060 })}
+                value={formData.port}
+                onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 5060 })}
                 disabled={!isAdmin}
                 data-testid="input-sip-server-port"
               />

@@ -4440,6 +4440,25 @@ function BillingCompanyDialog({
                 />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>{t.customers.country}</Label>
+              <Select 
+                value={formData.residencyCountry || ""} 
+                onValueChange={(value) => updateField("residencyCountry", value)}
+              >
+                <SelectTrigger data-testid="select-billing-residency-country">
+                  <SelectValue placeholder={t.common.select} />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4 mt-4">

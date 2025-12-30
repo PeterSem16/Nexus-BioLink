@@ -362,6 +362,7 @@ export const billingDetails = pgTable("billing_details", {
   // Residency Address tab
   residencyName: text("residency_name"), // Name
   residencyStreet: text("residency_street"), // Street + house number
+  residencyCity: text("residency_city"), // City
   residencyPostalCode: text("residency_postal_code"), // PSČ
   residencyArea: text("residency_area"), // Area/Region
   

@@ -942,6 +942,7 @@ export interface Translations {
     residencyAddress: string;
     residencyName: string;
     residencyStreet: string;
+    residencyCity: string;
     residencyArea: string;
     nextStep: string;
     previousStep: string;
@@ -2113,6 +2114,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Residency Address',
       residencyName: 'Name',
       residencyStreet: 'Street and House Number',
+      residencyCity: 'City',
       residencyArea: 'Area',
       nextStep: 'Next',
       previousStep: 'Back',
@@ -3282,6 +3284,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Adresa trvalého pobytu',
       residencyName: 'Meno',
       residencyStreet: 'Ulica a číslo domu',
+      residencyCity: 'Mesto',
       residencyArea: 'Oblasť',
       nextStep: 'Ďalej',
       previousStep: 'Späť',
@@ -4451,6 +4454,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Adresa trvalého bydliště',
       residencyName: 'Jméno',
       residencyStreet: 'Ulice a číslo domu',
+      residencyCity: 'Město',
       residencyArea: 'Oblast',
       nextStep: 'Další',
       previousStep: 'Zpět',
@@ -5583,6 +5587,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Lakcím',
       residencyName: 'Név',
       residencyStreet: 'Utca és házszám',
+      residencyCity: 'Város',
       residencyArea: 'Terület',
       nextStep: 'Következő',
       previousStep: 'Vissza',
@@ -6715,6 +6720,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Adresă de domiciliu',
       residencyName: 'Nume',
       residencyStreet: 'Strada și numărul',
+      residencyCity: 'Oraș',
       residencyArea: 'Zonă',
       nextStep: 'Următorul',
       previousStep: 'Înapoi',
@@ -7847,6 +7853,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Indirizzo di residenza',
       residencyName: 'Nome',
       residencyStreet: 'Via e numero civico',
+      residencyCity: 'Città',
       residencyArea: 'Area',
       nextStep: 'Avanti',
       previousStep: 'Indietro',
@@ -8979,6 +8986,7 @@ export const translations: Record<Locale, Translations> = {
       residencyAddress: 'Wohnsitzadresse',
       residencyName: 'Name',
       residencyStreet: 'Straße und Hausnummer',
+      residencyCity: 'Stadt',
       residencyArea: 'Gebiet',
       nextStep: 'Weiter',
       previousStep: 'Zurück',

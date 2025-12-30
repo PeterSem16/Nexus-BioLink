@@ -4114,6 +4114,7 @@ function BillingCompanyDialog({
         postalCountry: billingCompany.postalCountry || "",
         residencyName: billingCompany.residencyName || "",
         residencyStreet: billingCompany.residencyStreet || "",
+        residencyCity: billingCompany.residencyCity || "",
         residencyPostalCode: billingCompany.residencyPostalCode || "",
         residencyArea: billingCompany.residencyArea || "",
         fullName: billingCompany.fullName || "",
@@ -4158,6 +4159,7 @@ function BillingCompanyDialog({
         postalCountry: "",
         residencyName: "",
         residencyStreet: "",
+        residencyCity: "",
         residencyPostalCode: "",
         residencyArea: "",
         fullName: "",
@@ -4364,6 +4366,15 @@ function BillingCompanyDialog({
                 value={formData.residencyStreet || ""} 
                 onChange={(e) => updateField("residencyStreet", e.target.value)} 
                 data-testid="input-billing-residency-street" 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.konfigurator.residencyCity || "City"}</Label>
+              <Input 
+                value={formData.residencyCity || ""} 
+                onChange={(e) => updateField("residencyCity", e.target.value)} 
+                data-testid="input-billing-residency-city" 
               />
             </div>
 

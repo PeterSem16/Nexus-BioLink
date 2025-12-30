@@ -855,7 +855,8 @@ export async function registerRoutes(
 
   app.patch("/api/billing-details/:id", requireAuth, async (req, res) => {
     try {
-      const details = await storage.updateBillingDetails(req.params.id, req.body);
+      const userId = req.user?.id;
+      const details = await storage.updateBillingDetails(req.params.id, req.body, userId);
       res.json(details);
     } catch (error) {
       console.error("Error updating billing company:", error);
@@ -873,6 +874,121 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting billing company:", error);
       res.status(500).json({ error: "Failed to delete billing company" });
+    }
+  });
+
+  // Billing Company Accounts
+  app.get("/api/billing-details/:id/accounts", requireAuth, async (req, res) => {
+    try {
+      const accounts = await storage.getBillingCompanyAccounts(req.params.id);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching billing company accounts:", error);
+      res.status(500).json({ error: "Failed to fetch accounts" });
+    }
+  });
+
+  app.post("/api/billing-details/:id/accounts", requireAuth, async (req, res) => {
+    try {
+      const account = await storage.createBillingCompanyAccount({
+        ...req.body,
+        billingDetailsId: req.params.id,
+      });
+      res.status(201).json(account);
+    } catch (error) {
+      console.error("Error creating billing company account:", error);
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  app.patch("/api/billing-company-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const account = await storage.updateBillingCompanyAccount(req.params.id, req.body);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      console.error("Error updating billing company account:", error);
+      res.status(500).json({ error: "Failed to update account" });
+    }
+  });
+
+  app.delete("/api/billing-company-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteBillingCompanyAccount(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting billing company account:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
+  app.post("/api/billing-details/:id/accounts/:accountId/default", requireAuth, async (req, res) => {
+    try {
+      await storage.setDefaultBillingCompanyAccount(req.params.id, req.params.accountId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting default account:", error);
+      res.status(500).json({ error: "Failed to set default account" });
+    }
+  });
+
+  // Billing Company Audit Log
+  app.get("/api/billing-details/:id/audit-log", requireAuth, async (req, res) => {
+    try {
+      const logs = await storage.getBillingCompanyAuditLog(req.params.id);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit log:", error);
+      res.status(500).json({ error: "Failed to fetch audit log" });
+    }
+  });
+
+  // Billing Company Laboratories
+  app.get("/api/billing-details/:id/laboratories", requireAuth, async (req, res) => {
+    try {
+      const labs = await storage.getBillingCompanyLaboratories(req.params.id);
+      res.json(labs);
+    } catch (error) {
+      console.error("Error fetching laboratories:", error);
+      res.status(500).json({ error: "Failed to fetch laboratories" });
+    }
+  });
+
+  app.put("/api/billing-details/:id/laboratories", requireAuth, async (req, res) => {
+    try {
+      const { laboratoryIds } = req.body as { laboratoryIds: string[] };
+      await storage.setBillingCompanyLaboratories(req.params.id, laboratoryIds || []);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting laboratories:", error);
+      res.status(500).json({ error: "Failed to set laboratories" });
+    }
+  });
+
+  // Billing Company Collaborators
+  app.get("/api/billing-details/:id/collaborators", requireAuth, async (req, res) => {
+    try {
+      const collabs = await storage.getBillingCompanyCollaborators(req.params.id);
+      res.json(collabs);
+    } catch (error) {
+      console.error("Error fetching collaborators:", error);
+      res.status(500).json({ error: "Failed to fetch collaborators" });
+    }
+  });
+
+  app.put("/api/billing-details/:id/collaborators", requireAuth, async (req, res) => {
+    try {
+      const { collaboratorIds } = req.body as { collaboratorIds: string[] };
+      await storage.setBillingCompanyCollaborators(req.params.id, collaboratorIds || []);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting collaborators:", error);
+      res.status(500).json({ error: "Failed to set collaborators" });
     }
   });
 

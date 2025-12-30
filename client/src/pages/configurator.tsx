@@ -1935,12 +1935,12 @@ function NumberRangesTab() {
     { 
       key: "name",
       header: t.konfigurator.numberRangeName,
-      render: (range: NumberRange) => range.name,
+      cell: (range: NumberRange) => range.name,
     },
     { 
       key: "countryCode",
       header: t.common.country,
-      render: (range: NumberRange) => {
+      cell: (range: NumberRange) => {
         const country = COUNTRIES.find(c => c.code === range.countryCode);
         return country ? country.name : range.countryCode;
       },
@@ -1948,12 +1948,12 @@ function NumberRangesTab() {
     { 
       key: "year",
       header: t.konfigurator.numberRangeYear,
-      render: (range: NumberRange) => range.year,
+      cell: (range: NumberRange) => range.year,
     },
     { 
       key: "type",
       header: t.konfigurator.numberRangeType,
-      render: (range: NumberRange) => (
+      cell: (range: NumberRange) => (
         <Badge variant={range.type === "invoice" ? "default" : "secondary"}>
           {range.type === "invoice" ? t.konfigurator.invoice : t.konfigurator.proformaInvoice}
         </Badge>
@@ -1962,17 +1962,17 @@ function NumberRangesTab() {
     { 
       key: "format",
       header: t.konfigurator.prefix + " / " + t.konfigurator.suffix,
-      render: (range: NumberRange) => `${range.prefix || "-"} / ${range.suffix || "-"}`,
+      cell: (range: NumberRange) => `${range.prefix || "-"} / ${range.suffix || "-"}`,
     },
     { 
       key: "lastNumberUsed",
       header: t.konfigurator.lastNumberUsed,
-      render: (range: NumberRange) => range.lastNumberUsed || 0,
+      cell: (range: NumberRange) => range.lastNumberUsed || 0,
     },
     { 
       key: "isActive",
       header: t.common.status,
-      render: (range: NumberRange) => (
+      cell: (range: NumberRange) => (
         <Badge variant={range.isActive ? "default" : "secondary"}>
           {range.isActive ? t.common.active : t.common.inactive}
         </Badge>
@@ -1981,7 +1981,7 @@ function NumberRangesTab() {
     {
       key: "actions",
       header: t.common.actions,
-      render: (range: NumberRange) => (
+      cell: (range: NumberRange) => (
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"

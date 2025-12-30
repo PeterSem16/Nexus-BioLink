@@ -5,7 +5,7 @@ import {
   laboratories, hospitals,
   collaborators, collaboratorAddresses, collaboratorOtherData, collaboratorAgreements,
   customerPotentialCases, leadScoringCriteria,
-  serviceConfigurations, invoiceTemplates, invoiceLayouts,
+  serviceConfigurations, serviceInstances, invoiceTemplates, invoiceLayouts,
   roles, roleModulePermissions, roleFieldPermissions, userRoles, departments,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
@@ -30,6 +30,7 @@ import {
   type CustomerPotentialCase, type InsertCustomerPotentialCase,
   type LeadScoringCriteria, type InsertLeadScoringCriteria,
   type ServiceConfiguration, type InsertServiceConfiguration,
+  type ServiceInstance, type InsertServiceInstance,
   type InvoiceTemplate, type InsertInvoiceTemplate,
   type InvoiceLayout, type InsertInvoiceLayout,
   type Role, type InsertRole,
@@ -222,6 +223,13 @@ export interface IStorage {
   createServiceConfiguration(data: InsertServiceConfiguration): Promise<ServiceConfiguration>;
   updateServiceConfiguration(id: string, data: Partial<InsertServiceConfiguration>): Promise<ServiceConfiguration | undefined>;
   deleteServiceConfiguration(id: string): Promise<boolean>;
+
+  // Service Instances
+  getServiceInstances(serviceId: string): Promise<ServiceInstance[]>;
+  getAllServiceInstances(): Promise<ServiceInstance[]>;
+  createServiceInstance(data: InsertServiceInstance): Promise<ServiceInstance>;
+  updateServiceInstance(id: string, data: Partial<InsertServiceInstance>): Promise<ServiceInstance | undefined>;
+  deleteServiceInstance(id: string): Promise<boolean>;
 
   // Invoice Templates
   getAllInvoiceTemplates(): Promise<InvoiceTemplate[]>;
@@ -1102,6 +1110,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteServiceConfiguration(id: string): Promise<boolean> {
     const result = await db.delete(serviceConfigurations).where(eq(serviceConfigurations.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Service Instances
+  async getServiceInstances(serviceId: string): Promise<ServiceInstance[]> {
+    return db.select().from(serviceInstances)
+      .where(eq(serviceInstances.serviceId, serviceId))
+      .orderBy(serviceInstances.name);
+  }
+
+  async getAllServiceInstances(): Promise<ServiceInstance[]> {
+    return db.select().from(serviceInstances).orderBy(serviceInstances.name);
+  }
+
+  async createServiceInstance(data: InsertServiceInstance): Promise<ServiceInstance> {
+    const [created] = await db.insert(serviceInstances).values(data).returning();
+    return created;
+  }
+
+  async updateServiceInstance(id: string, data: Partial<InsertServiceInstance>): Promise<ServiceInstance | undefined> {
+    const [updated] = await db.update(serviceInstances)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(serviceInstances.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteServiceInstance(id: string): Promise<boolean> {
+    const result = await db.delete(serviceInstances).where(eq(serviceInstances.id, id)).returning();
     return result.length > 0;
   }
 

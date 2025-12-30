@@ -7460,12 +7460,8 @@ export default function ConfiguratorPage() {
         description={t.konfigurator.description}
       />
       
-      <Tabs defaultValue="services" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 max-w-5xl">
-          <TabsTrigger value="services" className="flex items-center gap-2" data-testid="tab-services">
-            <Settings className="h-4 w-4" />
-            {t.konfigurator.services}
-          </TabsTrigger>
+      <Tabs defaultValue="products" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6 max-w-5xl">
           <TabsTrigger value="products" className="flex items-center gap-2" data-testid="tab-products">
             <Package className="h-4 w-4" />
             {t.products.title}
@@ -7491,18 +7487,6 @@ export default function ConfiguratorPage() {
             {t.konfigurator.permissionsRoles}
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="services">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.konfigurator.services}</CardTitle>
-              <CardDescription>{t.konfigurator.servicesDescription}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ServiceConfigurationTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="products">
           <Card>

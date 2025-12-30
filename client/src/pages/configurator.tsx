@@ -692,11 +692,13 @@ function ProductWizard({
 function ProductDetailDialog({ 
   product, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onProductUpdated 
 }: { 
   product: Product | null; 
   open: boolean; 
   onOpenChange: (open: boolean) => void;
+  onProductUpdated?: () => void;
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -710,6 +712,32 @@ function ProductDetailDialog({
   const [isAddingPrice, setIsAddingPrice] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [isAddingDiscount, setIsAddingDiscount] = useState(false);
+  
+  const [productData, setProductData] = useState<any>({
+    name: "", description: "", countries: [] as string[], isActive: true
+  });
+  
+  useEffect(() => {
+    if (product) {
+      setProductData({
+        name: product.name || "",
+        description: product.description || "",
+        countries: product.countries || [],
+        isActive: product.isActive ?? true,
+      });
+    }
+  }, [product]);
+  
+  const updateProductMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("PATCH", `/api/products/${product?.id}`, data),
+    onSuccess: () => {
+      toast({ title: t.success.updated });
+      onProductUpdated?.();
+    },
+    onError: () => {
+      toast({ title: t.errors.updateFailed, variant: "destructive" });
+    },
+  });
 
   const { data: instances = [], refetch: refetchInstances } = useQuery<MarketProductInstance[]>({
     queryKey: ["/api/products", product?.id, "instances"],
@@ -962,34 +990,72 @@ function ProductDetailDialog({
           </TabsList>
 
           <TabsContent value="detail" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-muted-foreground text-sm">{t.products.productName}</Label>
-                <p className="font-medium">{product.name}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-sm">{t.common.status}</Label>
-                <Badge variant={product.isActive ? "default" : "secondary"}>
-                  {product.isActive ? t.common.active : t.common.inactive}
-                </Badge>
-              </div>
-              <div className="col-span-2">
-                <Label className="text-muted-foreground text-sm">{t.products.description}</Label>
-                <p>{product.description || t.common.noData}</p>
-              </div>
-              <div className="col-span-2">
-                <Label className="text-muted-foreground text-sm">{t.products.availableInCountries}</Label>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {product.countries && product.countries.length > 0 ? (
-                    product.countries.map(code => (
-                      <Badge key={code} variant="secondary">{code}</Badge>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground">{t.common.allCountries}</span>
-                  )}
+            <Card className="p-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label>{t.products.productName}</Label>
+                    <Input 
+                      value={productData.name} 
+                      onChange={(e) => setProductData({...productData, name: e.target.value})}
+                      data-testid="input-edit-product-name"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>{t.products.description}</Label>
+                    <Textarea 
+                      value={productData.description} 
+                      onChange={(e) => setProductData({...productData, description: e.target.value})}
+                      className="min-h-[80px]"
+                      data-testid="input-edit-product-description"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label className="mb-2 block">{t.products.availableInCountries}</Label>
+                  <div className="grid grid-cols-4 gap-2 rounded-lg border p-3">
+                    {COUNTRIES.map((country) => (
+                      <div key={country.code} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`edit-country-${country.code}`}
+                          checked={productData.countries?.includes(country.code)}
+                          onCheckedChange={(checked) => {
+                            const newCountries = checked
+                              ? [...(productData.countries || []), country.code]
+                              : (productData.countries || []).filter((c: string) => c !== country.code);
+                            setProductData({...productData, countries: newCountries});
+                          }}
+                        />
+                        <Label htmlFor={`edit-country-${country.code}`} className="text-sm cursor-pointer">{country.name}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <Label className="text-base">{t.common.active}</Label>
+                    <p className="text-sm text-muted-foreground">Produkt bude dostupný pre zákazníkov</p>
+                  </div>
+                  <Switch 
+                    checked={productData.isActive} 
+                    onCheckedChange={(v) => setProductData({...productData, isActive: v})}
+                  />
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={() => updateProductMutation.mutate(productData)}
+                    disabled={updateProductMutation.isPending}
+                    data-testid="button-save-product"
+                  >
+                    {updateProductMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {t.common.save}
+                  </Button>
                 </div>
               </div>
-            </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="instances" className="space-y-4 mt-4">
@@ -1172,49 +1238,64 @@ function ProductDetailDialog({
                         <Button size="sm" onClick={() => setIsAddingPrice(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
                       </div>
                       {isAddingPrice && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={newPriceData.name} onChange={(e) => setNewPriceData({...newPriceData, name: e.target.value})} />
+                        <Card className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov ceny</Label>
+                                <Input value={newPriceData.name} onChange={(e) => setNewPriceData({...newPriceData, name: e.target.value})} placeholder="Napr. Základná cena" />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={newPriceData.isActive} onCheckedChange={(v) => setNewPriceData({...newPriceData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Suma a účtovníctvo</p>
+                            <div className="grid grid-cols-4 gap-3">
+                              <div>
+                                <Label>Cena</Label>
+                                <Input type="number" step="0.01" value={newPriceData.price} onChange={(e) => setNewPriceData({...newPriceData, price: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Mena</Label>
+                                <Select value={newPriceData.currency} onValueChange={(v) => setNewPriceData({...newPriceData, currency: v})}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={newPriceData.accountingCode} onChange={(e) => setNewPriceData({...newPriceData, accountingCode: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={newPriceData.analyticalAccount} onChange={(e) => setNewPriceData({...newPriceData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={newPriceData.fromDate} onChange={(e) => setNewPriceData({...newPriceData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={newPriceData.toDate} onChange={(e) => setNewPriceData({...newPriceData, toDate: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Label>Popis</Label>
+                              <Textarea value={newPriceData.description} onChange={(e) => setNewPriceData({...newPriceData, description: e.target.value})} className="min-h-[60px]" />
+                            </div>
                           </div>
-                          <div>
-                            <Label>Cena</Label>
-                            <Input type="number" step="0.01" value={newPriceData.price} onChange={(e) => setNewPriceData({...newPriceData, price: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Mena</Label>
-                            <Select value={newPriceData.currency} onValueChange={(v) => setNewPriceData({...newPriceData, currency: v})}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Účtovný kód</Label>
-                            <Input value={newPriceData.accountingCode} onChange={(e) => setNewPriceData({...newPriceData, accountingCode: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={newPriceData.analyticalAccount} onChange={(e) => setNewPriceData({...newPriceData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={newPriceData.fromDate} onChange={(e) => setNewPriceData({...newPriceData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={newPriceData.toDate} onChange={(e) => setNewPriceData({...newPriceData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={newPriceData.isActive} onCheckedChange={(v) => setNewPriceData({...newPriceData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-4">
-                            <Label>Popis</Label>
-                            <Textarea value={newPriceData.description} onChange={(e) => setNewPriceData({...newPriceData, description: e.target.value})} className="min-h-[60px]" />
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => setIsAddingPrice(false)}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => createPriceMutation.mutate({ 
                               ...newPriceData, 
@@ -1224,7 +1305,7 @@ function ProductDetailDialog({
                               toDate: newPriceData.toDate ? new Date(newPriceData.toDate).toISOString() : null,
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                       {instancePrices.map(price => (
                         <div key={price.id} className="flex items-center justify-between p-2 border rounded-md">
@@ -1254,49 +1335,64 @@ function ProductDetailDialog({
                         </div>
                       ))}
                       {editingPriceId && editingPriceData && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border-2 border-primary rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={editingPriceData.name} onChange={(e) => setEditingPriceData({...editingPriceData, name: e.target.value})} />
+                        <Card className="p-4 border-primary">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov ceny</Label>
+                                <Input value={editingPriceData.name} onChange={(e) => setEditingPriceData({...editingPriceData, name: e.target.value})} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={editingPriceData.isActive} onCheckedChange={(v) => setEditingPriceData({...editingPriceData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Suma a účtovníctvo</p>
+                            <div className="grid grid-cols-4 gap-3">
+                              <div>
+                                <Label>Cena</Label>
+                                <Input type="number" step="0.01" value={editingPriceData.price} onChange={(e) => setEditingPriceData({...editingPriceData, price: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Mena</Label>
+                                <Select value={editingPriceData.currency} onValueChange={(v) => setEditingPriceData({...editingPriceData, currency: v})}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={editingPriceData.accountingCode || ""} onChange={(e) => setEditingPriceData({...editingPriceData, accountingCode: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={editingPriceData.analyticalAccount || ""} onChange={(e) => setEditingPriceData({...editingPriceData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={editingPriceData.fromDate || ""} onChange={(e) => setEditingPriceData({...editingPriceData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={editingPriceData.toDate || ""} onChange={(e) => setEditingPriceData({...editingPriceData, toDate: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Label>Popis</Label>
+                              <Textarea value={editingPriceData.description || ""} onChange={(e) => setEditingPriceData({...editingPriceData, description: e.target.value})} className="min-h-[60px]" />
+                            </div>
                           </div>
-                          <div>
-                            <Label>Cena</Label>
-                            <Input type="number" step="0.01" value={editingPriceData.price} onChange={(e) => setEditingPriceData({...editingPriceData, price: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Mena</Label>
-                            <Select value={editingPriceData.currency} onValueChange={(v) => setEditingPriceData({...editingPriceData, currency: v})}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Účtovný kód</Label>
-                            <Input value={editingPriceData.accountingCode || ""} onChange={(e) => setEditingPriceData({...editingPriceData, accountingCode: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={editingPriceData.analyticalAccount || ""} onChange={(e) => setEditingPriceData({...editingPriceData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={editingPriceData.fromDate || ""} onChange={(e) => setEditingPriceData({...editingPriceData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={editingPriceData.toDate || ""} onChange={(e) => setEditingPriceData({...editingPriceData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={editingPriceData.isActive} onCheckedChange={(v) => setEditingPriceData({...editingPriceData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-4">
-                            <Label>Popis</Label>
-                            <Textarea value={editingPriceData.description || ""} onChange={(e) => setEditingPriceData({...editingPriceData, description: e.target.value})} className="min-h-[60px]" />
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingPriceId(null); setEditingPriceData(null); }}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => updatePriceMutation.mutate({ 
                               id: editingPriceId, 
@@ -1307,7 +1403,7 @@ function ProductDetailDialog({
                               }
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                     </TabsContent>
 
@@ -1316,48 +1412,63 @@ function ProductDetailDialog({
                         <Button size="sm" onClick={() => setIsAddingPayment(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
                       </div>
                       {isAddingPayment && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={newPaymentData.name} onChange={(e) => setNewPaymentData({...newPaymentData, name: e.target.value})} />
+                        <Card className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov platobnej možnosti</Label>
+                                <Input value={newPaymentData.name} onChange={(e) => setNewPaymentData({...newPaymentData, name: e.target.value})} placeholder="Napr. Jednorazová platba" />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={newPaymentData.isActive} onCheckedChange={(v) => setNewPaymentData({...newPaymentData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Fakturácia a účtovníctvo</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label>Typ platby</Label>
+                                <Input value={newPaymentData.type} onChange={(e) => setNewPaymentData({...newPaymentData, type: e.target.value})} placeholder="Napr. single, installment" />
+                              </div>
+                              <div>
+                                <Label>Text na faktúre</Label>
+                                <Input value={newPaymentData.invoiceItemText} onChange={(e) => setNewPaymentData({...newPaymentData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Poplatok za typ platby</Label>
+                                <Input type="number" step="0.01" value={newPaymentData.paymentTypeFee} onChange={(e) => setNewPaymentData({...newPaymentData, paymentTypeFee: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={newPaymentData.accountingCode} onChange={(e) => setNewPaymentData({...newPaymentData, accountingCode: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={newPaymentData.analyticalAccount} onChange={(e) => setNewPaymentData({...newPaymentData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={newPaymentData.fromDate} onChange={(e) => setNewPaymentData({...newPaymentData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={newPaymentData.toDate} onChange={(e) => setNewPaymentData({...newPaymentData, toDate: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Label>Popis</Label>
+                              <Textarea value={newPaymentData.description} onChange={(e) => setNewPaymentData({...newPaymentData, description: e.target.value})} className="min-h-[60px]" />
+                            </div>
                           </div>
-                          <div>
-                            <Label>Typ</Label>
-                            <Input value={newPaymentData.type} onChange={(e) => setNewPaymentData({...newPaymentData, type: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Text na faktúre</Label>
-                            <Input value={newPaymentData.invoiceItemText} onChange={(e) => setNewPaymentData({...newPaymentData, invoiceItemText: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={newPaymentData.analyticalAccount} onChange={(e) => setNewPaymentData({...newPaymentData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Účtovný kód</Label>
-                            <Input value={newPaymentData.accountingCode} onChange={(e) => setNewPaymentData({...newPaymentData, accountingCode: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Poplatok</Label>
-                            <Input type="number" step="0.01" value={newPaymentData.paymentTypeFee} onChange={(e) => setNewPaymentData({...newPaymentData, paymentTypeFee: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={newPaymentData.fromDate} onChange={(e) => setNewPaymentData({...newPaymentData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={newPaymentData.toDate} onChange={(e) => setNewPaymentData({...newPaymentData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={newPaymentData.isActive} onCheckedChange={(v) => setNewPaymentData({...newPaymentData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-3">
-                            <Label>Popis</Label>
-                            <Textarea value={newPaymentData.description} onChange={(e) => setNewPaymentData({...newPaymentData, description: e.target.value})} className="min-h-[60px]" />
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => setIsAddingPayment(false)}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => createPaymentMutation.mutate({ 
                               ...newPaymentData, 
@@ -1367,7 +1478,7 @@ function ProductDetailDialog({
                               toDate: newPaymentData.toDate ? new Date(newPaymentData.toDate).toISOString() : null,
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                       {instancePayments.map(payment => (
                         <div key={payment.id} className="flex items-center justify-between p-2 border rounded-md">
@@ -1396,48 +1507,63 @@ function ProductDetailDialog({
                         </div>
                       ))}
                       {editingPaymentId && editingPaymentData && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border-2 border-primary rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={editingPaymentData.name} onChange={(e) => setEditingPaymentData({...editingPaymentData, name: e.target.value})} />
+                        <Card className="p-4 border-primary">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov platobnej možnosti</Label>
+                                <Input value={editingPaymentData.name} onChange={(e) => setEditingPaymentData({...editingPaymentData, name: e.target.value})} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={editingPaymentData.isActive} onCheckedChange={(v) => setEditingPaymentData({...editingPaymentData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Fakturácia a účtovníctvo</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label>Typ platby</Label>
+                                <Input value={editingPaymentData.type || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, type: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Text na faktúre</Label>
+                                <Input value={editingPaymentData.invoiceItemText || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Poplatok za typ platby</Label>
+                                <Input type="number" step="0.01" value={editingPaymentData.paymentTypeFee || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, paymentTypeFee: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={editingPaymentData.accountingCode || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, accountingCode: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={editingPaymentData.analyticalAccount || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={editingPaymentData.fromDate || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={editingPaymentData.toDate || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, toDate: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Label>Popis</Label>
+                              <Textarea value={editingPaymentData.description || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, description: e.target.value})} className="min-h-[60px]" />
+                            </div>
                           </div>
-                          <div>
-                            <Label>Typ</Label>
-                            <Input value={editingPaymentData.type || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, type: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Text na faktúre</Label>
-                            <Input value={editingPaymentData.invoiceItemText || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, invoiceItemText: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={editingPaymentData.analyticalAccount || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Účtovný kód</Label>
-                            <Input value={editingPaymentData.accountingCode || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, accountingCode: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Poplatok</Label>
-                            <Input type="number" step="0.01" value={editingPaymentData.paymentTypeFee || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, paymentTypeFee: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={editingPaymentData.fromDate || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={editingPaymentData.toDate || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={editingPaymentData.isActive} onCheckedChange={(v) => setEditingPaymentData({...editingPaymentData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-3">
-                            <Label>Popis</Label>
-                            <Textarea value={editingPaymentData.description || ""} onChange={(e) => setEditingPaymentData({...editingPaymentData, description: e.target.value})} className="min-h-[60px]" />
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingPaymentId(null); setEditingPaymentData(null); }}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => updatePaymentMutation.mutate({ 
                               id: editingPaymentId, 
@@ -1448,7 +1574,7 @@ function ProductDetailDialog({
                               }
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                     </TabsContent>
 
@@ -1457,52 +1583,71 @@ function ProductDetailDialog({
                         <Button size="sm" onClick={() => setIsAddingDiscount(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
                       </div>
                       {isAddingDiscount && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={newDiscountData.name} onChange={(e) => setNewDiscountData({...newDiscountData, name: e.target.value})} />
+                        <Card className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov zľavy</Label>
+                                <Input value={newDiscountData.name} onChange={(e) => setNewDiscountData({...newDiscountData, name: e.target.value})} placeholder="Napr. Vernostná zľava" />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={newDiscountData.isActive} onCheckedChange={(v) => setNewDiscountData({...newDiscountData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Typ a hodnota zľavy</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label>Typ zľavy</Label>
+                                <Input value={newDiscountData.type} onChange={(e) => setNewDiscountData({...newDiscountData, type: e.target.value})} placeholder="Napr. loyalty, promo" />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={newDiscountData.isPercentage} onCheckedChange={(v) => setNewDiscountData({...newDiscountData, isPercentage: v, isFixed: !v})} />
+                                <Label>Percentuálna</Label>
+                              </div>
+                              <div>
+                                <Label>{newDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  value={newDiscountData.isPercentage ? newDiscountData.percentageValue : newDiscountData.fixedValue} 
+                                  onChange={(e) => setNewDiscountData({
+                                    ...newDiscountData, 
+                                    [newDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
+                                  })} 
+                                />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Text na faktúre</Label>
+                                <Input value={newDiscountData.invoiceItemText} onChange={(e) => setNewDiscountData({...newDiscountData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={newDiscountData.analyticalAccount} onChange={(e) => setNewDiscountData({...newDiscountData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={newDiscountData.fromDate} onChange={(e) => setNewDiscountData({...newDiscountData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={newDiscountData.toDate} onChange={(e) => setNewDiscountData({...newDiscountData, toDate: e.target.value})} />
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <Label>Typ</Label>
-                            <Input value={newDiscountData.type} onChange={(e) => setNewDiscountData({...newDiscountData, type: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Text na faktúre</Label>
-                            <Input value={newDiscountData.invoiceItemText} onChange={(e) => setNewDiscountData({...newDiscountData, invoiceItemText: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={newDiscountData.analyticalAccount} onChange={(e) => setNewDiscountData({...newDiscountData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={newDiscountData.isPercentage} onCheckedChange={(v) => setNewDiscountData({...newDiscountData, isPercentage: v, isFixed: !v})} />
-                            <Label>Percentuálna</Label>
-                          </div>
-                          <div>
-                            <Label>{newDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              value={newDiscountData.isPercentage ? newDiscountData.percentageValue : newDiscountData.fixedValue} 
-                              onChange={(e) => setNewDiscountData({
-                                ...newDiscountData, 
-                                [newDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
-                              })} 
-                            />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={newDiscountData.fromDate} onChange={(e) => setNewDiscountData({...newDiscountData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={newDiscountData.toDate} onChange={(e) => setNewDiscountData({...newDiscountData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={newDiscountData.isActive} onCheckedChange={(v) => setNewDiscountData({...newDiscountData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => setIsAddingDiscount(false)}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => createDiscountMutation.mutate({ 
                               ...newDiscountData, 
@@ -1512,7 +1657,7 @@ function ProductDetailDialog({
                               toDate: newDiscountData.toDate ? new Date(newDiscountData.toDate).toISOString() : null,
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                       {instanceDiscounts.map(discount => (
                         <div key={discount.id} className="flex items-center justify-between p-2 border rounded-md">
@@ -1542,52 +1687,71 @@ function ProductDetailDialog({
                         </div>
                       ))}
                       {editingDiscountId && editingDiscountData && (
-                        <div className="grid grid-cols-4 gap-2 p-3 border-2 border-primary rounded-md">
-                          <div>
-                            <Label>Názov</Label>
-                            <Input value={editingDiscountData.name} onChange={(e) => setEditingDiscountData({...editingDiscountData, name: e.target.value})} />
+                        <Card className="p-4 border-primary">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="col-span-2">
+                                <Label>Názov zľavy</Label>
+                                <Input value={editingDiscountData.name} onChange={(e) => setEditingDiscountData({...editingDiscountData, name: e.target.value})} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={editingDiscountData.isActive} onCheckedChange={(v) => setEditingDiscountData({...editingDiscountData, isActive: v})} />
+                                <Label>Aktívne</Label>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Typ a hodnota zľavy</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label>Typ zľavy</Label>
+                                <Input value={editingDiscountData.type || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, type: e.target.value})} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-6">
+                                <Switch checked={editingDiscountData.isPercentage} onCheckedChange={(v) => setEditingDiscountData({...editingDiscountData, isPercentage: v, isFixed: !v})} />
+                                <Label>Percentuálna</Label>
+                              </div>
+                              <div>
+                                <Label>{editingDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  value={editingDiscountData.isPercentage ? (editingDiscountData.percentageValue || "") : (editingDiscountData.fixedValue || "")} 
+                                  onChange={(e) => setEditingDiscountData({
+                                    ...editingDiscountData, 
+                                    [editingDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
+                                  })} 
+                                />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Text na faktúre</Label>
+                                <Input value={editingDiscountData.invoiceItemText || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Analytický účet</Label>
+                                <Input value={editingDiscountData.analyticalAccount || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, analyticalAccount: e.target.value})} />
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Platné od</Label>
+                                <Input type="date" value={editingDiscountData.fromDate || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, fromDate: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Platné do</Label>
+                                <Input type="date" value={editingDiscountData.toDate || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, toDate: e.target.value})} />
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <Label>Typ</Label>
-                            <Input value={editingDiscountData.type || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, type: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Text na faktúre</Label>
-                            <Input value={editingDiscountData.invoiceItemText || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, invoiceItemText: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Analytický účet</Label>
-                            <Input value={editingDiscountData.analyticalAccount || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, analyticalAccount: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={editingDiscountData.isPercentage} onCheckedChange={(v) => setEditingDiscountData({...editingDiscountData, isPercentage: v, isFixed: !v})} />
-                            <Label>Percentuálna</Label>
-                          </div>
-                          <div>
-                            <Label>{editingDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              value={editingDiscountData.isPercentage ? (editingDiscountData.percentageValue || "") : (editingDiscountData.fixedValue || "")} 
-                              onChange={(e) => setEditingDiscountData({
-                                ...editingDiscountData, 
-                                [editingDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
-                              })} 
-                            />
-                          </div>
-                          <div>
-                            <Label>Od</Label>
-                            <Input type="date" value={editingDiscountData.fromDate || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, fromDate: e.target.value})} />
-                          </div>
-                          <div>
-                            <Label>Do</Label>
-                            <Input type="date" value={editingDiscountData.toDate || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, toDate: e.target.value})} />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Switch checked={editingDiscountData.isActive} onCheckedChange={(v) => setEditingDiscountData({...editingDiscountData, isActive: v})} />
-                            <Label>Aktívne</Label>
-                          </div>
-                          <div className="col-span-4 flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingDiscountId(null); setEditingDiscountData(null); }}>{t.common.cancel}</Button>
                             <Button size="sm" onClick={() => updateDiscountMutation.mutate({ 
                               id: editingDiscountId, 
@@ -1598,7 +1762,7 @@ function ProductDetailDialog({
                               }
                             })}>{t.common.save}</Button>
                           </div>
-                        </div>
+                        </Card>
                       )}
                     </TabsContent>
                   </Tabs>
@@ -1623,45 +1787,60 @@ function ProductDetailDialog({
 
                 {isAddingService && (
                   <Card className="p-4">
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                          <Label>Názov služby</Label>
+                          <Input value={newServiceData.name} onChange={(e) => setNewServiceData({...newServiceData, name: e.target.value})} placeholder="Napr. Odobratie krvi" />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Switch checked={newServiceData.isActive} onCheckedChange={(v) => setNewServiceData({...newServiceData, isActive: v})} />
+                          <Label>{t.common.active}</Label>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="col-span-2">
+                          <Label>Identifikátor faktúry</Label>
+                          <Input value={newServiceData.invoiceIdentifier} onChange={(e) => setNewServiceData({...newServiceData, invoiceIdentifier: e.target.value})} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Checkbox checked={newServiceData.invoiceable} onCheckedChange={(v) => setNewServiceData({...newServiceData, invoiceable: !!v})} />
+                          <Label>Fakturovateľné</Label>
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Checkbox checked={newServiceData.collectable} onCheckedChange={(v) => setNewServiceData({...newServiceData, collectable: !!v})} />
+                          <Label>Zberné</Label>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={newServiceData.storable} onCheckedChange={(v) => setNewServiceData({...newServiceData, storable: !!v})} />
+                          <Label>Skladovateľné</Label>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Platné od</Label>
+                          <Input type="date" value={newServiceData.fromDate} onChange={(e) => setNewServiceData({...newServiceData, fromDate: e.target.value})} />
+                        </div>
+                        <div>
+                          <Label>Platné do</Label>
+                          <Input type="date" value={newServiceData.toDate} onChange={(e) => setNewServiceData({...newServiceData, toDate: e.target.value})} />
+                        </div>
+                      </div>
+                      
                       <div>
-                        <Label>{t.common.name}</Label>
-                        <Input value={newServiceData.name} onChange={(e) => setNewServiceData({...newServiceData, name: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Identifikátor faktúry</Label>
-                        <Input value={newServiceData.invoiceIdentifier} onChange={(e) => setNewServiceData({...newServiceData, invoiceIdentifier: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Od</Label>
-                        <Input type="date" value={newServiceData.fromDate} onChange={(e) => setNewServiceData({...newServiceData, fromDate: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Do</Label>
-                        <Input type="date" value={newServiceData.toDate} onChange={(e) => setNewServiceData({...newServiceData, toDate: e.target.value})} />
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={newServiceData.invoiceable} onCheckedChange={(v) => setNewServiceData({...newServiceData, invoiceable: v})} />
-                        <Label>Fakturovateľné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={newServiceData.collectable} onCheckedChange={(v) => setNewServiceData({...newServiceData, collectable: v})} />
-                        <Label>Zberné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={newServiceData.storable} onCheckedChange={(v) => setNewServiceData({...newServiceData, storable: v})} />
-                        <Label>Skladovateľné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={newServiceData.isActive} onCheckedChange={(v) => setNewServiceData({...newServiceData, isActive: v})} />
-                        <Label>{t.common.active}</Label>
-                      </div>
-                      <div className="col-span-4">
                         <Label>Popis</Label>
                         <Textarea value={newServiceData.description} onChange={(e) => setNewServiceData({...newServiceData, description: e.target.value})} className="min-h-[60px]" />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 mt-4">
+                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                       <Button variant="outline" size="sm" onClick={() => setIsAddingService(false)}>{t.common.cancel}</Button>
                       <Button size="sm" onClick={() => createServiceMutation.mutate({
                         ...newServiceData,
@@ -1718,46 +1897,60 @@ function ProductDetailDialog({
 
                 {editingServiceId && editingServiceData && (
                   <Card className="p-4 mt-4 border-primary">
-                    <h4 className="font-medium mb-4">Upraviť službu</h4>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                          <Label>Názov služby</Label>
+                          <Input value={editingServiceData.name} onChange={(e) => setEditingServiceData({...editingServiceData, name: e.target.value})} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Switch checked={editingServiceData.isActive} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, isActive: v})} />
+                          <Label>{t.common.active}</Label>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="col-span-2">
+                          <Label>Identifikátor faktúry</Label>
+                          <Input value={editingServiceData.invoiceIdentifier || ""} onChange={(e) => setEditingServiceData({...editingServiceData, invoiceIdentifier: e.target.value})} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Checkbox checked={editingServiceData.invoiceable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, invoiceable: !!v})} />
+                          <Label>Fakturovateľné</Label>
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                          <Checkbox checked={editingServiceData.collectable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, collectable: !!v})} />
+                          <Label>Zberné</Label>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={editingServiceData.storable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, storable: !!v})} />
+                          <Label>Skladovateľné</Label>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Platné od</Label>
+                          <Input type="date" value={editingServiceData.fromDate || ""} onChange={(e) => setEditingServiceData({...editingServiceData, fromDate: e.target.value})} />
+                        </div>
+                        <div>
+                          <Label>Platné do</Label>
+                          <Input type="date" value={editingServiceData.toDate || ""} onChange={(e) => setEditingServiceData({...editingServiceData, toDate: e.target.value})} />
+                        </div>
+                      </div>
+                      
                       <div>
-                        <Label>{t.common.name}</Label>
-                        <Input value={editingServiceData.name} onChange={(e) => setEditingServiceData({...editingServiceData, name: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Identifikátor faktúry</Label>
-                        <Input value={editingServiceData.invoiceIdentifier || ""} onChange={(e) => setEditingServiceData({...editingServiceData, invoiceIdentifier: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Od</Label>
-                        <Input type="date" value={editingServiceData.fromDate || ""} onChange={(e) => setEditingServiceData({...editingServiceData, fromDate: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label>Do</Label>
-                        <Input type="date" value={editingServiceData.toDate || ""} onChange={(e) => setEditingServiceData({...editingServiceData, toDate: e.target.value})} />
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={editingServiceData.invoiceable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, invoiceable: v})} />
-                        <Label>Fakturovateľné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={editingServiceData.collectable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, collectable: v})} />
-                        <Label>Zberné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={editingServiceData.storable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, storable: v})} />
-                        <Label>Skladovateľné</Label>
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <Switch checked={editingServiceData.isActive} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, isActive: v})} />
-                        <Label>{t.common.active}</Label>
-                      </div>
-                      <div className="col-span-4">
                         <Label>Popis</Label>
                         <Textarea value={editingServiceData.description || ""} onChange={(e) => setEditingServiceData({...editingServiceData, description: e.target.value})} className="min-h-[60px]" />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 mt-4">
+                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                       <Button variant="outline" size="sm" onClick={() => { setEditingServiceId(null); setEditingServiceData(null); }}>{t.common.cancel}</Button>
                       <Button size="sm" onClick={() => updateServiceMutation.mutate({ 
                         id: editingServiceId, 
@@ -1933,10 +2126,7 @@ function ProductsTab() {
       className: "text-right",
       cell: (product: Product) => (
         <div className="flex items-center justify-end gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setViewingProduct(product)} data-testid={`button-view-product-${product.id}`}>
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)} data-testid={`button-edit-product-${product.id}`}>
+          <Button variant="ghost" size="icon" onClick={() => setViewingProduct(product)} data-testid={`button-edit-product-${product.id}`}>
             <Pencil className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setDeletingProduct(product)} data-testid={`button-delete-product-${product.id}`}>
@@ -2063,7 +2253,8 @@ function ProductsTab() {
       <ProductDetailDialog 
         product={viewingProduct} 
         open={!!viewingProduct} 
-        onOpenChange={(open) => { if (!open) setViewingProduct(null); }} 
+        onOpenChange={(open) => { if (!open) setViewingProduct(null); }}
+        onProductUpdated={() => queryClient.invalidateQueries({ queryKey: ["/api/products"] })}
       />
 
       <ProductWizard

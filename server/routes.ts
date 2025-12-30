@@ -502,6 +502,247 @@ export async function registerRoutes(
     }
   });
 
+  // Market Product Instances API
+  app.get("/api/products/:productId/instances", requireAuth, async (req, res) => {
+    try {
+      const instances = await storage.getMarketProductInstances(req.params.productId);
+      res.json(instances);
+    } catch (error) {
+      console.error("Error fetching market product instances:", error);
+      res.status(500).json({ error: "Failed to fetch instances" });
+    }
+  });
+
+  app.post("/api/products/:productId/instances", requireAuth, async (req, res) => {
+    try {
+      const instance = await storage.createMarketProductInstance({
+        ...req.body,
+        productId: req.params.productId,
+      });
+      res.status(201).json(instance);
+    } catch (error) {
+      console.error("Error creating market product instance:", error);
+      res.status(500).json({ error: "Failed to create instance" });
+    }
+  });
+
+  app.patch("/api/product-instances/:id", requireAuth, async (req, res) => {
+    try {
+      const instance = await storage.updateMarketProductInstance(req.params.id, req.body);
+      if (!instance) {
+        return res.status(404).json({ error: "Instance not found" });
+      }
+      res.json(instance);
+    } catch (error) {
+      console.error("Error updating market product instance:", error);
+      res.status(500).json({ error: "Failed to update instance" });
+    }
+  });
+
+  app.delete("/api/product-instances/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteMarketProductInstance(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Instance not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting market product instance:", error);
+      res.status(500).json({ error: "Failed to delete instance" });
+    }
+  });
+
+  // Instance Prices API
+  app.get("/api/instance-prices/:instanceId/:instanceType", requireAuth, async (req, res) => {
+    try {
+      const prices = await storage.getInstancePrices(req.params.instanceId, req.params.instanceType);
+      res.json(prices);
+    } catch (error) {
+      console.error("Error fetching instance prices:", error);
+      res.status(500).json({ error: "Failed to fetch prices" });
+    }
+  });
+
+  app.post("/api/instance-prices", requireAuth, async (req, res) => {
+    try {
+      const price = await storage.createInstancePrice(req.body);
+      res.status(201).json(price);
+    } catch (error) {
+      console.error("Error creating instance price:", error);
+      res.status(500).json({ error: "Failed to create price" });
+    }
+  });
+
+  app.patch("/api/instance-prices/:id", requireAuth, async (req, res) => {
+    try {
+      const price = await storage.updateInstancePrice(req.params.id, req.body);
+      if (!price) {
+        return res.status(404).json({ error: "Price not found" });
+      }
+      res.json(price);
+    } catch (error) {
+      console.error("Error updating instance price:", error);
+      res.status(500).json({ error: "Failed to update price" });
+    }
+  });
+
+  app.delete("/api/instance-prices/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInstancePrice(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Price not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting instance price:", error);
+      res.status(500).json({ error: "Failed to delete price" });
+    }
+  });
+
+  // Instance Payment Options API
+  app.get("/api/instance-payment-options/:instanceId/:instanceType", requireAuth, async (req, res) => {
+    try {
+      const options = await storage.getInstancePaymentOptions(req.params.instanceId, req.params.instanceType);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching payment options:", error);
+      res.status(500).json({ error: "Failed to fetch payment options" });
+    }
+  });
+
+  app.post("/api/instance-payment-options", requireAuth, async (req, res) => {
+    try {
+      const option = await storage.createInstancePaymentOption(req.body);
+      res.status(201).json(option);
+    } catch (error) {
+      console.error("Error creating payment option:", error);
+      res.status(500).json({ error: "Failed to create payment option" });
+    }
+  });
+
+  app.patch("/api/instance-payment-options/:id", requireAuth, async (req, res) => {
+    try {
+      const option = await storage.updateInstancePaymentOption(req.params.id, req.body);
+      if (!option) {
+        return res.status(404).json({ error: "Payment option not found" });
+      }
+      res.json(option);
+    } catch (error) {
+      console.error("Error updating payment option:", error);
+      res.status(500).json({ error: "Failed to update payment option" });
+    }
+  });
+
+  app.delete("/api/instance-payment-options/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInstancePaymentOption(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Payment option not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting payment option:", error);
+      res.status(500).json({ error: "Failed to delete payment option" });
+    }
+  });
+
+  // Instance Discounts API
+  app.get("/api/instance-discounts/:instanceId/:instanceType", requireAuth, async (req, res) => {
+    try {
+      const discounts = await storage.getInstanceDiscounts(req.params.instanceId, req.params.instanceType);
+      res.json(discounts);
+    } catch (error) {
+      console.error("Error fetching discounts:", error);
+      res.status(500).json({ error: "Failed to fetch discounts" });
+    }
+  });
+
+  app.post("/api/instance-discounts", requireAuth, async (req, res) => {
+    try {
+      const discount = await storage.createInstanceDiscount(req.body);
+      res.status(201).json(discount);
+    } catch (error) {
+      console.error("Error creating discount:", error);
+      res.status(500).json({ error: "Failed to create discount" });
+    }
+  });
+
+  app.patch("/api/instance-discounts/:id", requireAuth, async (req, res) => {
+    try {
+      const discount = await storage.updateInstanceDiscount(req.params.id, req.body);
+      if (!discount) {
+        return res.status(404).json({ error: "Discount not found" });
+      }
+      res.json(discount);
+    } catch (error) {
+      console.error("Error updating discount:", error);
+      res.status(500).json({ error: "Failed to update discount" });
+    }
+  });
+
+  app.delete("/api/instance-discounts/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInstanceDiscount(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Discount not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting discount:", error);
+      res.status(500).json({ error: "Failed to delete discount" });
+    }
+  });
+
+  // Market Product Services API
+  app.get("/api/product-instances/:instanceId/services", requireAuth, async (req, res) => {
+    try {
+      const services = await storage.getMarketProductServices(req.params.instanceId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      res.status(500).json({ error: "Failed to fetch services" });
+    }
+  });
+
+  app.post("/api/product-instances/:instanceId/services", requireAuth, async (req, res) => {
+    try {
+      const service = await storage.createMarketProductService({
+        ...req.body,
+        instanceId: req.params.instanceId,
+      });
+      res.status(201).json(service);
+    } catch (error) {
+      console.error("Error creating service:", error);
+      res.status(500).json({ error: "Failed to create service" });
+    }
+  });
+
+  app.patch("/api/product-services/:id", requireAuth, async (req, res) => {
+    try {
+      const service = await storage.updateMarketProductService(req.params.id, req.body);
+      if (!service) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+      res.json(service);
+    } catch (error) {
+      console.error("Error updating service:", error);
+      res.status(500).json({ error: "Failed to update service" });
+    }
+  });
+
+  app.delete("/api/product-services/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteMarketProductService(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      res.status(500).json({ error: "Failed to delete service" });
+    }
+  });
+
   // Customer Products API (protected)
   app.get("/api/customers/:customerId/products", requireAuth, async (req, res) => {
     try {
@@ -581,7 +822,7 @@ export async function registerRoutes(
       let totalAmount = 0;
       
       for (const cp of customerProducts) {
-        const price = cp.priceOverride ? parseFloat(cp.priceOverride) : parseFloat(cp.product.price);
+        const price = cp.priceOverride ? parseFloat(cp.priceOverride) : 0;
         totalAmount += price * cp.quantity;
       }
 
@@ -595,7 +836,7 @@ export async function registerRoutes(
         invoiceNumber,
         customerId: customer.id,
         totalAmount: totalAmount.toFixed(2),
-        currency: customerProducts[0]?.product.currency || "EUR",
+        currency: "EUR",
         status: "generated",
         pdfPath: null,
         paymentTermDays,
@@ -708,15 +949,15 @@ export async function registerRoutes(
         }
       } else {
         for (const cp of customerProducts) {
-          const price = cp.priceOverride ? parseFloat(cp.priceOverride) : parseFloat(cp.product.price);
+          const price = cp.priceOverride ? parseFloat(cp.priceOverride) : 0;
           const lineTotal = price * cp.quantity;
           subtotal += lineTotal;
 
           const y = doc.y;
           doc.text(cp.product.name, 50, y, { width: 200 });
           doc.text(cp.quantity.toString(), 250, y, { width: 50, align: "center" });
-          doc.text(`${price.toFixed(2)} ${cp.product.currency}`, 300, y, { width: 100, align: "right" });
-          doc.text(`${lineTotal.toFixed(2)} ${cp.product.currency}`, 400, y, { width: 100, align: "right" });
+          doc.text(`${price.toFixed(2)} EUR`, 300, y, { width: 100, align: "right" });
+          doc.text(`${lineTotal.toFixed(2)} EUR`, 400, y, { width: 100, align: "right" });
           doc.moveDown(0.5);
         }
       }
@@ -776,7 +1017,7 @@ export async function registerRoutes(
           let totalAmount = 0;
           
           for (const cp of customerProducts) {
-            const price = cp.priceOverride ? parseFloat(cp.priceOverride) : parseFloat(cp.product.price);
+            const price = cp.priceOverride ? parseFloat(cp.priceOverride) : 0;
             totalAmount += price * cp.quantity;
           }
 
@@ -789,7 +1030,7 @@ export async function registerRoutes(
             invoiceNumber,
             customerId,
             totalAmount: totalAmount.toFixed(2),
-            currency: customerProducts[0]?.product.currency || "EUR",
+            currency: "EUR",
             status: "generated",
             pdfPath: null,
             paymentTermDays,
@@ -2372,7 +2613,7 @@ export async function registerRoutes(
             type: "product",
             id: p.id,
             title: p.name,
-            subtitle: p.category || "",
+            subtitle: p.description || "",
             url: `/products?id=${p.id}`,
           });
         }

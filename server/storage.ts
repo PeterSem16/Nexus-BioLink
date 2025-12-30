@@ -8,6 +8,7 @@ import {
   serviceConfigurations, serviceInstances, numberRanges, invoiceTemplates, invoiceLayouts,
   roles, roleModulePermissions, roleFieldPermissions, userRoles, departments,
   billingCompanyAccounts, billingCompanyAuditLog, billingCompanyLaboratories, billingCompanyCollaborators, billingCompanyCouriers,
+  marketProductInstances, instancePrices, instancePaymentOptions, instanceDiscounts, marketProductServices,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -96,6 +97,36 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
+
+  // Market Product Instances
+  getMarketProductInstances(productId: string): Promise<any[]>;
+  createMarketProductInstance(data: any): Promise<any>;
+  updateMarketProductInstance(id: string, data: any): Promise<any | undefined>;
+  deleteMarketProductInstance(id: string): Promise<boolean>;
+
+  // Instance Prices
+  getInstancePrices(instanceId: string, instanceType: string): Promise<any[]>;
+  createInstancePrice(data: any): Promise<any>;
+  updateInstancePrice(id: string, data: any): Promise<any | undefined>;
+  deleteInstancePrice(id: string): Promise<boolean>;
+
+  // Instance Payment Options
+  getInstancePaymentOptions(instanceId: string, instanceType: string): Promise<any[]>;
+  createInstancePaymentOption(data: any): Promise<any>;
+  updateInstancePaymentOption(id: string, data: any): Promise<any | undefined>;
+  deleteInstancePaymentOption(id: string): Promise<boolean>;
+
+  // Instance Discounts
+  getInstanceDiscounts(instanceId: string, instanceType: string): Promise<any[]>;
+  createInstanceDiscount(data: any): Promise<any>;
+  updateInstanceDiscount(id: string, data: any): Promise<any | undefined>;
+  deleteInstanceDiscount(id: string): Promise<boolean>;
+
+  // Market Product Services
+  getMarketProductServices(instanceId: string): Promise<any[]>;
+  createMarketProductService(data: any): Promise<any>;
+  updateMarketProductService(id: string, data: any): Promise<any | undefined>;
+  deleteMarketProductService(id: string): Promise<boolean>;
 
   // Customer Products
   getCustomerProducts(customerId: string): Promise<(CustomerProduct & { product: Product })[]>;
@@ -525,6 +556,112 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProduct(id: string): Promise<boolean> {
     const result = await db.delete(products).where(eq(products.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Market Product Instances
+  async getMarketProductInstances(productId: string): Promise<any[]> {
+    return await db.select().from(marketProductInstances).where(eq(marketProductInstances.productId, productId));
+  }
+
+  async createMarketProductInstance(data: any): Promise<any> {
+    const [instance] = await db.insert(marketProductInstances).values(data).returning();
+    return instance;
+  }
+
+  async updateMarketProductInstance(id: string, data: any): Promise<any | undefined> {
+    const [instance] = await db.update(marketProductInstances).set(data).where(eq(marketProductInstances.id, id)).returning();
+    return instance;
+  }
+
+  async deleteMarketProductInstance(id: string): Promise<boolean> {
+    const result = await db.delete(marketProductInstances).where(eq(marketProductInstances.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Instance Prices
+  async getInstancePrices(instanceId: string, instanceType: string): Promise<any[]> {
+    return await db.select().from(instancePrices).where(
+      and(eq(instancePrices.instanceId, instanceId), eq(instancePrices.instanceType, instanceType))
+    );
+  }
+
+  async createInstancePrice(data: any): Promise<any> {
+    const [price] = await db.insert(instancePrices).values(data).returning();
+    return price;
+  }
+
+  async updateInstancePrice(id: string, data: any): Promise<any | undefined> {
+    const [price] = await db.update(instancePrices).set(data).where(eq(instancePrices.id, id)).returning();
+    return price;
+  }
+
+  async deleteInstancePrice(id: string): Promise<boolean> {
+    const result = await db.delete(instancePrices).where(eq(instancePrices.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Instance Payment Options
+  async getInstancePaymentOptions(instanceId: string, instanceType: string): Promise<any[]> {
+    return await db.select().from(instancePaymentOptions).where(
+      and(eq(instancePaymentOptions.instanceId, instanceId), eq(instancePaymentOptions.instanceType, instanceType))
+    );
+  }
+
+  async createInstancePaymentOption(data: any): Promise<any> {
+    const [option] = await db.insert(instancePaymentOptions).values(data).returning();
+    return option;
+  }
+
+  async updateInstancePaymentOption(id: string, data: any): Promise<any | undefined> {
+    const [option] = await db.update(instancePaymentOptions).set(data).where(eq(instancePaymentOptions.id, id)).returning();
+    return option;
+  }
+
+  async deleteInstancePaymentOption(id: string): Promise<boolean> {
+    const result = await db.delete(instancePaymentOptions).where(eq(instancePaymentOptions.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Instance Discounts
+  async getInstanceDiscounts(instanceId: string, instanceType: string): Promise<any[]> {
+    return await db.select().from(instanceDiscounts).where(
+      and(eq(instanceDiscounts.instanceId, instanceId), eq(instanceDiscounts.instanceType, instanceType))
+    );
+  }
+
+  async createInstanceDiscount(data: any): Promise<any> {
+    const [discount] = await db.insert(instanceDiscounts).values(data).returning();
+    return discount;
+  }
+
+  async updateInstanceDiscount(id: string, data: any): Promise<any | undefined> {
+    const [discount] = await db.update(instanceDiscounts).set(data).where(eq(instanceDiscounts.id, id)).returning();
+    return discount;
+  }
+
+  async deleteInstanceDiscount(id: string): Promise<boolean> {
+    const result = await db.delete(instanceDiscounts).where(eq(instanceDiscounts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Market Product Services
+  async getMarketProductServices(instanceId: string): Promise<any[]> {
+    return await db.select().from(marketProductServices).where(eq(marketProductServices.instanceId, instanceId));
+  }
+
+  async createMarketProductService(data: any): Promise<any> {
+    const [service] = await db.insert(marketProductServices).values(data).returning();
+    return service;
+  }
+
+  async updateMarketProductService(id: string, data: any): Promise<any | undefined> {
+    const [service] = await db.update(marketProductServices).set(data).where(eq(marketProductServices.id, id)).returning();
+    return service;
+  }
+
+  async deleteMarketProductService(id: string): Promise<boolean> {
+    const result = await db.delete(marketProductServices).where(eq(marketProductServices.id, id)).returning();
     return result.length > 0;
   }
 

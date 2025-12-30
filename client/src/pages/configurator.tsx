@@ -121,14 +121,547 @@ const numberRangeFormSchema = z.object({
 const productFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  price: z.string().min(1, "Price is required"),
-  currency: z.string().default("EUR"),
-  category: z.string().optional(),
   countries: z.array(z.string()).default([]),
   isActive: z.boolean().default(true),
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
+
+interface MarketProductInstance {
+  id: string;
+  productId: string;
+  countryCode: string;
+  name: string;
+  isActive: boolean;
+  validFrom?: string | null;
+  validTo?: string | null;
+  billingDetailsId?: string | null;
+  createdAt: Date;
+}
+
+interface InstancePrice {
+  id: string;
+  instanceId: string;
+  instanceType: string;
+  priceType: string;
+  amount: string;
+  currency: string;
+  validFrom?: string | null;
+  validTo?: string | null;
+  isActive: boolean;
+}
+
+interface InstancePaymentOption {
+  id: string;
+  instanceId: string;
+  instanceType: string;
+  name: string;
+  installments: number;
+  intervalMonths: number;
+  interestRate: string;
+  isActive: boolean;
+}
+
+interface InstanceDiscount {
+  id: string;
+  instanceId: string;
+  instanceType: string;
+  name: string;
+  discountType: string;
+  value: string;
+  validFrom?: string | null;
+  validTo?: string | null;
+  isActive: boolean;
+}
+
+interface MarketProductService {
+  id: string;
+  instanceId: string;
+  name: string;
+  serviceCode: string;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+function ProductDetailDialog({ 
+  product, 
+  open, 
+  onOpenChange 
+}: { 
+  product: Product | null; 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("detail");
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [instanceSubTab, setInstanceSubTab] = useState<"prices" | "payments" | "discounts">("prices");
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [serviceSubTab, setServiceSubTab] = useState<"prices" | "payments" | "discounts">("prices");
+  const [isAddingInstance, setIsAddingInstance] = useState(false);
+  const [isAddingService, setIsAddingService] = useState(false);
+  const [isAddingPrice, setIsAddingPrice] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isAddingDiscount, setIsAddingDiscount] = useState(false);
+
+  const { data: instances = [], refetch: refetchInstances } = useQuery<MarketProductInstance[]>({
+    queryKey: ["/api/products", product?.id, "instances"],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      const res = await fetch(`/api/products/${product.id}/instances`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!product?.id,
+  });
+
+  const selectedInstance = instances.find(i => i.id === selectedInstanceId);
+
+  const { data: instancePrices = [], refetch: refetchPrices } = useQuery<InstancePrice[]>({
+    queryKey: ["/api/instance-prices", selectedInstanceId, "market_instance"],
+    queryFn: async () => {
+      if (!selectedInstanceId) return [];
+      const res = await fetch(`/api/instance-prices/${selectedInstanceId}/market_instance`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedInstanceId,
+  });
+
+  const { data: instancePayments = [], refetch: refetchPayments } = useQuery<InstancePaymentOption[]>({
+    queryKey: ["/api/instance-payment-options", selectedInstanceId, "market_instance"],
+    queryFn: async () => {
+      if (!selectedInstanceId) return [];
+      const res = await fetch(`/api/instance-payment-options/${selectedInstanceId}/market_instance`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedInstanceId,
+  });
+
+  const { data: instanceDiscounts = [], refetch: refetchDiscounts } = useQuery<InstanceDiscount[]>({
+    queryKey: ["/api/instance-discounts", selectedInstanceId, "market_instance"],
+    queryFn: async () => {
+      if (!selectedInstanceId) return [];
+      const res = await fetch(`/api/instance-discounts/${selectedInstanceId}/market_instance`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedInstanceId,
+  });
+
+  const { data: services = [], refetch: refetchServices } = useQuery<MarketProductService[]>({
+    queryKey: ["/api/product-instances", selectedInstanceId, "services"],
+    queryFn: async () => {
+      if (!selectedInstanceId) return [];
+      const res = await fetch(`/api/product-instances/${selectedInstanceId}/services`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedInstanceId,
+  });
+
+  const { data: billingCompanies = [] } = useQuery<BillingDetails[]>({
+    queryKey: ["/api/billing-details"],
+  });
+
+  const createInstanceMutation = useMutation({
+    mutationFn: (data: Partial<MarketProductInstance>) => 
+      apiRequest("POST", `/api/products/${product?.id}/instances`, data),
+    onSuccess: () => {
+      refetchInstances();
+      setIsAddingInstance(false);
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deleteInstanceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/product-instances/${id}`),
+    onSuccess: () => {
+      refetchInstances();
+      setSelectedInstanceId(null);
+      toast({ title: t.success.deleted });
+    },
+  });
+
+  const createPriceMutation = useMutation({
+    mutationFn: (data: Partial<InstancePrice>) => apiRequest("POST", "/api/instance-prices", data),
+    onSuccess: () => {
+      refetchPrices();
+      setIsAddingPrice(false);
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deletePriceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/instance-prices/${id}`),
+    onSuccess: () => {
+      refetchPrices();
+      toast({ title: t.success.deleted });
+    },
+  });
+
+  const createPaymentMutation = useMutation({
+    mutationFn: (data: Partial<InstancePaymentOption>) => apiRequest("POST", "/api/instance-payment-options", data),
+    onSuccess: () => {
+      refetchPayments();
+      setIsAddingPayment(false);
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/instance-payment-options/${id}`),
+    onSuccess: () => {
+      refetchPayments();
+      toast({ title: t.success.deleted });
+    },
+  });
+
+  const createDiscountMutation = useMutation({
+    mutationFn: (data: Partial<InstanceDiscount>) => apiRequest("POST", "/api/instance-discounts", data),
+    onSuccess: () => {
+      refetchDiscounts();
+      setIsAddingDiscount(false);
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deleteDiscountMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/instance-discounts/${id}`),
+    onSuccess: () => {
+      refetchDiscounts();
+      toast({ title: t.success.deleted });
+    },
+  });
+
+  const createServiceMutation = useMutation({
+    mutationFn: (data: Partial<MarketProductService>) => 
+      apiRequest("POST", `/api/product-instances/${selectedInstanceId}/services`, data),
+    onSuccess: () => {
+      refetchServices();
+      setIsAddingService(false);
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/product-services/${id}`),
+    onSuccess: () => {
+      refetchServices();
+      setSelectedServiceId(null);
+      toast({ title: t.success.deleted });
+    },
+  });
+
+  const [newInstanceData, setNewInstanceData] = useState({ countryCode: "", name: "", isActive: true, billingDetailsId: "" });
+  const [newPriceData, setNewPriceData] = useState({ priceType: "base", amount: "", currency: "EUR" });
+  const [newPaymentData, setNewPaymentData] = useState({ name: "", installments: 1, intervalMonths: 1, interestRate: "0" });
+  const [newDiscountData, setNewDiscountData] = useState({ name: "", discountType: "percentage", value: "" });
+  const [newServiceData, setNewServiceData] = useState({ name: "", serviceCode: "", isActive: true });
+
+  if (!product) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{product.name}</DialogTitle>
+          <DialogDescription>{t.products.editProduct}</DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="detail">{t.konfigurator.productDetail || "Detail produktu"}</TabsTrigger>
+            <TabsTrigger value="instances">{t.konfigurator.marketInstances || "Market Instances"}</TabsTrigger>
+            <TabsTrigger value="services">{t.konfigurator.services || "Services"}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="detail" className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground text-sm">{t.products.productName}</Label>
+                <p className="font-medium">{product.name}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-sm">{t.common.status}</Label>
+                <Badge variant={product.isActive ? "default" : "secondary"}>
+                  {product.isActive ? t.common.active : t.common.inactive}
+                </Badge>
+              </div>
+              <div className="col-span-2">
+                <Label className="text-muted-foreground text-sm">{t.products.description}</Label>
+                <p>{product.description || t.common.noData}</p>
+              </div>
+              <div className="col-span-2">
+                <Label className="text-muted-foreground text-sm">{t.products.availableInCountries}</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {product.countries && product.countries.length > 0 ? (
+                    product.countries.map(code => (
+                      <Badge key={code} variant="secondary">{code}</Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">{t.common.allCountries}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="instances" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">{t.konfigurator.marketInstances || "Market Instances"}</h4>
+              <Button size="sm" onClick={() => setIsAddingInstance(true)} data-testid="button-add-instance">
+                <Plus className="h-4 w-4 mr-1" /> {t.common.add}
+              </Button>
+            </div>
+
+            {isAddingInstance && (
+              <Card className="p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>{t.common.country}</Label>
+                    <Select value={newInstanceData.countryCode} onValueChange={(v) => setNewInstanceData({...newInstanceData, countryCode: v})}>
+                      <SelectTrigger><SelectValue placeholder={t.common.selectCountry} /></SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t.common.name}</Label>
+                    <Input value={newInstanceData.name} onChange={(e) => setNewInstanceData({...newInstanceData, name: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>{t.konfigurator.billingCompany || "Billing Company"}</Label>
+                    <Select value={newInstanceData.billingDetailsId} onValueChange={(v) => setNewInstanceData({...newInstanceData, billingDetailsId: v})}>
+                      <SelectTrigger><SelectValue placeholder={t.common.select} /></SelectTrigger>
+                      <SelectContent>
+                        {billingCompanies.filter(b => b.countryCode === newInstanceData.countryCode).map(b => (
+                          <SelectItem key={b.id} value={b.id}>{b.companyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={newInstanceData.isActive} onCheckedChange={(v) => setNewInstanceData({...newInstanceData, isActive: v})} />
+                    <Label>{t.common.active}</Label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={() => setIsAddingInstance(false)}>{t.common.cancel}</Button>
+                  <Button size="sm" onClick={() => createInstanceMutation.mutate(newInstanceData)}>{t.common.save}</Button>
+                </div>
+              </Card>
+            )}
+
+            <div className="grid grid-cols-4 gap-2">
+              {instances.map(instance => (
+                <Card 
+                  key={instance.id} 
+                  className={`p-3 cursor-pointer hover-elevate ${selectedInstanceId === instance.id ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => setSelectedInstanceId(instance.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">{instance.countryCode}</Badge>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteInstanceMutation.mutate(instance.id); }}>
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                  <p className="text-sm font-medium mt-1 truncate">{instance.name}</p>
+                  <Badge variant={instance.isActive ? "default" : "secondary"} className="mt-1">
+                    {instance.isActive ? t.common.active : t.common.inactive}
+                  </Badge>
+                </Card>
+              ))}
+            </div>
+
+            {selectedInstance && (
+              <Card className="mt-4">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{selectedInstance.name}</CardTitle>
+                  <CardDescription>{selectedInstance.countryCode}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={instanceSubTab} onValueChange={(v) => setInstanceSubTab(v as any)}>
+                    <TabsList>
+                      <TabsTrigger value="prices">{t.konfigurator.prices || "Prices"}</TabsTrigger>
+                      <TabsTrigger value="payments">{t.konfigurator.paymentOptions || "Payment Options"}</TabsTrigger>
+                      <TabsTrigger value="discounts">{t.konfigurator.discounts || "Discounts"}</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="prices" className="space-y-3 mt-3">
+                      <div className="flex justify-end">
+                        <Button size="sm" onClick={() => setIsAddingPrice(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
+                      </div>
+                      {isAddingPrice && (
+                        <div className="grid grid-cols-3 gap-2 p-3 border rounded-md">
+                          <Select value={newPriceData.priceType} onValueChange={(v) => setNewPriceData({...newPriceData, priceType: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="base">Base</SelectItem>
+                              <SelectItem value="fee">Fee</SelectItem>
+                              <SelectItem value="surcharge">Surcharge</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input placeholder="Amount" value={newPriceData.amount} onChange={(e) => setNewPriceData({...newPriceData, amount: e.target.value})} />
+                          <Select value={newPriceData.currency} onValueChange={(v) => setNewPriceData({...newPriceData, currency: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <div className="col-span-3 flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setIsAddingPrice(false)}>{t.common.cancel}</Button>
+                            <Button size="sm" onClick={() => createPriceMutation.mutate({ ...newPriceData, instanceId: selectedInstanceId!, instanceType: "market_instance", isActive: true })}>{t.common.save}</Button>
+                          </div>
+                        </div>
+                      )}
+                      {instancePrices.map(price => (
+                        <div key={price.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <div>
+                            <Badge variant="outline">{price.priceType}</Badge>
+                            <span className="ml-2 font-medium">{price.amount} {price.currency}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => deletePriceMutation.mutate(price.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                    </TabsContent>
+
+                    <TabsContent value="payments" className="space-y-3 mt-3">
+                      <div className="flex justify-end">
+                        <Button size="sm" onClick={() => setIsAddingPayment(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
+                      </div>
+                      {isAddingPayment && (
+                        <div className="grid grid-cols-2 gap-2 p-3 border rounded-md">
+                          <Input placeholder="Name" value={newPaymentData.name} onChange={(e) => setNewPaymentData({...newPaymentData, name: e.target.value})} />
+                          <Input placeholder="Installments" type="number" value={newPaymentData.installments} onChange={(e) => setNewPaymentData({...newPaymentData, installments: parseInt(e.target.value) || 1})} />
+                          <Input placeholder="Interval (months)" type="number" value={newPaymentData.intervalMonths} onChange={(e) => setNewPaymentData({...newPaymentData, intervalMonths: parseInt(e.target.value) || 1})} />
+                          <Input placeholder="Interest Rate" value={newPaymentData.interestRate} onChange={(e) => setNewPaymentData({...newPaymentData, interestRate: e.target.value})} />
+                          <div className="col-span-2 flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setIsAddingPayment(false)}>{t.common.cancel}</Button>
+                            <Button size="sm" onClick={() => createPaymentMutation.mutate({ ...newPaymentData, instanceId: selectedInstanceId!, instanceType: "market_instance", isActive: true })}>{t.common.save}</Button>
+                          </div>
+                        </div>
+                      )}
+                      {instancePayments.map(payment => (
+                        <div key={payment.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <div>
+                            <span className="font-medium">{payment.name}</span>
+                            <span className="ml-2 text-muted-foreground">{payment.installments}x / {payment.intervalMonths}mo</span>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => deletePaymentMutation.mutate(payment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                    </TabsContent>
+
+                    <TabsContent value="discounts" className="space-y-3 mt-3">
+                      <div className="flex justify-end">
+                        <Button size="sm" onClick={() => setIsAddingDiscount(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
+                      </div>
+                      {isAddingDiscount && (
+                        <div className="grid grid-cols-3 gap-2 p-3 border rounded-md">
+                          <Input placeholder="Name" value={newDiscountData.name} onChange={(e) => setNewDiscountData({...newDiscountData, name: e.target.value})} />
+                          <Select value={newDiscountData.discountType} onValueChange={(v) => setNewDiscountData({...newDiscountData, discountType: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="percentage">Percentage</SelectItem>
+                              <SelectItem value="fixed">Fixed Amount</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input placeholder="Value" value={newDiscountData.value} onChange={(e) => setNewDiscountData({...newDiscountData, value: e.target.value})} />
+                          <div className="col-span-3 flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setIsAddingDiscount(false)}>{t.common.cancel}</Button>
+                            <Button size="sm" onClick={() => createDiscountMutation.mutate({ ...newDiscountData, instanceId: selectedInstanceId!, instanceType: "market_instance", isActive: true })}>{t.common.save}</Button>
+                          </div>
+                        </div>
+                      )}
+                      {instanceDiscounts.map(discount => (
+                        <div key={discount.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <div>
+                            <span className="font-medium">{discount.name}</span>
+                            <Badge variant="outline" className="ml-2">{discount.discountType === 'percentage' ? `${discount.value}%` : discount.value}</Badge>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => deleteDiscountMutation.mutate(discount.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="services" className="space-y-4 mt-4">
+            {!selectedInstanceId ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {t.konfigurator.selectInstanceFirst || "Please select a Market Instance first to manage services"}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">{t.konfigurator.servicesForInstance || "Services for"}: {selectedInstance?.name}</h4>
+                  <Button size="sm" onClick={() => setIsAddingService(true)} data-testid="button-add-service">
+                    <Plus className="h-4 w-4 mr-1" /> {t.common.add}
+                  </Button>
+                </div>
+
+                {isAddingService && (
+                  <Card className="p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>{t.common.name}</Label>
+                        <Input value={newServiceData.name} onChange={(e) => setNewServiceData({...newServiceData, name: e.target.value})} />
+                      </div>
+                      <div>
+                        <Label>{t.konfigurator.serviceCode || "Service Code"}</Label>
+                        <Input value={newServiceData.serviceCode} onChange={(e) => setNewServiceData({...newServiceData, serviceCode: e.target.value})} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={newServiceData.isActive} onCheckedChange={(v) => setNewServiceData({...newServiceData, isActive: v})} />
+                        <Label>{t.common.active}</Label>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" size="sm" onClick={() => setIsAddingService(false)}>{t.common.cancel}</Button>
+                      <Button size="sm" onClick={() => createServiceMutation.mutate(newServiceData)}>{t.common.save}</Button>
+                    </div>
+                  </Card>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
+                  {services.map(service => (
+                    <Card 
+                      key={service.id} 
+                      className={`p-3 cursor-pointer hover-elevate ${selectedServiceId === service.id ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => setSelectedServiceId(service.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline">{service.serviceCode}</Badge>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteServiceMutation.mutate(service.id); }}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                      <p className="text-sm font-medium mt-1 truncate">{service.name}</p>
+                      <Badge variant={service.isActive ? "default" : "secondary"} className="mt-1">
+                        {service.isActive ? t.common.active : t.common.inactive}
+                      </Badge>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.close}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const getCategoriesWithTranslations = (t: any) => [
   { value: "cord_blood", label: t.products.categories.cordBlood },
@@ -149,6 +682,7 @@ function ProductsTab() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
 
   const userCountryCodes = user?.assignedCountries && user.assignedCountries.length > 0 ? user.assignedCountries : null;
 
@@ -168,9 +702,6 @@ function ProductsTab() {
     defaultValues: {
       name: "",
       description: "",
-      price: "",
-      currency: "EUR",
-      category: "",
       countries: [],
       isActive: true,
     },
@@ -220,20 +751,11 @@ function ProductsTab() {
     (product.description?.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const getCategoryLabel = (category: string | null) => {
-    if (!category) return t.products.categories.other;
-    const categories = getCategoriesWithTranslations(t);
-    return categories.find(c => c.value === category)?.label || category;
-  };
-
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
     form.reset({
       name: product.name,
       description: product.description || "",
-      price: product.price,
-      currency: product.currency,
-      category: product.category || "",
       countries: product.countries || [],
       isActive: product.isActive,
     });
@@ -258,15 +780,6 @@ function ProductsTab() {
       ),
     },
     {
-      key: "category",
-      header: t.products.category,
-      cell: (product: Product) => (
-        <Badge variant="outline" className="capitalize">
-          {getCategoryLabel(product.category)}
-        </Badge>
-      ),
-    },
-    {
       key: "countries",
       header: t.common.country,
       cell: (product: Product) => (
@@ -285,15 +798,6 @@ function ProductsTab() {
       ),
     },
     {
-      key: "price",
-      header: t.products.price,
-      cell: (product: Product) => (
-        <span className="font-medium">
-          {parseFloat(product.price).toFixed(2)} {product.currency}
-        </span>
-      ),
-    },
-    {
       key: "status",
       header: t.common.status,
       cell: (product: Product) => (
@@ -308,6 +812,9 @@ function ProductsTab() {
       className: "text-right",
       cell: (product: Product) => (
         <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" onClick={() => setViewingProduct(product)} data-testid={`button-view-product-${product.id}`}>
+            <Eye className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)} data-testid={`button-edit-product-${product.id}`}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -333,39 +840,6 @@ function ProductsTab() {
           <FormItem>
             <FormLabel>{t.products.description}</FormLabel>
             <FormControl><Textarea placeholder={t.products.description} {...field} data-testid="input-product-description" /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="price" render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t.products.price}</FormLabel>
-              <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-product-price" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="currency" render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t.products.currency}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger data-testid="select-product-currency"><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent>
-                  {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-        <FormField control={form.control} name="category" render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t.products.category}</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || ""}>
-              <FormControl><SelectTrigger data-testid="select-product-category"><SelectValue placeholder={t.products.selectCategory} /></SelectTrigger></FormControl>
-              <SelectContent>
-                {getCategoriesWithTranslations(t).map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
             <FormMessage />
           </FormItem>
         )} />
@@ -464,6 +938,12 @@ function ProductsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProductDetailDialog 
+        product={viewingProduct} 
+        open={!!viewingProduct} 
+        onOpenChange={() => setViewingProduct(null)} 
+      />
     </div>
   );
 }

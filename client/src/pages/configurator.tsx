@@ -1839,6 +1839,12 @@ function NumberRangesTab() {
     }
   }, [digitsToGenerate, form]);
 
+  useEffect(() => {
+    if (selectedCountryCode && !editingRange) {
+      form.setValue("billingDetailsId", "");
+    }
+  }, [selectedCountryCode, form, editingRange]);
+
   const createMutation = useMutation({
     mutationFn: (data: z.infer<typeof numberRangeFormSchema>) =>
       apiRequest("POST", "/api/configurator/number-ranges", data),

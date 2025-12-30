@@ -290,11 +290,92 @@ export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  currency: text("currency").notNull().default("EUR"),
-  category: text("category"), // cord_blood, cord_tissue, storage, processing
   countries: text("countries").array().notNull().default(sql`ARRAY[]::text[]`), // countries where product is available
   isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Market Product Instances - instances of products for specific markets
+export const marketProductInstances = pgTable("market_product_instances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  name: text("name").notNull(),
+  fromDate: timestamp("from_date"),
+  toDate: timestamp("to_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Instance Prices - pricing for market product instances
+export const instancePrices = pgTable("instance_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(),
+  instanceType: text("instance_type").notNull().default("market"), // market or service
+  name: text("name").notNull(),
+  analyticalAccount: text("analytical_account"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("EUR"),
+  amendment: text("amendment"),
+  fromDate: timestamp("from_date"),
+  toDate: timestamp("to_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Instance Payment Options and Fees
+export const instancePaymentOptions = pgTable("instance_payment_options", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(),
+  instanceType: text("instance_type").notNull().default("market"), // market or service
+  type: text("type"), // payment option type
+  name: text("name").notNull(),
+  invoiceItemText: text("invoice_item_text"),
+  analyticalAccount: text("analytical_account"),
+  accountingCode: text("accounting_code"),
+  paymentTypeFee: decimal("payment_type_fee", { precision: 10, scale: 2 }),
+  amendment: text("amendment"),
+  fromDate: timestamp("from_date"),
+  toDate: timestamp("to_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Instance Discounts and Surcharges
+export const instanceDiscounts = pgTable("instance_discounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(),
+  instanceType: text("instance_type").notNull().default("market"), // market or service
+  type: text("type"), // discount or surcharge type
+  name: text("name").notNull(),
+  invoiceItemText: text("invoice_item_text"),
+  analyticalAccount: text("analytical_account"),
+  accountingCode: text("accounting_code"),
+  isFixed: boolean("is_fixed").notNull().default(false),
+  fixedValue: decimal("fixed_value", { precision: 10, scale: 2 }),
+  isPercentage: boolean("is_percentage").notNull().default(false),
+  percentageValue: decimal("percentage_value", { precision: 5, scale: 2 }),
+  fromDate: timestamp("from_date"),
+  toDate: timestamp("to_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Market Product Services - services within market product instances
+export const marketProductServices = pgTable("market_product_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(), // FK to market_product_instances
+  name: text("name").notNull(),
+  fromDate: timestamp("from_date"),
+  toDate: timestamp("to_date"),
+  invoiceIdentifier: text("invoice_identifier"),
+  isActive: boolean("is_active").notNull().default(true),
+  blockAutomation: boolean("block_automation").notNull().default(false),
+  certificateTemplate: text("certificate_template"),
+  description: text("description"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -781,11 +862,113 @@ export const insertProductSchema = createInsertSchema(products).omit({
   createdAt: true,
 }).extend({
   description: z.string().optional().nullable(),
-  category: z.string().optional().nullable(),
   countries: z.array(z.string()).optional().default([]),
   isActive: z.boolean().optional().default(true),
-  currency: z.string().optional().default("EUR"),
 });
+
+// Market Product Instance schemas
+export const insertMarketProductInstanceSchema = createInsertSchema(marketProductInstances).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  productId: z.string(),
+  name: z.string().min(1),
+  fromDate: z.string().optional().nullable(),
+  toDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  description: z.string().optional().nullable(),
+});
+
+export type InsertMarketProductInstance = z.infer<typeof insertMarketProductInstanceSchema>;
+export type MarketProductInstance = typeof marketProductInstances.$inferSelect;
+
+// Instance Prices schemas
+export const insertInstancePriceSchema = createInsertSchema(instancePrices).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  instanceId: z.string(),
+  instanceType: z.string().optional().default("market"),
+  name: z.string().min(1),
+  analyticalAccount: z.string().optional().nullable(),
+  price: z.string(),
+  currency: z.string().optional().default("EUR"),
+  amendment: z.string().optional().nullable(),
+  fromDate: z.string().optional().nullable(),
+  toDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  description: z.string().optional().nullable(),
+});
+
+export type InsertInstancePrice = z.infer<typeof insertInstancePriceSchema>;
+export type InstancePrice = typeof instancePrices.$inferSelect;
+
+// Instance Payment Options schemas
+export const insertInstancePaymentOptionSchema = createInsertSchema(instancePaymentOptions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  instanceId: z.string(),
+  instanceType: z.string().optional().default("market"),
+  type: z.string().optional().nullable(),
+  name: z.string().min(1),
+  invoiceItemText: z.string().optional().nullable(),
+  analyticalAccount: z.string().optional().nullable(),
+  accountingCode: z.string().optional().nullable(),
+  paymentTypeFee: z.string().optional().nullable(),
+  amendment: z.string().optional().nullable(),
+  fromDate: z.string().optional().nullable(),
+  toDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  description: z.string().optional().nullable(),
+});
+
+export type InsertInstancePaymentOption = z.infer<typeof insertInstancePaymentOptionSchema>;
+export type InstancePaymentOption = typeof instancePaymentOptions.$inferSelect;
+
+// Instance Discounts schemas
+export const insertInstanceDiscountSchema = createInsertSchema(instanceDiscounts).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  instanceId: z.string(),
+  instanceType: z.string().optional().default("market"),
+  type: z.string().optional().nullable(),
+  name: z.string().min(1),
+  invoiceItemText: z.string().optional().nullable(),
+  analyticalAccount: z.string().optional().nullable(),
+  accountingCode: z.string().optional().nullable(),
+  isFixed: z.boolean().optional().default(false),
+  fixedValue: z.string().optional().nullable(),
+  isPercentage: z.boolean().optional().default(false),
+  percentageValue: z.string().optional().nullable(),
+  fromDate: z.string().optional().nullable(),
+  toDate: z.string().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  description: z.string().optional().nullable(),
+});
+
+export type InsertInstanceDiscount = z.infer<typeof insertInstanceDiscountSchema>;
+export type InstanceDiscount = typeof instanceDiscounts.$inferSelect;
+
+// Market Product Services schemas
+export const insertMarketProductServiceSchema = createInsertSchema(marketProductServices).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  instanceId: z.string(),
+  name: z.string().min(1),
+  fromDate: z.string().optional().nullable(),
+  toDate: z.string().optional().nullable(),
+  invoiceIdentifier: z.string().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  blockAutomation: z.boolean().optional().default(false),
+  certificateTemplate: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
+
+export type InsertMarketProductService = z.infer<typeof insertMarketProductServiceSchema>;
+export type MarketProductService = typeof marketProductServices.$inferSelect;
 
 // Billing details schemas
 export const insertBillingDetailsSchema = createInsertSchema(billingDetails).omit({

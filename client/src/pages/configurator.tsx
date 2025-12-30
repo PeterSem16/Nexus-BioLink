@@ -3842,12 +3842,16 @@ function BillingCompaniesTab() {
   const { t } = useI18n();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<BillingDetails | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<BillingDetails | null>(null);
   const [dialogTab, setDialogTab] = useState("postal");
 
   const userCountryCodes = user?.assignedCountries && user.assignedCountries.length > 0 ? user.assignedCountries : null;
+  const availableCountries = userCountryCodes 
+    ? COUNTRIES.filter(c => userCountryCodes.includes(c.code))
+    : COUNTRIES;
 
   const { data: billingCompanies = [], isLoading } = useQuery<BillingDetails[]>({
     queryKey: ["/api/billing-details"],
@@ -3863,6 +3867,7 @@ function BillingCompaniesTab() {
 
   const filteredCompanies = billingCompanies.filter(company => {
     if (userCountryCodes && !userCountryCodes.includes(company.countryCode)) return false;
+    if (countryFilter !== "all" && company.countryCode !== countryFilter) return false;
     if (search) {
       const searchLower = search.toLowerCase();
       return (
@@ -3976,16 +3981,29 @@ function BillingCompaniesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t.common.search}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            data-testid="input-search-billing-companies"
-          />
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t.common.search}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-billing-companies"
+            />
+          </div>
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="select-billing-country-filter">
+              <SelectValue placeholder={t.customers.country} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t.common.all || "All"} {t.customers.country}</SelectItem>
+              {availableCountries.map((country) => (
+                <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={handleAddNew} data-testid="button-add-billing-company">
           <Plus className="mr-2 h-4 w-4" />
@@ -4183,7 +4201,7 @@ function BillingCompanyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {billingCompany ? (t.konfigurator.editBillingCompany || "Edit Billing Company") : (t.konfigurator.addBillingCompany || "Add Billing Company")}
@@ -4191,7 +4209,7 @@ function BillingCompanyDialog({
         </DialogHeader>
 
         {/* Wizard Step Indicator */}
-        <div className="flex items-center justify-center gap-2 py-4 border-b mb-4">
+        <div className="flex flex-wrap items-center justify-center gap-1 py-3 border-b mb-4">
           {[
             { key: "postal", label: t.konfigurator.postalAddress || "Postal Address" },
             { key: "residency", label: t.konfigurator.residencyAddress || "Residency Address" },
@@ -4203,11 +4221,11 @@ function BillingCompanyDialog({
               { key: "history", label: t.konfigurator.historicalData || "History" },
             ] : [])
           ].map((step, index, arr) => (
-            <div key={step.key} className="flex items-center gap-2">
+            <div key={step.key} className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => onTabChange(step.key)}
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium transition-colors ${
                   activeTab === step.key
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -4216,10 +4234,10 @@ function BillingCompanyDialog({
               >
                 {index + 1}
               </button>
-              <span className={`text-sm hidden md:inline ${activeTab === step.key ? "font-medium" : "text-muted-foreground"}`}>
+              <span className={`text-xs hidden lg:inline max-w-[80px] truncate ${activeTab === step.key ? "font-medium" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
-              {index < arr.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              {index < arr.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
             </div>
           ))}
         </div>
@@ -4488,14 +4506,24 @@ function BillingCompanyDialog({
                 laboratories={laboratories.filter(l => l.countryCode === billingCompany.countryCode)}
               />
             )}
+            {!billingCompany && (
+              <div className="text-center py-8 text-muted-foreground">
+                {t.konfigurator.noLaboratoriesAvailable || "No laboratories available"}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="collaborators" className="mt-4">
             {billingCompany && (
               <BillingCompanyCollaboratorsTab 
                 billingDetailsId={billingCompany.id} 
-                collaborators={collaborators.filter(c => c.countries?.includes(billingCompany.countryCode))}
+                collaborators={collaborators.filter(c => c.countryCode === billingCompany.countryCode)}
               />
+            )}
+            {!billingCompany && (
+              <div className="text-center py-8 text-muted-foreground">
+                {t.konfigurator.noCollaboratorsAvailable || "No collaborators available"}
+              </div>
             )}
           </TabsContent>
         </Tabs>

@@ -1090,11 +1090,17 @@ export async function registerRoutes(
 
   app.patch("/api/billing-details/:billingId/couriers/:courierId", requireAuth, async (req, res) => {
     try {
-      if (!await checkBillingCompanyAccess(req, res, req.params.billingId)) return;
-      const courier = await storage.updateBillingCompanyCourier(req.params.courierId, req.body);
-      if (!courier) {
+      // Verify the courier exists and belongs to the specified billing company
+      const existingCourier = await storage.getBillingCompanyCourierById(req.params.courierId);
+      if (!existingCourier) {
         return res.status(404).json({ error: "Courier not found" });
       }
+      if (existingCourier.billingDetailsId !== req.params.billingId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      if (!await checkBillingCompanyAccess(req, res, existingCourier.billingDetailsId)) return;
+      
+      const courier = await storage.updateBillingCompanyCourier(req.params.courierId, req.body);
       res.json(courier);
     } catch (error) {
       console.error("Error updating courier:", error);
@@ -1104,11 +1110,17 @@ export async function registerRoutes(
 
   app.delete("/api/billing-details/:billingId/couriers/:courierId", requireAuth, async (req, res) => {
     try {
-      if (!await checkBillingCompanyAccess(req, res, req.params.billingId)) return;
-      const deleted = await storage.deleteBillingCompanyCourier(req.params.courierId);
-      if (!deleted) {
+      // Verify the courier exists and belongs to the specified billing company
+      const existingCourier = await storage.getBillingCompanyCourierById(req.params.courierId);
+      if (!existingCourier) {
         return res.status(404).json({ error: "Courier not found" });
       }
+      if (existingCourier.billingDetailsId !== req.params.billingId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      if (!await checkBillingCompanyAccess(req, res, existingCourier.billingDetailsId)) return;
+      
+      const deleted = await storage.deleteBillingCompanyCourier(req.params.courierId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting courier:", error);

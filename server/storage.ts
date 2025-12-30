@@ -123,6 +123,7 @@ export interface IStorage {
 
   // Billing Company Accounts
   getBillingCompanyAccounts(billingDetailsId: string): Promise<BillingCompanyAccount[]>;
+  getBillingCompanyAccountById(id: string): Promise<BillingCompanyAccount | undefined>;
   createBillingCompanyAccount(data: InsertBillingCompanyAccount): Promise<BillingCompanyAccount>;
   updateBillingCompanyAccount(id: string, data: Partial<InsertBillingCompanyAccount>): Promise<BillingCompanyAccount | undefined>;
   deleteBillingCompanyAccount(id: string): Promise<boolean>;
@@ -142,6 +143,7 @@ export interface IStorage {
 
   // Billing Company Couriers
   getBillingCompanyCouriers(billingDetailsId: string): Promise<BillingCompanyCourier[]>;
+  getBillingCompanyCourierById(id: string): Promise<BillingCompanyCourier | undefined>;
   createBillingCompanyCourier(data: InsertBillingCompanyCourier): Promise<BillingCompanyCourier>;
   updateBillingCompanyCourier(id: string, data: Partial<InsertBillingCompanyCourier>): Promise<BillingCompanyCourier | undefined>;
   deleteBillingCompanyCourier(id: string): Promise<boolean>;
@@ -800,6 +802,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(billingCompanyCouriers)
       .where(eq(billingCompanyCouriers.billingDetailsId, billingDetailsId))
       .orderBy(billingCompanyCouriers.createdAt);
+  }
+
+  async getBillingCompanyCourierById(id: string): Promise<BillingCompanyCourier | undefined> {
+    const [courier] = await db.select().from(billingCompanyCouriers).where(eq(billingCompanyCouriers.id, id));
+    return courier || undefined;
   }
 
   async createBillingCompanyCourier(data: InsertBillingCompanyCourier): Promise<BillingCompanyCourier> {

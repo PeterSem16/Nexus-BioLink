@@ -168,6 +168,21 @@ export async function registerRoutes(
     next();
   };
 
+  // Helper to check billing company country access
+  const checkBillingCompanyAccess = async (req: Request, res: Response, billingDetailsId: string): Promise<boolean> => {
+    const userCountries = req.session.user?.assignedCountries || [];
+    const billingCompany = await storage.getBillingDetailsById(billingDetailsId);
+    if (!billingCompany) {
+      res.status(404).json({ error: "Billing company not found" });
+      return false;
+    }
+    if (!userCountries.includes(billingCompany.countryCode)) {
+      res.status(403).json({ error: "Access denied" });
+      return false;
+    }
+    return true;
+  };
+
   // Auth routes
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -805,13 +820,22 @@ export async function registerRoutes(
   // Billing Details (Billing Companies) API (protected)
   app.get("/api/billing-details", requireAuth, async (req, res) => {
     try {
+      const userCountries = req.session.user?.assignedCountries || [];
       const { country } = req.query;
+      
       if (country && typeof country === 'string') {
+        // Only allow access if user has access to this country
+        if (!userCountries.includes(country)) {
+          return res.json([]);
+        }
         const details = await storage.getBillingDetailsByCountry(country);
         return res.json(details);
       }
-      const details = await storage.getAllBillingDetails();
-      res.json(details);
+      
+      // Filter all billing details by user's assigned countries
+      const allDetails = await storage.getAllBillingDetails();
+      const filteredDetails = allDetails.filter(d => userCountries.includes(d.countryCode));
+      res.json(filteredDetails);
     } catch (error) {
       console.error("Error fetching billing details:", error);
       res.status(500).json({ error: "Failed to fetch billing details" });
@@ -820,17 +844,18 @@ export async function registerRoutes(
 
   app.get("/api/billing-details/:id", requireAuth, async (req, res) => {
     try {
-      // Check if it's an ID (UUID) or a country code
+      const userCountries = req.session.user?.assignedCountries || [];
       const param = req.params.id;
-      if (param.length === 2) {
-        // Country code - get all for that country
-        const details = await storage.getBillingDetailsByCountry(param);
-        return res.json(details);
-      }
-      // Otherwise it's an ID
+      
+      // Try to get by ID first
       const details = await storage.getBillingDetailsById(param);
       if (!details) {
         return res.status(404).json({ error: "Billing company not found" });
+      }
+      
+      // Check if user has access to this billing company's country
+      if (!userCountries.includes(details.countryCode)) {
+        return res.status(403).json({ error: "Access denied" });
       }
       res.json(details);
     } catch (error) {
@@ -841,7 +866,14 @@ export async function registerRoutes(
 
   app.post("/api/billing-details", requireAuth, async (req, res) => {
     try {
+      const userCountries = req.session.user?.assignedCountries || [];
       const validatedData = insertBillingDetailsSchema.parse(req.body);
+      
+      // Only allow creating billing companies for assigned countries
+      if (!userCountries.includes(validatedData.countryCode)) {
+        return res.status(403).json({ error: "Access denied - you cannot create billing companies for this country" });
+      }
+      
       const details = await storage.createBillingDetails(validatedData);
       res.status(201).json(details);
     } catch (error) {
@@ -855,7 +887,18 @@ export async function registerRoutes(
 
   app.patch("/api/billing-details/:id", requireAuth, async (req, res) => {
     try {
+      const userCountries = req.session.user?.assignedCountries || [];
       const userId = req.session.user?.id;
+      
+      // Check if user has access to this billing company's country
+      const existing = await storage.getBillingDetailsById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Billing company not found" });
+      }
+      if (!userCountries.includes(existing.countryCode)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const details = await storage.updateBillingDetails(req.params.id, req.body, userId);
       res.json(details);
     } catch (error) {
@@ -866,6 +909,17 @@ export async function registerRoutes(
 
   app.delete("/api/billing-details/:id", requireAuth, async (req, res) => {
     try {
+      const userCountries = req.session.user?.assignedCountries || [];
+      
+      // Check if user has access to this billing company's country
+      const existing = await storage.getBillingDetailsById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Billing company not found" });
+      }
+      if (!userCountries.includes(existing.countryCode)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const success = await storage.deleteBillingDetails(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Billing company not found" });
@@ -880,6 +934,7 @@ export async function registerRoutes(
   // Billing Company Accounts
   app.get("/api/billing-details/:id/accounts", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const accounts = await storage.getBillingCompanyAccounts(req.params.id);
       res.json(accounts);
     } catch (error) {
@@ -890,6 +945,7 @@ export async function registerRoutes(
 
   app.post("/api/billing-details/:id/accounts", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const account = await storage.createBillingCompanyAccount({
         ...req.body,
         billingDetailsId: req.params.id,
@@ -903,10 +959,14 @@ export async function registerRoutes(
 
   app.patch("/api/billing-company-accounts/:id", requireAuth, async (req, res) => {
     try {
-      const account = await storage.updateBillingCompanyAccount(req.params.id, req.body);
-      if (!account) {
+      // Get the account first to find its billing company
+      const existingAccount = await storage.getBillingCompanyAccountById(req.params.id);
+      if (!existingAccount) {
         return res.status(404).json({ error: "Account not found" });
       }
+      if (!await checkBillingCompanyAccess(req, res, existingAccount.billingDetailsId)) return;
+      
+      const account = await storage.updateBillingCompanyAccount(req.params.id, req.body);
       res.json(account);
     } catch (error) {
       console.error("Error updating billing company account:", error);
@@ -916,10 +976,14 @@ export async function registerRoutes(
 
   app.delete("/api/billing-company-accounts/:id", requireAuth, async (req, res) => {
     try {
-      const success = await storage.deleteBillingCompanyAccount(req.params.id);
-      if (!success) {
+      // Get the account first to find its billing company
+      const existingAccount = await storage.getBillingCompanyAccountById(req.params.id);
+      if (!existingAccount) {
         return res.status(404).json({ error: "Account not found" });
       }
+      if (!await checkBillingCompanyAccess(req, res, existingAccount.billingDetailsId)) return;
+      
+      const success = await storage.deleteBillingCompanyAccount(req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting billing company account:", error);
@@ -929,6 +993,7 @@ export async function registerRoutes(
 
   app.post("/api/billing-details/:id/accounts/:accountId/default", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       await storage.setDefaultBillingCompanyAccount(req.params.id, req.params.accountId);
       res.json({ success: true });
     } catch (error) {
@@ -940,6 +1005,7 @@ export async function registerRoutes(
   // Billing Company Audit Log
   app.get("/api/billing-details/:id/audit-log", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const logs = await storage.getBillingCompanyAuditLog(req.params.id);
       res.json(logs);
     } catch (error) {
@@ -951,6 +1017,7 @@ export async function registerRoutes(
   // Billing Company Laboratories
   app.get("/api/billing-details/:id/laboratories", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const labs = await storage.getBillingCompanyLaboratories(req.params.id);
       res.json(labs);
     } catch (error) {
@@ -961,6 +1028,7 @@ export async function registerRoutes(
 
   app.put("/api/billing-details/:id/laboratories", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const { laboratoryIds } = req.body as { laboratoryIds: string[] };
       await storage.setBillingCompanyLaboratories(req.params.id, laboratoryIds || []);
       res.json({ success: true });
@@ -973,6 +1041,7 @@ export async function registerRoutes(
   // Billing Company Collaborators
   app.get("/api/billing-details/:id/collaborators", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const collabs = await storage.getBillingCompanyCollaborators(req.params.id);
       res.json(collabs);
     } catch (error) {
@@ -983,6 +1052,7 @@ export async function registerRoutes(
 
   app.put("/api/billing-details/:id/collaborators", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const { collaboratorIds } = req.body as { collaboratorIds: string[] };
       await storage.setBillingCompanyCollaborators(req.params.id, collaboratorIds || []);
       res.json({ success: true });
@@ -995,6 +1065,7 @@ export async function registerRoutes(
   // Billing company couriers
   app.get("/api/billing-details/:id/couriers", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const couriers = await storage.getBillingCompanyCouriers(req.params.id);
       res.json(couriers);
     } catch (error) {
@@ -1005,6 +1076,7 @@ export async function registerRoutes(
 
   app.post("/api/billing-details/:id/couriers", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.id)) return;
       const courier = await storage.createBillingCompanyCourier({
         ...req.body,
         billingDetailsId: req.params.id,
@@ -1018,6 +1090,7 @@ export async function registerRoutes(
 
   app.patch("/api/billing-details/:billingId/couriers/:courierId", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.billingId)) return;
       const courier = await storage.updateBillingCompanyCourier(req.params.courierId, req.body);
       if (!courier) {
         return res.status(404).json({ error: "Courier not found" });
@@ -1031,6 +1104,7 @@ export async function registerRoutes(
 
   app.delete("/api/billing-details/:billingId/couriers/:courierId", requireAuth, async (req, res) => {
     try {
+      if (!await checkBillingCompanyAccess(req, res, req.params.billingId)) return;
       const deleted = await storage.deleteBillingCompanyCourier(req.params.courierId);
       if (!deleted) {
         return res.status(404).json({ error: "Courier not found" });

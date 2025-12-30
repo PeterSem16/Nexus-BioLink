@@ -697,6 +697,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(billingCompanyAccounts.isDefault), billingCompanyAccounts.createdAt);
   }
 
+  async getBillingCompanyAccountById(id: string): Promise<BillingCompanyAccount | undefined> {
+    const [account] = await db.select().from(billingCompanyAccounts).where(eq(billingCompanyAccounts.id, id));
+    return account || undefined;
+  }
+
   async createBillingCompanyAccount(data: InsertBillingCompanyAccount): Promise<BillingCompanyAccount> {
     // If this is marked as default, unset other defaults for this billing company
     if (data.isDefault) {

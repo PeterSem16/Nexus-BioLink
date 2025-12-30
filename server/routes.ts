@@ -9,7 +9,7 @@ import {
   insertLaboratorySchema, insertHospitalSchema,
   insertCollaboratorSchema, insertCollaboratorAddressSchema, insertCollaboratorOtherDataSchema, insertCollaboratorAgreementSchema,
   insertLeadScoringCriteriaSchema,
-  insertServiceConfigurationSchema, insertInvoiceTemplateSchema, insertInvoiceLayoutSchema,
+  insertServiceConfigurationSchema, insertServiceInstanceSchema, insertInvoiceTemplateSchema, insertInvoiceLayoutSchema,
   insertRoleSchema, insertRoleModulePermissionSchema, insertRoleFieldPermissionSchema,
   insertSavedSearchSchema,
   insertCampaignSchema, insertCampaignContactSchema, insertCampaignContactHistorySchema,
@@ -2700,6 +2700,102 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Failed to delete service configuration:", error);
       res.status(500).json({ error: "Failed to delete service configuration" });
+    }
+  });
+
+  // Service Instances
+  app.get("/api/configurator/services/:serviceId/instances", requireAuth, async (req, res) => {
+    try {
+      const { serviceId } = req.params;
+      const instances = await storage.getServiceInstances(serviceId);
+      res.json(instances);
+    } catch (error) {
+      console.error("Failed to get service instances:", error);
+      res.status(500).json({ error: "Failed to get service instances" });
+    }
+  });
+
+  app.get("/api/configurator/service-instances", requireAuth, async (req, res) => {
+    try {
+      const instances = await storage.getAllServiceInstances();
+      res.json(instances);
+    } catch (error) {
+      console.error("Failed to get all service instances:", error);
+      res.status(500).json({ error: "Failed to get all service instances" });
+    }
+  });
+
+  app.post("/api/configurator/service-instances", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertServiceInstanceSchema.parse(req.body);
+      const instance = await storage.createServiceInstance(validatedData);
+      
+      await logActivity(
+        req.session.user!.id,
+        "created_service_instance",
+        "service_instance",
+        instance.id,
+        instance.name,
+        { serviceId: instance.serviceId },
+        req.ip
+      );
+      
+      res.status(201).json(instance);
+    } catch (error) {
+      console.error("Failed to create service instance:", error);
+      res.status(500).json({ error: "Failed to create service instance" });
+    }
+  });
+
+  app.patch("/api/configurator/service-instances/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const instance = await storage.updateServiceInstance(id, req.body);
+      
+      if (!instance) {
+        return res.status(404).json({ error: "Service instance not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_service_instance",
+        "service_instance",
+        instance.id,
+        instance.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json(instance);
+    } catch (error) {
+      console.error("Failed to update service instance:", error);
+      res.status(500).json({ error: "Failed to update service instance" });
+    }
+  });
+
+  app.delete("/api/configurator/service-instances/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteServiceInstance(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Service instance not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_service_instance",
+        "service_instance",
+        id,
+        undefined,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete service instance:", error);
+      res.status(500).json({ error: "Failed to delete service instance" });
     }
   });
 

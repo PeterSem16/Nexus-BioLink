@@ -898,6 +898,12 @@ export interface Translations {
     editBillingCompany: string;
     noBillingCompanies: string;
     postalAddress: string;
+    residencyAddress: string;
+    residencyName: string;
+    residencyStreet: string;
+    residencyArea: string;
+    nextStep: string;
+    previousStep: string;
     details: string;
     historicalData: string;
     accounts: string;
@@ -2022,6 +2028,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Edit Billing Company',
       noBillingCompanies: 'No billing companies configured',
       postalAddress: 'Postal Address',
+      residencyAddress: 'Residency Address',
+      residencyName: 'Name',
+      residencyStreet: 'Street and House Number',
+      residencyArea: 'Area',
+      nextStep: 'Next',
+      previousStep: 'Back',
       details: 'Details',
       historicalData: 'Historical Data',
       accounts: 'Accounts',
@@ -3144,6 +3156,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Upraviť fakturačnú spoločnosť',
       noBillingCompanies: 'Žiadne fakturačné spoločnosti nie sú nakonfigurované',
       postalAddress: 'Poštová adresa',
+      residencyAddress: 'Adresa trvalého pobytu',
+      residencyName: 'Meno',
+      residencyStreet: 'Ulica a číslo domu',
+      residencyArea: 'Oblasť',
+      nextStep: 'Ďalej',
+      previousStep: 'Späť',
       details: 'Detaily',
       historicalData: 'Historické údaje',
       accounts: 'Účty',
@@ -4266,6 +4284,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Upravit fakturační společnost',
       noBillingCompanies: 'Žádné fakturační společnosti nejsou nakonfigurovány',
       postalAddress: 'Poštovní adresa',
+      residencyAddress: 'Adresa trvalého bydliště',
+      residencyName: 'Jméno',
+      residencyStreet: 'Ulice a číslo domu',
+      residencyArea: 'Oblast',
+      nextStep: 'Další',
+      previousStep: 'Zpět',
       details: 'Detaily',
       historicalData: 'Historická data',
       accounts: 'Účty',
@@ -5351,6 +5375,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Számlázó cég szerkesztése',
       noBillingCompanies: 'Nincsenek számlázó cégek konfigurálva',
       postalAddress: 'Postai cím',
+      residencyAddress: 'Lakcím',
+      residencyName: 'Név',
+      residencyStreet: 'Utca és házszám',
+      residencyArea: 'Terület',
+      nextStep: 'Következő',
+      previousStep: 'Vissza',
       details: 'Részletek',
       historicalData: 'Történelmi adatok',
       accounts: 'Számlák',
@@ -6436,6 +6466,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Editează companie de facturare',
       noBillingCompanies: 'Nu sunt configurate companii de facturare',
       postalAddress: 'Adresă poștală',
+      residencyAddress: 'Adresă de domiciliu',
+      residencyName: 'Nume',
+      residencyStreet: 'Strada și numărul',
+      residencyArea: 'Zonă',
+      nextStep: 'Următorul',
+      previousStep: 'Înapoi',
       details: 'Detalii',
       historicalData: 'Date istorice',
       accounts: 'Conturi',
@@ -7521,6 +7557,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Modifica società di fatturazione',
       noBillingCompanies: 'Nessuna società di fatturazione configurata',
       postalAddress: 'Indirizzo postale',
+      residencyAddress: 'Indirizzo di residenza',
+      residencyName: 'Nome',
+      residencyStreet: 'Via e numero civico',
+      residencyArea: 'Area',
+      nextStep: 'Avanti',
+      previousStep: 'Indietro',
       details: 'Dettagli',
       historicalData: 'Dati storici',
       accounts: 'Conti',
@@ -8606,6 +8648,12 @@ export const translations: Record<Locale, Translations> = {
       editBillingCompany: 'Rechnungsfirma bearbeiten',
       noBillingCompanies: 'Keine Rechnungsfirmen konfiguriert',
       postalAddress: 'Postanschrift',
+      residencyAddress: 'Wohnsitzadresse',
+      residencyName: 'Name',
+      residencyStreet: 'Straße und Hausnummer',
+      residencyArea: 'Gebiet',
+      nextStep: 'Weiter',
+      previousStep: 'Zurück',
       details: 'Details',
       historicalData: 'Historische Daten',
       accounts: 'Konten',

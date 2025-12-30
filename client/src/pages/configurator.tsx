@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, Eye, EyeOff, Lock, Unlock, Check, Hash } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash } from "lucide-react";
 import { COUNTRIES } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -4094,6 +4094,10 @@ function BillingCompanyDialog({
         postalPostalCode: billingCompany.postalPostalCode || "",
         postalArea: billingCompany.postalArea || "",
         postalCountry: billingCompany.postalCountry || "",
+        residencyName: billingCompany.residencyName || "",
+        residencyStreet: billingCompany.residencyStreet || "",
+        residencyPostalCode: billingCompany.residencyPostalCode || "",
+        residencyArea: billingCompany.residencyArea || "",
         fullName: billingCompany.fullName || "",
         phone: billingCompany.phone || "",
         email: billingCompany.email || "",
@@ -4134,6 +4138,10 @@ function BillingCompanyDialog({
         postalPostalCode: "",
         postalArea: "",
         postalCountry: "",
+        residencyName: "",
+        residencyStreet: "",
+        residencyPostalCode: "",
+        residencyArea: "",
         fullName: "",
         phone: "",
         email: "",
@@ -4182,14 +4190,49 @@ function BillingCompanyDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {/* Wizard Step Indicator */}
+        <div className="flex items-center justify-center gap-2 py-4 border-b mb-4">
+          {[
+            { key: "postal", label: t.konfigurator.postalAddress || "Postal Address" },
+            { key: "residency", label: t.konfigurator.residencyAddress || "Residency Address" },
+            { key: "details", label: t.common.detail || "Details" },
+            ...(billingCompany ? [
+              { key: "accounts", label: t.konfigurator.accounts || "Accounts" },
+              { key: "laboratories", label: t.settings.laboratories },
+              { key: "collaborators", label: t.collaborators?.title || "Collaborators" },
+              { key: "history", label: t.konfigurator.historicalData || "History" },
+            ] : [])
+          ].map((step, index, arr) => (
+            <div key={step.key} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onTabChange(step.key)}
+                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                  activeTab === step.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+                data-testid={`wizard-step-${step.key}`}
+              >
+                {index + 1}
+              </button>
+              <span className={`text-sm hidden md:inline ${activeTab === step.key ? "font-medium" : "text-muted-foreground"}`}>
+                {step.label}
+              </span>
+              {index < arr.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          ))}
+        </div>
+
         <Tabs value={activeTab} onValueChange={onTabChange} className="mt-4">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="postal" data-testid="tab-billing-postal">{t.konfigurator.postalAddress || "Postal Address"}</TabsTrigger>
-            <TabsTrigger value="details" data-testid="tab-billing-details">{t.common.detail || "Details"}</TabsTrigger>
-            <TabsTrigger value="history" data-testid="tab-billing-history" disabled={!billingCompany}>{t.konfigurator.historicalData || "History"}</TabsTrigger>
-            <TabsTrigger value="accounts" data-testid="tab-billing-accounts" disabled={!billingCompany}>{t.konfigurator.accounts || "Accounts"}</TabsTrigger>
-            <TabsTrigger value="laboratories" data-testid="tab-billing-labs" disabled={!billingCompany}>{t.settings.laboratories}</TabsTrigger>
-            <TabsTrigger value="collaborators" data-testid="tab-billing-collabs" disabled={!billingCompany}>{t.collaborators?.title || "Collaborators"}</TabsTrigger>
+          <TabsList className="hidden">
+            <TabsTrigger value="postal">Postal</TabsTrigger>
+            <TabsTrigger value="residency">Residency</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="laboratories">Labs</TabsTrigger>
+            <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="postal" className="space-y-4 mt-4">
@@ -4281,6 +4324,45 @@ function BillingCompanyDialog({
               <div className="flex items-center space-x-2">
                 <Switch checked={formData.isDefault} onCheckedChange={(v) => updateField("isDefault", v)} data-testid="switch-billing-default" />
                 <Label>{t.common.default || "Default"}</Label>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="residency" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>{t.konfigurator.residencyName || "Name"}</Label>
+              <Input 
+                value={formData.residencyName || ""} 
+                onChange={(e) => updateField("residencyName", e.target.value)} 
+                data-testid="input-billing-residency-name" 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.konfigurator.residencyStreet || "Street and House Number"}</Label>
+              <Input 
+                value={formData.residencyStreet || ""} 
+                onChange={(e) => updateField("residencyStreet", e.target.value)} 
+                data-testid="input-billing-residency-street" 
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t.settings.postalCode}</Label>
+                <Input 
+                  value={formData.residencyPostalCode || ""} 
+                  onChange={(e) => updateField("residencyPostalCode", e.target.value)} 
+                  data-testid="input-billing-residency-postal-code" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.konfigurator.residencyArea || "Area"}</Label>
+                <Input 
+                  value={formData.residencyArea || ""} 
+                  onChange={(e) => updateField("residencyArea", e.target.value)} 
+                  data-testid="input-billing-residency-area" 
+                />
               </div>
             </div>
           </TabsContent>
@@ -4418,14 +4500,54 @@ function BillingCompanyDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="mt-6">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {t.common.cancel}
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !formData.companyName || !formData.countryCode} data-testid="button-save-billing-company">
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t.common.save}
-          </Button>
+        <DialogFooter className="mt-6 flex justify-between">
+          {(() => {
+            const allSteps = billingCompany 
+              ? ["postal", "residency", "details", "accounts", "laboratories", "collaborators", "history"]
+              : ["postal", "residency", "details"];
+            const currentIndex = allSteps.indexOf(activeTab);
+            const isFirstStep = currentIndex === 0;
+            const isLastStep = currentIndex === allSteps.length - 1;
+            
+            return (
+              <div className="flex w-full justify-between gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  {t.common.cancel}
+                </Button>
+                <div className="flex gap-2">
+                  {!isFirstStep && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => onTabChange(allSteps[currentIndex - 1])}
+                      data-testid="button-wizard-back"
+                    >
+                      <ChevronLeft className="mr-1 h-4 w-4" />
+                      {t.konfigurator.previousStep || "Back"}
+                    </Button>
+                  )}
+                  {!isLastStep && (
+                    <Button 
+                      type="button" 
+                      onClick={() => onTabChange(allSteps[currentIndex + 1])}
+                      data-testid="button-wizard-next"
+                    >
+                      {t.konfigurator.nextStep || "Next"}
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={isPending || !formData.companyName || !formData.countryCode} 
+                    data-testid="button-save-billing-company"
+                  >
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t.common.save}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogFooter>
       </DialogContent>
     </Dialog>

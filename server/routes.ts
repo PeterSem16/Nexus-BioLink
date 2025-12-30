@@ -2743,7 +2743,13 @@ export async function registerRoutes(
 
   app.post("/api/configurator/service-instances", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertServiceInstanceSchema.parse(req.body);
+      const data = { ...req.body };
+      if (data.fromDate === "") data.fromDate = null;
+      if (data.toDate === "") data.toDate = null;
+      if (data.invoicingPeriodYears === "") data.invoicingPeriodYears = null;
+      if (data.billingDetailsId === "") data.billingDetailsId = null;
+      
+      const validatedData = insertServiceInstanceSchema.parse(data);
       const instance = await storage.createServiceInstance(validatedData);
       
       await logActivity(
@@ -2766,7 +2772,13 @@ export async function registerRoutes(
   app.patch("/api/configurator/service-instances/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const instance = await storage.updateServiceInstance(id, req.body);
+      const data = { ...req.body };
+      if (data.fromDate === "") data.fromDate = null;
+      if (data.toDate === "") data.toDate = null;
+      if (data.invoicingPeriodYears === "") data.invoicingPeriodYears = null;
+      if (data.billingDetailsId === "") data.billingDetailsId = null;
+      
+      const instance = await storage.updateServiceInstance(id, data);
       
       if (!instance) {
         return res.status(404).json({ error: "Service instance not found" });

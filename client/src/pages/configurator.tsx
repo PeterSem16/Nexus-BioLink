@@ -1030,49 +1030,56 @@ function ServiceConfigurationTab() {
           </div>
         </div>
 
-        {selectedService && (
-          <div className="border rounded-md">
-            <div className="p-3 border-b flex items-center justify-between gap-2">
-              <div>
-                <h4 className="font-medium">{t.konfigurator.serviceInstances || "Service Instances"}</h4>
-                <p className="text-sm text-muted-foreground">{selectedService.serviceName}</p>
+        <div className="border rounded-md">
+          {selectedService ? (
+            <>
+              <div className="p-3 border-b flex items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-medium">{t.konfigurator.serviceInstances || "Service Instances"}</h4>
+                  <p className="text-sm text-muted-foreground">{selectedService.serviceName}</p>
+                </div>
+                <Button size="sm" onClick={openNewInstanceDialog} data-testid="button-add-instance">
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t.konfigurator.addInstance || "Add Instance"}
+                </Button>
               </div>
-              <Button size="sm" onClick={openNewInstanceDialog} data-testid="button-add-instance">
-                <Plus className="mr-2 h-4 w-4" />
-                {t.konfigurator.addInstance || "Add Instance"}
-              </Button>
-            </div>
-            <div className="divide-y max-h-[400px] overflow-y-auto">
-              {serviceInstances.map((instance) => (
-                <div key={instance.id} className="p-3 flex items-center justify-between gap-2 hover-elevate">
-                  <div>
-                    <div className="font-medium">{instance.name}</div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                      {instance.fromDate && <span>{t.konfigurator.from || "From"}: {instance.fromDate}</span>}
-                      {instance.toDate && <span>{t.konfigurator.to || "To"}: {instance.toDate}</span>}
+              <div className="divide-y max-h-[400px] overflow-y-auto">
+                {serviceInstances.map((instance) => (
+                  <div key={instance.id} className="p-3 flex items-center justify-between gap-2 hover-elevate">
+                    <div>
+                      <div className="font-medium">{instance.name}</div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                        {instance.fromDate && <span>{t.konfigurator.from || "From"}: {instance.fromDate}</span>}
+                        {instance.toDate && <span>{t.konfigurator.to || "To"}: {instance.toDate}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={instance.isActive ? "default" : "secondary"} className="text-xs">
+                        {instance.isActive ? t.common.active : t.common.inactive}
+                      </Badge>
+                      <Button size="icon" variant="ghost" onClick={() => handleEditInstance(instance)} data-testid={`button-edit-instance-${instance.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => deleteInstanceMutation.mutate(instance.id)} data-testid={`button-delete-instance-${instance.id}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant={instance.isActive ? "default" : "secondary"} className="text-xs">
-                      {instance.isActive ? t.common.active : t.common.inactive}
-                    </Badge>
-                    <Button size="icon" variant="ghost" onClick={() => handleEditInstance(instance)} data-testid={`button-edit-instance-${instance.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => deleteInstanceMutation.mutate(instance.id)} data-testid={`button-delete-instance-${instance.id}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                ))}
+                {serviceInstances.length === 0 && (
+                  <div className="p-4 text-center text-muted-foreground">
+                    {t.konfigurator.noInstances || "No instances for this service"}
                   </div>
-                </div>
-              ))}
-              {serviceInstances.length === 0 && (
-                <div className="p-4 text-center text-muted-foreground">
-                  {t.konfigurator.noInstances || "No instances for this service"}
-                </div>
-              )}
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p-6 text-center text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>{t.konfigurator.selectServiceForInstances || "Select a service to manage its instances"}</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Service Instance Dialog */}

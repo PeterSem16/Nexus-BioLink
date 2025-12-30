@@ -1190,6 +1190,8 @@ export const serviceConfigurations = pgTable("service_configurations", {
   description: text("description"),
   countryCode: text("country_code").notNull(), // Country this config applies to
   isActive: boolean("is_active").notNull().default(true),
+  invoiceable: boolean("invoiceable").notNull().default(false), // Can be invoiced
+  storable: boolean("storable").notNull().default(false), // Can be stored
   basePrice: decimal("base_price", { precision: 12, scale: 2 }),
   currency: text("currency").notNull().default("EUR"),
   vatRate: decimal("vat_rate", { precision: 5, scale: 2 }),
@@ -1208,6 +1210,41 @@ export const insertServiceConfigurationSchema = createInsertSchema(serviceConfig
 
 export type InsertServiceConfiguration = z.infer<typeof insertServiceConfigurationSchema>;
 export type ServiceConfiguration = typeof serviceConfigurations.$inferSelect;
+
+// Service instances - specific instances of services with invoicing configuration
+export const serviceInstances = pgTable("service_instances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceId: varchar("service_id").notNull(), // Reference to serviceConfigurations
+  // Detail tab fields
+  name: text("name").notNull(),
+  fromDate: date("from_date"),
+  toDate: date("to_date"),
+  invoiceIdentifier: text("invoice_identifier"), // Empty for now
+  isActive: boolean("is_active").notNull().default(true),
+  certificateTemplate: text("certificate_template"), // Empty for now
+  description: text("description"),
+  // Invoicing tab fields
+  billingDetailsId: varchar("billing_details_id"), // Reference to billingDetails (export invoicing to)
+  allowProformaInvoices: boolean("allow_proforma_invoices").notNull().default(false),
+  invoicingPeriodYears: integer("invoicing_period_years").default(1), // 1-100
+  constantSymbol: text("constant_symbol"),
+  startInvoicingField: text("start_invoicing_field").default("REALIZED"),
+  endInvoicingField: text("end_invoicing_field"),
+  accountingIdOffset: integer("accounting_id_offset"),
+  ledgerAccountProforma: text("ledger_account_proforma"), // Numeric string
+  ledgerAccountInvoice: text("ledger_account_invoice"), // Numeric string
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertServiceInstanceSchema = createInsertSchema(serviceInstances).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertServiceInstance = z.infer<typeof insertServiceInstanceSchema>;
+export type ServiceInstance = typeof serviceInstances.$inferSelect;
 
 // Invoice templates for Konfigurator
 export const invoiceTemplates = pgTable("invoice_templates", {

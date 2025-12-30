@@ -654,10 +654,12 @@ export class DatabaseStorage implements IStorage {
     // Create audit log entries for changed fields
     if (userId && existing) {
       const fieldsToTrack = Object.keys(data) as (keyof typeof data)[];
+      console.log("Audit log: checking fields", fieldsToTrack.length, "userId:", userId);
       for (const field of fieldsToTrack) {
         const oldVal = String(existing[field as keyof typeof existing] ?? "");
         const newVal = String(data[field] ?? "");
         if (oldVal !== newVal) {
+          console.log("Audit log: creating entry for", field, ":", oldVal, "->", newVal);
           await this.createBillingCompanyAuditLog({
             billingDetailsId: id,
             userId,
@@ -668,6 +670,8 @@ export class DatabaseStorage implements IStorage {
           });
         }
       }
+    } else {
+      console.log("Audit log skipped: userId=", userId, "existing=", !!existing);
     }
     
     return updated;

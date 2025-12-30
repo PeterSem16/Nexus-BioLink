@@ -1780,6 +1780,8 @@ function NumberRangesTab() {
   const { selectedCountries } = useCountryFilter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRange, setEditingRange] = useState<NumberRange | null>(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const totalSteps = 4;
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 61 }, (_, i) => currentYear - 30 + i);
@@ -1871,6 +1873,7 @@ function NumberRangesTab() {
 
   const handleEdit = (range: NumberRange) => {
     setEditingRange(range);
+    setWizardStep(1);
     form.reset({
       name: range.name,
       countryCode: range.countryCode,
@@ -1890,6 +1893,29 @@ function NumberRangesTab() {
     });
     setIsDialogOpen(true);
   };
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setEditingRange(null);
+    setWizardStep(1);
+    form.reset();
+  };
+
+  const nextStep = () => {
+    if (wizardStep < totalSteps) {
+      setWizardStep(wizardStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (wizardStep > 1) {
+      setWizardStep(wizardStep - 1);
+    }
+  };
+
+  const canProceedStep1 = !!form.watch("name") && !!form.watch("countryCode");
+  const canProceedStep2 = !!form.watch("year") && !!form.watch("type");
+  const canProceedStep3 = form.watch("digitsToGenerate") >= 1;
 
   const handleSubmit = (data: z.infer<typeof numberRangeFormSchema>) => {
     if (editingRange) {
@@ -1984,14 +2010,11 @@ function NumberRangesTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) {
-            setEditingRange(null);
-            form.reset();
-          }
+          if (!open) handleDialogClose();
+          else setIsDialogOpen(open);
         }}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-number-range">
+            <Button data-testid="button-add-number-range" onClick={() => setWizardStep(1)}>
               <Plus className="mr-2 h-4 w-4" />
               {t.konfigurator.addNumberRange}
             </Button>
@@ -2005,300 +2028,361 @@ function NumberRangesTab() {
                 {t.konfigurator.numberRangeFormDescription}
               </DialogDescription>
             </DialogHeader>
+
+            <div className="flex items-center justify-center gap-2 py-4">
+              {[1, 2, 3, 4].map((step) => (
+                <div key={step} className="flex items-center gap-2">
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                      wizardStep === step
+                        ? "bg-primary text-primary-foreground"
+                        : wizardStep > step
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step}
+                  </div>
+                  {step < 4 && (
+                    <div className={`w-8 h-0.5 ${wizardStep > step ? "bg-primary" : "bg-muted"}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.numberRangeName}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-range-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="countryCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.common.country}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                {wizardStep === 1 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t.konfigurator.wizardStep1Title}</h3>
+                    <p className="text-sm text-muted-foreground">{t.konfigurator.wizardStep1Desc}</p>
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.konfigurator.numberRangeName}</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-range-country">
-                              <SelectValue placeholder={t.common.selectCountry} />
-                            </SelectTrigger>
+                            <Input {...field} data-testid="input-range-name" />
                           </FormControl>
-                          <SelectContent>
-                            {COUNTRIES.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="countryCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.common.country}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-range-country">
+                                <SelectValue placeholder={t.konfigurator.selectCountryPlaceholder} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {COUNTRIES.map((country) => (
+                                <SelectItem key={country.code} value={country.code}>
+                                  {country.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="billingDetailsId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.konfigurator.billingCompany}</FormLabel>
+                          <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-billing-company">
+                                <SelectValue placeholder={t.konfigurator.selectBillingCompany} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="__none__">{t.common.none}</SelectItem>
+                              {billingCompanies.map((company) => (
+                                <SelectItem key={company.id} value={company.id}>
+                                  {company.companyName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
-                <FormField
-                  control={form.control}
-                  name="billingDetailsId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.konfigurator.billingCompany}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-billing-company">
-                            <SelectValue placeholder={t.konfigurator.selectBillingCompany} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">{t.common.none}</SelectItem>
-                          {billingCompanies.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.companyName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="year"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.numberRangeYear}</FormLabel>
-                        <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
+                {wizardStep === 2 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t.konfigurator.wizardStep2Title}</h3>
+                    <p className="text-sm text-muted-foreground">{t.konfigurator.wizardStep2Desc}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="year"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.numberRangeYear}</FormLabel>
+                            <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-range-year">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {yearOptions.map((year) => (
+                                  <SelectItem key={year} value={year.toString()}>
+                                    {year}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.numberRangeType}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-range-type">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="invoice">{t.konfigurator.invoice}</SelectItem>
+                                <SelectItem value="proforma">{t.konfigurator.proformaInvoice}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="useServiceCode"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-lg border p-3">
                           <FormControl>
-                            <SelectTrigger data-testid="select-range-year">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="checkbox-use-service-code"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            {yearOptions.map((year) => (
-                              <SelectItem key={year} value={year.toString()}>
-                                {year}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.numberRangeType}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormLabel className="font-normal">{t.konfigurator.useServiceCode}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {wizardStep === 3 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t.konfigurator.wizardStep3Title}</h3>
+                    <p className="text-sm text-muted-foreground">{t.konfigurator.wizardStep3Desc}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="prefix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.prefix}</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-range-prefix" placeholder="FV" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="suffix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.suffix}</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-range-suffix" placeholder="/2025" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="digitsToGenerate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.konfigurator.digitsToGenerate}</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-range-type">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Input 
+                              type="number" 
+                              min={1}
+                              max={20}
+                              {...field} 
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 6)}
+                              data-testid="input-digits-to-generate" 
+                            />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="invoice">{t.konfigurator.invoice}</SelectItem>
-                            <SelectItem value="proforma">{t.konfigurator.proformaInvoice}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="startNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.startNumber}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                                data-testid="input-start-number" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="endNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.endNumber}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 999999)}
+                                data-testid="input-end-number" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
 
-                <FormField
-                  control={form.control}
-                  name="useServiceCode"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center gap-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="checkbox-use-service-code"
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">{t.konfigurator.useServiceCode}</FormLabel>
-                    </FormItem>
-                  )}
-                />
+                {wizardStep === 4 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t.konfigurator.wizardStep4Title}</h3>
+                    <p className="text-sm text-muted-foreground">{t.konfigurator.wizardStep4Desc}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="lastNumberUsed"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.lastNumberUsed}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                data-testid="input-last-number-used" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="accountingCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t.konfigurator.accountingCode}</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-accounting-code" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.konfigurator.numberRangeDescription}</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} data-testid="input-range-description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>{t.common.active}</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-range-active"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="prefix"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.prefix}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-range-prefix" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="suffix"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.suffix}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-range-suffix" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="digitsToGenerate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.digitsToGenerate}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 6)}
-                            data-testid="input-digits-to-generate" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="startNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.startNumber}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                            data-testid="input-start-number" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="endNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.endNumber}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 999999)}
-                            data-testid="input-end-number" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="lastNumberUsed"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.lastNumberUsed}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            data-testid="input-last-number-used" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="accountingCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.konfigurator.accountingCode}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-accounting-code" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.common.description}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-range-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                      <div className="space-y-0.5">
-                        <FormLabel>{t.common.active}</FormLabel>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-range-active"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <DialogFooter className="gap-2">
+                  <Button type="button" variant="outline" onClick={handleDialogClose}>
                     {t.common.cancel}
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-range">
-                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t.common.save}
-                  </Button>
+                  {wizardStep > 1 && (
+                    <Button type="button" variant="outline" onClick={prevStep}>
+                      {t.konfigurator.wizardPrevious}
+                    </Button>
+                  )}
+                  {wizardStep < totalSteps ? (
+                    <Button 
+                      type="button" 
+                      onClick={nextStep}
+                      disabled={
+                        (wizardStep === 1 && !canProceedStep1) ||
+                        (wizardStep === 2 && !canProceedStep2) ||
+                        (wizardStep === 3 && !canProceedStep3)
+                      }
+                      data-testid="button-wizard-next"
+                    >
+                      {t.konfigurator.wizardNext}
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-range">
+                      {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {t.common.save}
+                    </Button>
+                  )}
                 </DialogFooter>
               </form>
             </Form>

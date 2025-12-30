@@ -3998,7 +3998,7 @@ function BillingCompaniesTab() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <DataTable columns={columns} data={filteredCompanies} keyField="id" />
+        <DataTable columns={columns} data={filteredCompanies} getRowKey={(company) => company.id} />
       )}
 
       <BillingCompanyDialog

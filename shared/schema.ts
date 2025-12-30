@@ -1191,6 +1191,7 @@ export const serviceConfigurations = pgTable("service_configurations", {
   countryCode: text("country_code").notNull(), // Country this config applies to
   isActive: boolean("is_active").notNull().default(true),
   invoiceable: boolean("invoiceable").notNull().default(false), // Can be invoiced
+  collectable: boolean("collectable").notNull().default(false), // Can be collected
   storable: boolean("storable").notNull().default(false), // Can be stored
   basePrice: decimal("base_price", { precision: 12, scale: 2 }),
   currency: text("currency").notNull().default("EUR"),

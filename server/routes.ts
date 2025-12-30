@@ -2631,7 +2631,15 @@ export async function registerRoutes(
 
   app.post("/api/configurator/services", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertServiceConfigurationSchema.parse(req.body);
+      // Convert empty strings to null for numeric fields
+      const cleanedBody = {
+        ...req.body,
+        basePrice: req.body.basePrice === "" ? null : req.body.basePrice,
+        vatRate: req.body.vatRate === "" ? null : req.body.vatRate,
+        processingDays: req.body.processingDays === "" ? null : req.body.processingDays,
+        storageYears: req.body.storageYears === "" ? null : req.body.storageYears,
+      };
+      const validatedData = insertServiceConfigurationSchema.parse(cleanedBody);
       const service = await storage.createServiceConfiguration(validatedData);
       
       await logActivity(
@@ -2654,7 +2662,15 @@ export async function registerRoutes(
   app.patch("/api/configurator/services/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const service = await storage.updateServiceConfiguration(id, req.body);
+      // Convert empty strings to null for numeric fields
+      const cleanedBody = {
+        ...req.body,
+        basePrice: req.body.basePrice === "" ? null : req.body.basePrice,
+        vatRate: req.body.vatRate === "" ? null : req.body.vatRate,
+        processingDays: req.body.processingDays === "" ? null : req.body.processingDays,
+        storageYears: req.body.storageYears === "" ? null : req.body.storageYears,
+      };
+      const service = await storage.updateServiceConfiguration(id, cleanedBody);
       
       if (!service) {
         return res.status(404).json({ error: "Service not found" });

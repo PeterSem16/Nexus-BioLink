@@ -38,6 +38,7 @@ const serviceFormSchema = z.object({
   countryCode: z.string().min(1, "Country is required"),
   isActive: z.boolean().default(true),
   invoiceable: z.boolean().default(false),
+  collectable: z.boolean().default(false),
   storable: z.boolean().default(false),
   basePrice: z.string().optional(),
   currency: z.string().default("EUR"),
@@ -478,6 +479,7 @@ function ServiceConfigurationTab() {
       countryCode: "",
       isActive: true,
       invoiceable: false,
+      collectable: false,
       storable: false,
       basePrice: "",
       currency: "EUR",
@@ -668,6 +670,7 @@ function ServiceConfigurationTab() {
       countryCode: service.countryCode,
       isActive: service.isActive,
       invoiceable: service.invoiceable || false,
+      collectable: service.collectable || false,
       storable: service.storable || false,
       basePrice: service.basePrice || "",
       currency: service.currency,
@@ -847,6 +850,20 @@ function ServiceConfigurationTab() {
                   />
                   <FormField
                     control={form.control}
+                    name="collectable"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>{t.konfigurator.collectable || "Collectable"}</FormLabel>
+                        </div>
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} data-testid="checkbox-service-collectable" />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="storable"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
@@ -988,6 +1005,7 @@ function ServiceConfigurationTab() {
                   <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1 flex-wrap">
                     {service.basePrice && <span>{service.basePrice} {service.currency}</span>}
                     {service.invoiceable && <Badge variant="outline" className="text-xs">{t.konfigurator.invoiceable || "Invoiceable"}</Badge>}
+                    {service.collectable && <Badge variant="outline" className="text-xs">{t.konfigurator.collectable || "Collectable"}</Badge>}
                     {service.storable && <Badge variant="outline" className="text-xs">{t.konfigurator.storable || "Storable"}</Badge>}
                   </div>
                 </div>

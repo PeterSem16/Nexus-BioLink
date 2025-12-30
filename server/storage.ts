@@ -612,8 +612,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBillingDetailsByCountry(countryCode: string): Promise<BillingDetails[]> {
-    return db.select().from(billingDetails)
-      .where(eq(billingDetails.countryCode, countryCode));
+    // Get all billing details and filter by countryCode or countryCodes array
+    const allDetails = await db.select().from(billingDetails);
+    return allDetails.filter(d => {
+      // Check if country is in the countryCodes array or matches countryCode
+      return d.countryCodes?.includes(countryCode) || d.countryCode === countryCode;
+    });
   }
 
   async getBillingDetailsById(id: string): Promise<BillingDetails | undefined> {

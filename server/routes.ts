@@ -877,14 +877,28 @@ export async function registerRoutes(
       const userCountries = req.session.user?.assignedCountries || [];
       const validatedData = insertBillingDetailsSchema.parse(req.body);
       
-      // Check if user has access to all countries in countryCodes
-      const billingCountries = validatedData.countryCodes?.length ? validatedData.countryCodes : [validatedData.countryCode];
+      // Normalize countryCodes - ensure it's populated
+      const billingCountries = validatedData.countryCodes?.length 
+        ? validatedData.countryCodes 
+        : (validatedData.countryCode ? [validatedData.countryCode] : []);
+      
+      if (!billingCountries.length) {
+        return res.status(400).json({ error: "At least one country must be selected" });
+      }
+      
       const hasAccess = billingCountries.every(country => userCountries.includes(country));
       if (!hasAccess) {
         return res.status(403).json({ error: "Access denied - you cannot create billing companies for these countries" });
       }
       
-      const details = await storage.createBillingDetails(validatedData);
+      // Normalize data: ensure countryCode is synchronized with first country in array
+      const normalizedData = {
+        ...validatedData,
+        countryCodes: billingCountries,
+        countryCode: billingCountries[0],
+      };
+      
+      const details = await storage.createBillingDetails(normalizedData);
       res.status(201).json(details);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -911,7 +925,36 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Access denied" });
       }
       
-      const details = await storage.updateBillingDetails(req.params.id, req.body, userId);
+      // Normalize the update payload
+      let normalizedBody = { ...req.body };
+      
+      // If countryCodes is being updated, validate and normalize
+      if ('countryCodes' in req.body) {
+        const newCountries = Array.isArray(req.body.countryCodes) ? req.body.countryCodes : [];
+        
+        if (!newCountries.length) {
+          return res.status(400).json({ error: "At least one country must be selected" });
+        }
+        
+        const hasAccessToAll = newCountries.every(country => userCountries.includes(country));
+        if (!hasAccessToAll) {
+          return res.status(403).json({ error: "Access denied - you cannot assign countries you don't have access to" });
+        }
+        
+        // Synchronize countryCode with first country
+        normalizedBody.countryCodes = newCountries;
+        normalizedBody.countryCode = newCountries[0];
+      } else if ('countryCode' in req.body && req.body.countryCode !== existing.countryCode) {
+        // If only countryCode is being updated (without countryCodes), validate access
+        const newCountryCode = req.body.countryCode;
+        if (!userCountries.includes(newCountryCode)) {
+          return res.status(403).json({ error: "Access denied - you cannot assign a country you don't have access to" });
+        }
+        // Synchronize countryCodes with the new countryCode
+        normalizedBody.countryCodes = [newCountryCode];
+      }
+      
+      const details = await storage.updateBillingDetails(req.params.id, normalizedBody, userId);
       res.json(details);
     } catch (error) {
       console.error("Error updating billing company:", error);

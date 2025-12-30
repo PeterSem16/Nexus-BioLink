@@ -2827,6 +2827,92 @@ export async function registerRoutes(
     }
   });
 
+  // Number Ranges
+  app.get("/api/configurator/number-ranges", requireAuth, async (req, res) => {
+    try {
+      const countries = req.query.countries as string | undefined;
+      const countryCodes = countries ? countries.split(",") : [];
+      const ranges = await storage.getNumberRangesByCountry(countryCodes);
+      res.json(ranges);
+    } catch (error) {
+      console.error("Failed to get number ranges:", error);
+      res.status(500).json({ error: "Failed to get number ranges" });
+    }
+  });
+
+  app.post("/api/configurator/number-ranges", requireAuth, async (req, res) => {
+    try {
+      const range = await storage.createNumberRange(req.body);
+      
+      await logActivity(
+        req.session.user!.id,
+        "created_number_range",
+        "number_range",
+        range.id,
+        range.name,
+        undefined,
+        req.ip
+      );
+      
+      res.status(201).json(range);
+    } catch (error) {
+      console.error("Failed to create number range:", error);
+      res.status(500).json({ error: "Failed to create number range" });
+    }
+  });
+
+  app.patch("/api/configurator/number-ranges/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const range = await storage.updateNumberRange(id, req.body);
+      
+      if (!range) {
+        return res.status(404).json({ error: "Number range not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "updated_number_range",
+        "number_range",
+        range.id,
+        range.name,
+        undefined,
+        req.ip
+      );
+      
+      res.json(range);
+    } catch (error) {
+      console.error("Failed to update number range:", error);
+      res.status(500).json({ error: "Failed to update number range" });
+    }
+  });
+
+  app.delete("/api/configurator/number-ranges/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteNumberRange(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Number range not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "deleted_number_range",
+        "number_range",
+        id,
+        undefined,
+        undefined,
+        req.ip
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete number range:", error);
+      res.status(500).json({ error: "Failed to delete number range" });
+    }
+  });
+
   // Invoice Templates
   app.get("/api/configurator/invoice-templates", requireAuth, async (req, res) => {
     try {

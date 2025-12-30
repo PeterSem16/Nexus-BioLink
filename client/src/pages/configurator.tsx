@@ -2395,7 +2395,11 @@ function NumberRangesTab() {
                   {wizardStep < totalSteps ? (
                     <Button 
                       type="button" 
-                      onClick={nextStep}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        nextStep();
+                      }}
                       disabled={
                         (wizardStep === 1 && !canProceedStep1) ||
                         (wizardStep === 2 && !canProceedStep2) ||

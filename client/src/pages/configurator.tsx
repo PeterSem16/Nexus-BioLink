@@ -3867,13 +3867,16 @@ function BillingCompaniesTab() {
   });
 
   const filteredCompanies = billingCompanies.filter(company => {
-    if (userCountryCodes && !userCountryCodes.includes(company.countryCode)) return false;
-    if (countryFilter !== "all" && company.countryCode !== countryFilter) return false;
+    // Check countryCodes array, fallback to countryCode
+    const companyCountries = company.countryCodes?.length ? company.countryCodes : [company.countryCode];
+    
+    if (userCountryCodes && !companyCountries.some(c => userCountryCodes.includes(c))) return false;
+    if (countryFilter !== "all" && !companyCountries.includes(countryFilter)) return false;
     if (search) {
       const searchLower = search.toLowerCase();
       return (
         company.companyName.toLowerCase().includes(searchLower) ||
-        company.countryCode.toLowerCase().includes(searchLower) ||
+        companyCountries.some(c => c.toLowerCase().includes(searchLower)) ||
         (company.code || "").toLowerCase().includes(searchLower)
       );
     }
@@ -3944,8 +3947,16 @@ function BillingCompaniesTab() {
       key: "countryCode",
       header: t.customers.country,
       cell: (company: BillingDetails) => {
-        const country = COUNTRIES.find(c => c.code === company.countryCode);
-        return <Badge variant="outline">{country?.name || company.countryCode}</Badge>;
+        // Show all countries from countryCodes array, fallback to single countryCode
+        const countryCodes = company.countryCodes?.length ? company.countryCodes : [company.countryCode];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {countryCodes.map(code => {
+              const country = COUNTRIES.find(c => c.code === code);
+              return <Badge key={code} variant="outline">{country?.name || code}</Badge>;
+            })}
+          </div>
+        );
       },
     },
     {

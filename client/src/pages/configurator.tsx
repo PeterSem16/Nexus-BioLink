@@ -2235,22 +2235,20 @@ function NumberRangesTab() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t.konfigurator.digitsToGenerate}</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min={1}
-                              max={20}
-                              value={field.value ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                field.onChange(val === "" ? 1 : parseInt(val));
-                              }}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                              ref={field.ref}
-                              data-testid="input-digits-to-generate" 
-                            />
-                          </FormControl>
+                          <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-digits-to-generate">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                                <SelectItem key={num} value={num.toString()}>
+                                  {num}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

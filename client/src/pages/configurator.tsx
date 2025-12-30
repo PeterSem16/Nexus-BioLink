@@ -1824,7 +1824,7 @@ function NumberRangesTab() {
     queryKey: ["/api/billing-details", selectedCountryCode],
     queryFn: async () => {
       if (!selectedCountryCode) return [];
-      const res = await fetch(`/api/billing-details?countryCode=${selectedCountryCode}`, { credentials: "include" });
+      const res = await fetch(`/api/billing-details?country=${selectedCountryCode}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

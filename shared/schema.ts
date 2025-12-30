@@ -297,10 +297,47 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Invoice barcode letter options
+export const INVOICE_BARCODE_LETTERS = [
+  { value: "A", label: "A" },
+  { value: "B", label: "B" },
+  { value: "C", label: "C" },
+  { value: "D", label: "D" },
+  { value: "E", label: "E" },
+  { value: "F", label: "F" },
+  { value: "G", label: "G" },
+  { value: "H", label: "H" },
+  { value: "I", label: "I" },
+  { value: "J", label: "J" },
+  { value: "K", label: "K" },
+  { value: "L", label: "L" },
+  { value: "M", label: "M" },
+  { value: "N", label: "N" },
+  { value: "O", label: "O" },
+  { value: "P", label: "P" },
+  { value: "Q", label: "Q" },
+  { value: "R", label: "R" },
+  { value: "S", label: "S" },
+  { value: "T", label: "T" },
+  { value: "U", label: "U" },
+  { value: "V", label: "V" },
+  { value: "W", label: "W" },
+  { value: "X", label: "X" },
+  { value: "Y", label: "Y" },
+  { value: "Z", label: "Z" },
+] as const;
+
 // Billing details (billing companies) - multiple per country allowed
 export const billingDetails = pgTable("billing_details", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   countryCode: text("country_code").notNull(),
+  
+  // Basic info
+  code: text("code"), // Billing company code
+  entityCode: text("entity_code"), // Entity code
+  invoiceBarcodeLetter: text("invoice_barcode_letter"), // A-Z letter for barcode
+  
+  // Legacy fields (kept for backward compatibility)
   companyName: text("company_name").notNull(),
   address: text("address").notNull(),
   city: text("city").notNull(),
@@ -309,13 +346,90 @@ export const billingDetails = pgTable("billing_details", {
   bankName: text("bank_name"),
   bankIban: text("bank_iban"),
   bankSwift: text("bank_swift"),
-  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).notNull().default("20"), // VAT percentage
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).notNull().default("20"),
   currency: text("currency").notNull().default("EUR"),
-  paymentTerms: integer("payment_terms").array().notNull().default(sql`ARRAY[7,14,30]::integer[]`), // Payment term options in days
-  defaultPaymentTerm: integer("default_payment_term").notNull().default(14), // Default payment term in days
-  isDefault: boolean("is_default").notNull().default(false), // Default billing company for this country
+  paymentTerms: integer("payment_terms").array().notNull().default(sql`ARRAY[7,14,30]::integer[]`),
+  defaultPaymentTerm: integer("default_payment_term").notNull().default(14),
+  
+  // Postal Address tab
+  postalName: text("postal_name"), // Name
+  postalStreet: text("postal_street"), // Street + house number
+  postalCity: text("postal_city"), // City
+  postalPostalCode: text("postal_postal_code"), // PSČ
+  postalArea: text("postal_area"), // Area/Region
+  postalCountry: text("postal_country"), // Country code
+  
+  // Details tab
+  fullName: text("full_name"), // Full Name
+  phone: text("phone"), // Tel. Number
+  email: text("email"), // e-mail
+  ico: text("ico"), // IČO
+  dic: text("dic"), // DIČ
+  vatNumber: text("vat_number"), // VAT number
+  webFromEmail: text("web_from_email"), // Web "from" email
+  coverLetterToEmail: text("cover_letter_to_email"), // Cover letter "to" email
+  defaultLanguage: text("default_language"), // Default language (country code)
+  sentCollectionKitToClient: boolean("sent_collection_kit_to_client").notNull().default(false),
+  allowManualPaymentInsert: boolean("allow_manual_payment_insert").notNull().default(false),
+  uidIsMandatory: boolean("uid_is_mandatory").notNull().default(false),
+  allowEmptyChildNameInCollection: boolean("allow_empty_child_name_in_collection").notNull().default(false),
+  
+  isDefault: boolean("is_default").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Billing company bank accounts - multiple per billing company
+export const billingCompanyAccounts = pgTable("billing_company_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  billingDetailsId: varchar("billing_details_id").notNull(),
+  currency: text("currency").notNull().default("EUR"),
+  name: text("name"), // Account name
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  accountBankCode: text("account_bank_code"),
+  iban: text("iban"),
+  swift: text("swift"),
+  validFromDay: integer("valid_from_day"),
+  validFromMonth: integer("valid_from_month"),
+  validFromYear: integer("valid_from_year"),
+  validToDay: integer("valid_to_day"),
+  validToMonth: integer("valid_to_month"),
+  validToYear: integer("valid_to_year"),
+  isActive: boolean("is_active").notNull().default(true),
+  isDefault: boolean("is_default").notNull().default(false),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Billing company audit log - tracks all changes
+export const billingCompanyAuditLog = pgTable("billing_company_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  billingDetailsId: varchar("billing_details_id").notNull(),
+  userId: varchar("user_id").notNull(), // Who made the change
+  fieldName: text("field_name").notNull(), // Which field was changed
+  oldValue: text("old_value"), // Previous value
+  newValue: text("new_value"), // New value
+  changeType: text("change_type").notNull().default("update"), // create, update, delete
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Billing company laboratories - junction table
+export const billingCompanyLaboratories = pgTable("billing_company_laboratories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  billingDetailsId: varchar("billing_details_id").notNull(),
+  laboratoryId: varchar("laboratory_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Billing company collaborators - junction table
+export const billingCompanyCollaborators = pgTable("billing_company_collaborators", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  billingDetailsId: varchar("billing_details_id").notNull(),
+  collaboratorId: varchar("collaborator_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
 // Invoice items - individual line items in an invoice
@@ -654,7 +768,11 @@ export const insertProductSchema = createInsertSchema(products).omit({
 export const insertBillingDetailsSchema = createInsertSchema(billingDetails).omit({
   id: true,
   updatedAt: true,
+  createdAt: true,
 }).extend({
+  code: z.string().optional().nullable(),
+  entityCode: z.string().optional().nullable(),
+  invoiceBarcodeLetter: z.string().optional().nullable(),
   postalCode: z.string().optional().nullable(),
   taxId: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
@@ -664,8 +782,75 @@ export const insertBillingDetailsSchema = createInsertSchema(billingDetails).omi
   currency: z.string().optional().default("EUR"),
   paymentTerms: z.array(z.number().int().positive()).optional().default([7, 14, 30]),
   defaultPaymentTerm: z.number().int().positive().optional().default(14),
+  // Postal Address tab
+  postalName: z.string().optional().nullable(),
+  postalStreet: z.string().optional().nullable(),
+  postalCity: z.string().optional().nullable(),
+  postalPostalCode: z.string().optional().nullable(),
+  postalArea: z.string().optional().nullable(),
+  postalCountry: z.string().optional().nullable(),
+  // Details tab
+  fullName: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  ico: z.string().optional().nullable(),
+  dic: z.string().optional().nullable(),
+  vatNumber: z.string().optional().nullable(),
+  webFromEmail: z.string().optional().nullable(),
+  coverLetterToEmail: z.string().optional().nullable(),
+  defaultLanguage: z.string().optional().nullable(),
+  sentCollectionKitToClient: z.boolean().optional().default(false),
+  allowManualPaymentInsert: z.boolean().optional().default(false),
+  uidIsMandatory: z.boolean().optional().default(false),
+  allowEmptyChildNameInCollection: z.boolean().optional().default(false),
   isDefault: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
+});
+
+// Billing company accounts schemas
+export const insertBillingCompanyAccountSchema = createInsertSchema(billingCompanyAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  currency: z.string().optional().default("EUR"),
+  name: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  accountNumber: z.string().optional().nullable(),
+  accountBankCode: z.string().optional().nullable(),
+  iban: z.string().optional().nullable(),
+  swift: z.string().optional().nullable(),
+  validFromDay: z.number().int().min(1).max(31).optional().nullable(),
+  validFromMonth: z.number().int().min(1).max(12).optional().nullable(),
+  validFromYear: z.number().int().optional().nullable(),
+  validToDay: z.number().int().min(1).max(31).optional().nullable(),
+  validToMonth: z.number().int().min(1).max(12).optional().nullable(),
+  validToYear: z.number().int().optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+  isDefault: z.boolean().optional().default(false),
+  description: z.string().optional().nullable(),
+});
+
+// Billing company audit log schemas
+export const insertBillingCompanyAuditLogSchema = createInsertSchema(billingCompanyAuditLog).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  oldValue: z.string().optional().nullable(),
+  newValue: z.string().optional().nullable(),
+  changeType: z.string().optional().default("update"),
+});
+
+// Billing company laboratories schemas
+export const insertBillingCompanyLaboratorySchema = createInsertSchema(billingCompanyLaboratories).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Billing company collaborators schemas
+export const insertBillingCompanyCollaboratorSchema = createInsertSchema(billingCompanyCollaborators).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Invoice item schemas
@@ -766,6 +951,14 @@ export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertBillingDetails = z.infer<typeof insertBillingDetailsSchema>;
 export type BillingDetails = typeof billingDetails.$inferSelect;
+export type InsertBillingCompanyAccount = z.infer<typeof insertBillingCompanyAccountSchema>;
+export type BillingCompanyAccount = typeof billingCompanyAccounts.$inferSelect;
+export type InsertBillingCompanyAuditLog = z.infer<typeof insertBillingCompanyAuditLogSchema>;
+export type BillingCompanyAuditLog = typeof billingCompanyAuditLog.$inferSelect;
+export type InsertBillingCompanyLaboratory = z.infer<typeof insertBillingCompanyLaboratorySchema>;
+export type BillingCompanyLaboratory = typeof billingCompanyLaboratories.$inferSelect;
+export type InsertBillingCompanyCollaborator = z.infer<typeof insertBillingCompanyCollaboratorSchema>;
+export type BillingCompanyCollaborator = typeof billingCompanyCollaborators.$inferSelect;
 export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertCustomerNote = z.infer<typeof insertCustomerNoteSchema>;

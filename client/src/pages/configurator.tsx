@@ -3927,17 +3927,17 @@ function BillingCompaniesTab() {
     {
       key: "code",
       header: t.common.code || "Code",
-      render: (company: BillingDetails) => company.code || "-",
+      cell: (company: BillingDetails) => company.code || "-",
     },
     {
       key: "companyName",
       header: t.settings.companyName,
-      render: (company: BillingDetails) => company.companyName,
+      cell: (company: BillingDetails) => company.companyName,
     },
     {
       key: "countryCode",
       header: t.customers.country,
-      render: (company: BillingDetails) => {
+      cell: (company: BillingDetails) => {
         const country = COUNTRIES.find(c => c.code === company.countryCode);
         return <Badge variant="outline">{country?.name || company.countryCode}</Badge>;
       },
@@ -3945,14 +3945,14 @@ function BillingCompaniesTab() {
     {
       key: "isDefault",
       header: t.common.default || "Default",
-      render: (company: BillingDetails) => (
+      cell: (company: BillingDetails) => (
         company.isDefault ? <Badge variant="secondary">{t.common.default || "Default"}</Badge> : null
       ),
     },
     {
       key: "isActive",
       header: t.common.status,
-      render: (company: BillingDetails) => (
+      cell: (company: BillingDetails) => (
         <Badge variant={company.isActive ? "default" : "secondary"}>
           {company.isActive ? t.common.active : t.common.inactive}
         </Badge>
@@ -3961,7 +3961,7 @@ function BillingCompaniesTab() {
     {
       key: "actions",
       header: "",
-      render: (company: BillingDetails) => (
+      cell: (company: BillingDetails) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => handleEdit(company)} data-testid={`button-edit-billing-${company.id}`}>
             <Pencil className="h-4 w-4" />

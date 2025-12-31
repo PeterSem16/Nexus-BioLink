@@ -1075,6 +1075,8 @@ function ProductDetailDialog({
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editingDiscountId, setEditingDiscountId] = useState<string | null>(null);
+  const [copyingService, setCopyingService] = useState<any>(null);
+  const [copyTargetInstanceId, setCopyTargetInstanceId] = useState<string>("");
 
   if (!product) return null;
 
@@ -2180,6 +2182,13 @@ function ProductDetailDialog({
                           }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setCopyingService(service);
+                            setCopyTargetInstanceId("");
+                          }}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteServiceMutation.mutate(service.id); }}>
                             <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
@@ -2351,6 +2360,56 @@ function ProductDetailDialog({
                       }}>{t.common.save}</Button>
                     </div>
                   </Card>
+                )}
+
+                {copyingService && (
+                  <Dialog open={!!copyingService} onOpenChange={(open) => !open && setCopyingService(null)}>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Kopírovať službu</DialogTitle>
+                        <DialogDescription>
+                          Vyberte cieľovú inštanciu pre kopírovanie služby "{copyingService.name}"
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div>
+                          <Label>Cieľová inštancia</Label>
+                          <Select value={copyTargetInstanceId} onValueChange={setCopyTargetInstanceId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Vyberte inštanciu" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(instances as any[])
+                                .filter(inst => inst.id !== copyingService.instanceId)
+                                .map(inst => (
+                                  <SelectItem key={inst.id} value={inst.id}>
+                                    {inst.name} ({inst.countryCode})
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setCopyingService(null)}>{t.common.cancel}</Button>
+                        <Button 
+                          disabled={!copyTargetInstanceId}
+                          onClick={() => {
+                            const { id, createdAt, ...serviceData } = copyingService;
+                            createServiceMutation.mutate({
+                              ...serviceData,
+                              instanceId: copyTargetInstanceId,
+                              name: `${serviceData.name} (kópia)`,
+                            });
+                            setCopyingService(null);
+                            setCopyTargetInstanceId("");
+                          }}
+                        >
+                          Kopírovať
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </>
             )}

@@ -742,6 +742,9 @@ export async function registerRoutes(
   app.post("/api/instance-discounts", requireAuth, async (req, res) => {
     try {
       const data = parseDateFields(req.body);
+      // Convert empty strings to null for numeric fields
+      if (data.fixedValue === "") data.fixedValue = null;
+      if (data.percentageValue === "") data.percentageValue = null;
       const discount = await storage.createInstanceDiscount(data);
       res.status(201).json(discount);
     } catch (error) {
@@ -753,6 +756,9 @@ export async function registerRoutes(
   app.patch("/api/instance-discounts/:id", requireAuth, async (req, res) => {
     try {
       const data = parseDateFields(req.body);
+      // Convert empty strings to null for numeric fields
+      if (data.fixedValue === "") data.fixedValue = null;
+      if (data.percentageValue === "") data.percentageValue = null;
       const discount = await storage.updateInstanceDiscount(req.params.id, data);
       if (!discount) {
         return res.status(404).json({ error: "Discount not found" });

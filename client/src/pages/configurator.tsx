@@ -2303,10 +2303,14 @@ function ProductDetailDialog({
                             
                             <Separator />
                             <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                               <div>
                                 <Label>Text na faktúre</Label>
                                 <Input value={newDiscountData.invoiceItemText} onChange={(e) => setNewDiscountData({...newDiscountData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={newDiscountData.accountingCode || ""} onChange={(e) => setNewDiscountData({...newDiscountData, accountingCode: e.target.value})} />
                               </div>
                               <div>
                                 <Label>Analytický účet</Label>
@@ -2341,13 +2345,16 @@ function ProductDetailDialog({
                           </div>
                           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => setIsAddingDiscount(false)}>{t.common.cancel}</Button>
-                            <Button size="sm" onClick={() => createDiscountMutation.mutate({ 
-                              ...newDiscountData, 
-                              instanceId: selectedInstanceId!, 
-                              instanceType: "market_instance",
-                              fromDate: componentsToISOString(newDiscountData.fromDay, newDiscountData.fromMonth, newDiscountData.fromYear),
-                              toDate: componentsToISOString(newDiscountData.toDay, newDiscountData.toMonth, newDiscountData.toYear),
-                            })}>{t.common.save}</Button>
+                            <Button size="sm" onClick={() => {
+                              const { fromDay, fromMonth, fromYear, toDay, toMonth, toYear, ...discountData } = newDiscountData;
+                              createDiscountMutation.mutate({ 
+                                ...discountData, 
+                                instanceId: selectedInstanceId!, 
+                                instanceType: "market_instance",
+                                fromDate: componentsToISOString(fromDay, fromMonth, fromYear),
+                                toDate: componentsToISOString(toDay, toMonth, toYear),
+                              });
+                            }}>{t.common.save}</Button>
                           </div>
                         </Card>
                       )}
@@ -2425,10 +2432,14 @@ function ProductDetailDialog({
                             
                             <Separator />
                             <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                               <div>
                                 <Label>Text na faktúre</Label>
                                 <Input value={editingDiscountData.invoiceItemText || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, invoiceItemText: e.target.value})} />
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input value={editingDiscountData.accountingCode || ""} onChange={(e) => setEditingDiscountData({...editingDiscountData, accountingCode: e.target.value})} />
                               </div>
                               <div>
                                 <Label>Analytický účet</Label>

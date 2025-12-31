@@ -868,7 +868,8 @@ function CollectionConfigDialog({
   instanceId, 
   instanceName,
   instanceCountry,
-  onSave 
+  onSave,
+  editingItem
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
@@ -876,12 +877,24 @@ function CollectionConfigDialog({
   instanceName: string;
   instanceCountry: string;
   onSave: (config: any) => void;
+  editingItem?: any;
 }) {
-  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
-  const [selectedDiscountId, setSelectedDiscountId] = useState<string | null>(null);
-  const [selectedVatRateId, setSelectedVatRateId] = useState<string | null>(null);
-  const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(editingItem?.priceId || null);
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string | null>(editingItem?.discountId || null);
+  const [selectedVatRateId, setSelectedVatRateId] = useState<string | null>(editingItem?.vatRateId || null);
+  const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState<string | null>(editingItem?.paymentOptionId || null);
+  const [quantity, setQuantity] = useState(editingItem?.quantity || 1);
+
+  // Reset state when editingItem changes
+  useEffect(() => {
+    if (open) {
+      setSelectedPriceId(editingItem?.priceId || null);
+      setSelectedDiscountId(editingItem?.discountId || null);
+      setSelectedVatRateId(editingItem?.vatRateId || null);
+      setSelectedPaymentOptionId(editingItem?.paymentOptionId || null);
+      setQuantity(editingItem?.quantity || 1);
+    }
+  }, [open, editingItem]);
 
   // Fetch all sub-form data for the instance using new unified endpoints
   const { data: prices = [] } = useQuery<any[]>({
@@ -941,6 +954,7 @@ function CollectionConfigDialog({
 
   const handleSave = () => {
     onSave({
+      id: editingItem?.id,
       instanceId,
       priceId: selectedPriceId || null,
       discountId: selectedDiscountId || null,
@@ -961,13 +975,15 @@ function CollectionConfigDialog({
     setQuantity(1);
   };
 
+  const isEditing = !!editingItem;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Badge variant="secondary">{instanceCountry}</Badge>
-            Konfigurácia odberu: {instanceName}
+            {isEditing ? "Editácia odberu:" : "Konfigurácia odberu:"} {instanceName}
           </DialogTitle>
         </DialogHeader>
 
@@ -1126,7 +1142,7 @@ function CollectionConfigDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Zrušiť</Button>
           <Button onClick={handleSave} disabled={!selectedPriceId}>
-            <Check className="h-4 w-4 mr-2" /> Pridať do zostavy
+            <Check className="h-4 w-4 mr-2" /> {isEditing ? "Uložiť zmeny" : "Pridať do zostavy"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1140,6 +1156,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [configuringInstanceId, setConfiguringInstanceId] = useState<string | null>(null);
+  const [editingCollectionItem, setEditingCollectionItem] = useState<any>(null);
   const [addingStorageServiceId, setAddingStorageServiceId] = useState<string | null>(null);
   const [newItemPrice, setNewItemPrice] = useState<string>("");
   const [newSetData, setNewSetData] = useState({
@@ -1229,6 +1246,20 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
     onSuccess: () => {
       toast({ title: "Odber pridaný do zostavy" });
       queryClient.invalidateQueries({ queryKey: ["/api/product-sets", selectedSetId] });
+    },
+  });
+
+  const updateCollectionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updateData } = data;
+      return apiRequest("PATCH", `/api/product-set-collections/${id}`, updateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Odber aktualizovaný" });
+      queryClient.invalidateQueries({ queryKey: ["/api/product-sets", selectedSetId] });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri aktualizácii", variant: "destructive" });
     },
   });
 
@@ -1434,8 +1465,8 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 </Popover>
               </div>
               
-              {/* Collection Configuration Dialog */}
-              {configuringInstanceId && (
+              {/* Collection Configuration Dialog - for adding new */}
+              {configuringInstanceId && !editingCollectionItem && (
                 <CollectionConfigDialog
                   open={!!configuringInstanceId}
                   onOpenChange={(open) => !open && setConfiguringInstanceId(null)}
@@ -1445,6 +1476,22 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   onSave={(config) => {
                     addCollectionMutation.mutate(config);
                     setConfiguringInstanceId(null);
+                  }}
+                />
+              )}
+
+              {/* Collection Configuration Dialog - for editing existing */}
+              {editingCollectionItem && (
+                <CollectionConfigDialog
+                  open={!!editingCollectionItem}
+                  onOpenChange={(open) => !open && setEditingCollectionItem(null)}
+                  instanceId={editingCollectionItem.instanceId}
+                  instanceName={instances.find((i: any) => i.id === editingCollectionItem.instanceId)?.name || ""}
+                  instanceCountry={instances.find((i: any) => i.id === editingCollectionItem.instanceId)?.countryCode || ""}
+                  editingItem={editingCollectionItem}
+                  onSave={(config) => {
+                    updateCollectionMutation.mutate(config);
+                    setEditingCollectionItem(null);
                   }}
                 />
               )}
@@ -1461,9 +1508,19 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                         <Badge variant="secondary">{inst?.countryCode}</Badge>
                         <span className="text-sm font-medium">{inst?.name || "Odber"}</span>
                       </div>
-                      <Button size="icon" variant="ghost" onClick={() => removeCollectionMutation.mutate(col.id)}>
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          onClick={() => setEditingCollectionItem(col)}
+                          data-testid={`button-edit-collection-${col.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => removeCollectionMutation.mutate(col.id)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     {lineGross > 0 && (
                       <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2 flex-wrap">

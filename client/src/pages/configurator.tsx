@@ -862,7 +862,7 @@ function ProductWizard({
 }
 
 // Zostavy Tab Component for Product Sets
-function ZostavyTab({ productId, instances, services, t }: { productId: string; instances: any[]; services: any[]; t: any }) {
+function ZostavyTab({ productId, instances, t }: { productId: string; instances: any[]; t: any }) {
   const { toast } = useToast();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [isAddingSet, setIsAddingSet] = useState(false);
@@ -876,6 +876,24 @@ function ZostavyTab({ productId, instances, services, t }: { productId: string; 
     currency: "EUR",
     notes: "",
     isActive: true
+  });
+
+  // Fetch ALL storage services for the product (independent of collection selection)
+  const { data: allStorageServices = [] } = useQuery<any[]>({
+    queryKey: ["/api/products", productId, "all-services"],
+    queryFn: async () => {
+      // Get services from all instances
+      const allServices: any[] = [];
+      for (const inst of instances) {
+        const res = await fetch(`/api/product-instances/${inst.id}/services`, { credentials: "include" });
+        if (res.ok) {
+          const services = await res.json();
+          allServices.push(...services.map((s: any) => ({ ...s, instanceName: inst.name, instanceCountryCode: inst.countryCode })));
+        }
+      }
+      return allServices;
+    },
+    enabled: instances.length > 0,
   });
 
   // Fetch product sets
@@ -1209,9 +1227,12 @@ function ZostavyTab({ productId, instances, services, t }: { productId: string; 
                   <PopoverContent className="w-72">
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Vyberte skladovanie a zadajte cenu</Label>
-                      {services.map((svc: any) => (
+                      {allStorageServices.map((svc: any) => (
                         <div key={svc.id} className="space-y-2 border-b pb-2">
-                          <span className="text-sm font-medium">{svc.name}</span>
+                          <div className="flex items-center gap-2">
+                            {svc.instanceCountryCode && <Badge variant="secondary">{svc.instanceCountryCode}</Badge>}
+                            <span className="text-sm font-medium">{svc.name}</span>
+                          </div>
                           {addingStorageServiceId === svc.id ? (
                             <div className="flex gap-2">
                               <Input 
@@ -1256,8 +1277,8 @@ function ZostavyTab({ productId, instances, services, t }: { productId: string; 
                           )}
                         </div>
                       ))}
-                      {services.length === 0 && (
-                        <p className="text-sm text-muted-foreground">Žiadne skladovanie</p>
+                      {allStorageServices.length === 0 && (
+                        <p className="text-sm text-muted-foreground">Žiadne skladovanie k dispozícii</p>
                       )}
                     </div>
                   </PopoverContent>
@@ -1265,11 +1286,12 @@ function ZostavyTab({ productId, instances, services, t }: { productId: string; 
               </div>
               
               {(selectedSet?.storage || []).map((stor: any) => {
-                const svc = services.find((s: any) => s.id === stor.serviceId);
+                const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
                 const storPrice = parseFloat(stor.priceOverride || 0);
                 return (
                   <div key={stor.id} className="flex items-center justify-between p-2 border rounded mb-1">
                     <div className="flex items-center gap-2">
+                      {svc?.instanceCountryCode && <Badge variant="secondary">{svc.instanceCountryCode}</Badge>}
                       <span className="text-sm">{svc?.name || "Skladovanie"}</span>
                       {storPrice > 0 && <Badge variant="outline">{storPrice.toFixed(2)} €</Badge>}
                     </div>
@@ -1313,7 +1335,7 @@ function ZostavyTab({ productId, instances, services, t }: { productId: string; 
               })}
               
               {(selectedSet?.storage || []).map((stor: any, idx: number) => {
-                const svc = services.find((s: any) => s.id === stor.serviceId);
+                const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
                 return (
                   <div key={stor.id} className="flex justify-between text-sm py-1 border-b">
                     <span>{(selectedSet?.collections?.length || 0) + idx + 1}. {svc?.name || "Skladovanie"}</span>
@@ -3942,7 +3964,7 @@ function ProductDetailDialog({
           </TabsContent>
 
           <TabsContent value="setts" className="space-y-4 mt-4">
-            <ZostavyTab productId={product.id} instances={instances} services={services} t={t} />
+            <ZostavyTab productId={product.id} instances={instances} t={t} />
           </TabsContent>
         </Tabs>
 

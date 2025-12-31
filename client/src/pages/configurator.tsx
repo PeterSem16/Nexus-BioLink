@@ -21,11 +21,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info } from "lucide-react";
 import { COUNTRIES } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { ServiceConfiguration, ServiceInstance, InvoiceTemplate, InvoiceLayout, Product, Role, RoleModulePermission, RoleFieldPermission, Department, BillingDetails, NumberRange } from "@shared/schema";
@@ -2043,6 +2044,20 @@ function ProductDetailDialog({
                           <Checkbox checked={newServiceData.storable} onCheckedChange={(v) => setNewServiceData({...newServiceData, storable: !!v})} />
                           <Label>Skladovateľné</Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={newServiceData.blockAutomation} onCheckedChange={(v) => setNewServiceData({...newServiceData, blockAutomation: !!v})} />
+                          <Label className="flex items-center gap-1">
+                            Blokovať automatizáciu
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Blokuje automatické generovanie faktúr pre túto službu</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </Label>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
@@ -2222,6 +2237,20 @@ function ProductDetailDialog({
                         <div className="flex items-center gap-2">
                           <Checkbox checked={editingServiceData.storable} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, storable: !!v})} />
                           <Label>Skladovateľné</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={editingServiceData.blockAutomation} onCheckedChange={(v) => setEditingServiceData({...editingServiceData, blockAutomation: !!v})} />
+                          <Label className="flex items-center gap-1">
+                            Blokovať automatizáciu
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Blokuje automatické generovanie faktúr pre túto službu</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </Label>
                         </div>
                       </div>
 

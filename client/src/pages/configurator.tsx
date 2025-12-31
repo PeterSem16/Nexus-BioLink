@@ -1330,6 +1330,8 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
   const [editingCollectionItem, setEditingCollectionItem] = useState<any>(null);
   const [addingStorageServiceId, setAddingStorageServiceId] = useState<string | null>(null);
   const [newItemPrice, setNewItemPrice] = useState<string>("");
+  const [isEditingSetName, setIsEditingSetName] = useState(false);
+  const [editedSetName, setEditedSetName] = useState("");
   const [newSetData, setNewSetData] = useState({
     name: "",
     fromDay: 0, fromMonth: 0, fromYear: 0,
@@ -1407,6 +1409,21 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
       toast({ title: t.success.deleted });
       refetchSets();
       setSelectedSetId(null);
+    },
+  });
+
+  const updateSetMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return apiRequest("PATCH", `/api/product-sets/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Zostava aktualizovaná" });
+      refetchSets();
+      queryClient.invalidateQueries({ queryKey: ["/api/product-sets", selectedSetId] });
+      setIsEditingSetName(false);
+    },
+    onError: () => {
+      toast({ title: "Chyba pri aktualizácii", variant: "destructive" });
     },
   });
 
@@ -1596,8 +1613,53 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium">{selectedSet?.name}</h4>
+            <div className="flex items-center justify-between gap-2">
+              {isEditingSetName ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    value={editedSetName}
+                    onChange={(e) => setEditedSetName(e.target.value)}
+                    className="flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && editedSetName.trim()) {
+                        updateSetMutation.mutate({ id: selectedSetId!, data: { name: editedSetName.trim() } });
+                      } else if (e.key === 'Escape') {
+                        setIsEditingSetName(false);
+                      }
+                    }}
+                  />
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => {
+                      if (editedSetName.trim()) {
+                        updateSetMutation.mutate({ id: selectedSetId!, data: { name: editedSetName.trim() } });
+                      }
+                    }}
+                    disabled={!editedSetName.trim() || updateSetMutation.isPending}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => setIsEditingSetName(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <h4 className="font-medium">{selectedSet?.name}</h4>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => {
+                      setEditedSetName(selectedSet?.name || "");
+                      setIsEditingSetName(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               <Button size="sm" variant="destructive" onClick={() => deleteSetMutation.mutate(selectedSetId)}>
                 <Trash2 className="h-4 w-4" />
               </Button>

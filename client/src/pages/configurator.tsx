@@ -2394,13 +2394,15 @@ function ProductDetailDialog({
                         <Button variant="outline" onClick={() => setCopyingService(null)}>{t.common.cancel}</Button>
                         <Button 
                           disabled={!copyTargetInstanceId}
-                          onClick={() => {
-                            const { id, createdAt, ...serviceData } = copyingService;
-                            createServiceMutation.mutate({
+                          onClick={async () => {
+                            const { id, createdAt, instanceId, ...serviceData } = copyingService;
+                            await apiRequest("POST", `/api/product-instances/${copyTargetInstanceId}/services`, {
                               ...serviceData,
                               instanceId: copyTargetInstanceId,
                               name: `${serviceData.name} (kópia)`,
                             });
+                            toast({ title: t.success.created });
+                            refetchServices();
                             setCopyingService(null);
                             setCopyTargetInstanceId("");
                           }}

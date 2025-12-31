@@ -942,15 +942,15 @@ function CollectionConfigDialog({
   const handleSave = () => {
     onSave({
       instanceId,
-      priceId: selectedPriceId,
-      discountId: selectedDiscountId,
-      vatRateId: selectedVatRateId,
-      paymentOptionId: selectedPaymentOptionId,
+      priceId: selectedPriceId || null,
+      discountId: selectedDiscountId || null,
+      vatRateId: selectedVatRateId || null,
+      paymentOptionId: selectedPaymentOptionId || null,
       quantity,
-      lineNetAmount: netAmount.toFixed(2),
-      lineDiscountAmount: discountAmount.toFixed(2),
-      lineVatAmount: vatAmount.toFixed(2),
-      lineGrossAmount: grossAmount.toFixed(2),
+      lineNetAmount: netAmount > 0 ? netAmount.toFixed(2) : null,
+      lineDiscountAmount: discountAmount > 0 ? discountAmount.toFixed(2) : null,
+      lineVatAmount: vatAmount > 0 ? vatAmount.toFixed(2) : null,
+      lineGrossAmount: grossAmount > 0 ? grossAmount.toFixed(2) : null,
     });
     onOpenChange(false);
     // Reset
@@ -1263,27 +1263,33 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
     let net = 0;
     let discount = 0;
     let vat = 0;
+    let gross = 0;
 
     // Calculate from collections
     (selectedSet.collections || []).forEach((col: any) => {
-      const lineNet = parseFloat(col.lineNetAmount || col.priceOverride || 0);
+      const lineNet = parseFloat(col.lineNetAmount || 0);
       const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
       const lineVat = parseFloat(col.lineVatAmount || 0);
+      const lineGross = parseFloat(col.lineGrossAmount || 0);
       net += lineNet;
       discount += lineDiscount;
       vat += lineVat;
+      gross += lineGross;
     });
 
     // Calculate from storage
     (selectedSet.storage || []).forEach((stor: any) => {
       const lineNet = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
       const lineVat = parseFloat(stor.lineVatAmount || 0);
+      const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
       net += lineNet;
       vat += lineVat;
+      gross += lineGross;
     });
 
-    const gross = net - discount + vat;
-    return { net, discount, vat, gross };
+    // If no line gross calculated, fallback to net - discount + vat
+    const finalGross = gross > 0 ? gross : (net - discount + vat);
+    return { net, discount, vat, gross: finalGross };
   };
 
   const totals = calculateTotals();

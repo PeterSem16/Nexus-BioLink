@@ -88,11 +88,11 @@ const uploadInvoiceImage = multer({
 // Helper function to convert date strings to Date objects
 function parseDateFields(data: Record<string, any>): Record<string, any> {
   const result = { ...data };
-  if (result.fromDate && typeof result.fromDate === 'string') {
-    result.fromDate = new Date(result.fromDate);
+  if (typeof result.fromDate === 'string') {
+    result.fromDate = result.fromDate ? new Date(result.fromDate) : null;
   }
-  if (result.toDate && typeof result.toDate === 'string') {
-    result.toDate = new Date(result.toDate);
+  if (typeof result.toDate === 'string') {
+    result.toDate = result.toDate ? new Date(result.toDate) : null;
   }
   return result;
 }

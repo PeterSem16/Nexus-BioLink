@@ -382,6 +382,16 @@ export const marketProductServices = pgTable("market_product_services", {
   blockAutomation: boolean("block_automation").notNull().default(false),
   certificateTemplate: text("certificate_template"),
   description: text("description"),
+  // New invoicing fields
+  allowProformaInvoices: boolean("allow_proforma_invoices").notNull().default(false),
+  invoicingPeriodYears: integer("invoicing_period_years"),
+  firstInvoiceAliquote: boolean("first_invoice_aliquote").notNull().default(false),
+  constantSymbol: text("constant_symbol"),
+  startInvoicing: text("start_invoicing"),
+  endInvoicing: text("end_invoicing"),
+  accountingIdOffset: integer("accounting_id_offset"),
+  ledgerAccountProforma: text("ledger_account_proforma"),
+  ledgerAccountInvoice: text("ledger_account_invoice"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -971,6 +981,16 @@ export const insertMarketProductServiceSchema = createInsertSchema(marketProduct
   blockAutomation: z.boolean().optional().default(false),
   certificateTemplate: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  // New invoicing fields
+  allowProformaInvoices: z.boolean().optional().default(false),
+  invoicingPeriodYears: z.number().int().min(1).max(50).optional().nullable(),
+  firstInvoiceAliquote: z.boolean().optional().default(false),
+  constantSymbol: z.string().optional().nullable(),
+  startInvoicing: z.string().optional().nullable(),
+  endInvoicing: z.string().optional().nullable(),
+  accountingIdOffset: z.number().int().optional().nullable(),
+  ledgerAccountProforma: z.string().optional().nullable(),
+  ledgerAccountInvoice: z.string().optional().nullable(),
 });
 
 export type InsertMarketProductService = z.infer<typeof insertMarketProductServiceSchema>;

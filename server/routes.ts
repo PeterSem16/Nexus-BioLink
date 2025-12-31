@@ -626,6 +626,9 @@ export async function registerRoutes(
   app.post("/api/instance-payment-options", requireAuth, async (req, res) => {
     try {
       const data = parseDateFields(req.body);
+      // Convert empty strings to null for numeric fields
+      if (data.paymentTypeFee === "") data.paymentTypeFee = null;
+      if (data.installmentCount === "") data.installmentCount = null;
       const option = await storage.createInstancePaymentOption(data);
       res.status(201).json(option);
     } catch (error) {
@@ -637,6 +640,9 @@ export async function registerRoutes(
   app.patch("/api/instance-payment-options/:id", requireAuth, async (req, res) => {
     try {
       const data = parseDateFields(req.body);
+      // Convert empty strings to null for numeric fields
+      if (data.paymentTypeFee === "") data.paymentTypeFee = null;
+      if (data.installmentCount === "") data.installmentCount = null;
       const option = await storage.updateInstancePaymentOption(req.params.id, data);
       if (!option) {
         return res.status(404).json({ error: "Payment option not found" });

@@ -2402,6 +2402,7 @@ function ProductDetailDialog({
                               name: `${serviceData.name} (kópia)`,
                             });
                             toast({ title: t.success.created });
+                            queryClient.invalidateQueries({ queryKey: ["/api/product-instances", copyTargetInstanceId, "services"] });
                             refetchServices();
                             setCopyingService(null);
                             setCopyTargetInstanceId("");

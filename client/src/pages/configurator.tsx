@@ -1219,6 +1219,108 @@ function CollectionConfigDialog({
   );
 }
 
+// Payment breakdown component for invoice preview
+function PaymentBreakdownItem({ 
+  instanceId, 
+  instanceName, 
+  paymentOptionId, 
+  amount 
+}: { 
+  instanceId: string; 
+  instanceName: string; 
+  paymentOptionId: string; 
+  amount: number;
+}) {
+  const { data: paymentOptions = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-payment-options", instanceId, "market_instance"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-payment-options/${instanceId}/market_instance`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: !!instanceId && !!paymentOptionId,
+  });
+
+  const paymentOption = paymentOptions.find((p: any) => p.id === paymentOptionId);
+  
+  if (!paymentOption) {
+    return null;
+  }
+
+  const fee = parseFloat(paymentOption.paymentTypeFee || 0);
+  const totalWithFee = amount + fee;
+
+  if (paymentOption.isMultiPayment && paymentOption.installmentCount > 1) {
+    const installmentAmount = totalWithFee / paymentOption.installmentCount;
+    const frequencyLabel = paymentOption.frequency === 'monthly' ? 'mesačne' : 
+                          paymentOption.frequency === 'quarterly' ? 'štvrťročne' : 
+                          paymentOption.frequency === 'yearly' ? 'ročne' : paymentOption.frequency;
+    
+    return (
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{instanceName}</span>
+          <Badge variant="secondary" className="text-xs">Splátky</Badge>
+        </div>
+        <div className="text-xs space-y-1">
+          <div className="flex justify-between">
+            <span>Typ platby:</span>
+            <span className="font-medium">{paymentOption.name}</span>
+          </div>
+          {fee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Poplatok:</span>
+              <span>+{fee.toFixed(2)} €</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span>Celkom:</span>
+            <span className="font-medium">{totalWithFee.toFixed(2)} €</span>
+          </div>
+          <Separator className="my-1" />
+          <div className="flex justify-between font-medium text-blue-700 dark:text-blue-400">
+            <span>{paymentOption.installmentCount}x {frequencyLabel}:</span>
+            <span>{installmentAmount.toFixed(2)} €</span>
+          </div>
+          <div className="pt-1 border-t border-blue-200 dark:border-blue-800 mt-1 space-y-0.5">
+            {Array.from({ length: Math.min(paymentOption.installmentCount, 6) }, (_, i) => (
+              <div key={i} className="flex justify-between text-muted-foreground">
+                <span>Splátka {i + 1}:</span>
+                <span>{installmentAmount.toFixed(2)} €</span>
+              </div>
+            ))}
+            {paymentOption.installmentCount > 6 && (
+              <div className="text-center text-xs text-muted-foreground pt-1">
+                ... a ďalších {paymentOption.installmentCount - 6} splátok
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  } else {
+    return (
+      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <CreditCard className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-medium text-green-700 dark:text-green-400">{instanceName}</span>
+          <Badge variant="outline" className="text-xs">Jednorázová</Badge>
+        </div>
+        <div className="text-xs space-y-1">
+          <div className="flex justify-between">
+            <span>Typ platby:</span>
+            <span className="font-medium">{paymentOption.name}</span>
+          </div>
+          <div className="flex justify-between font-medium text-green-700 dark:text-green-400">
+            <span>K úhrade:</span>
+            <span>{amount.toFixed(2)} €</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 // Zostavy Tab Component for Product Sets
 function ZostavyTab({ productId, instances, t }: { productId: string; instances: any[]; t: any }) {
   const { toast } = useToast();
@@ -1773,6 +1875,31 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 <span className="font-mono text-lg">{totals.gross.toFixed(2)} €</span>
               </div>
             </div>
+
+            {/* Payment breakdown for collections with payment options */}
+            {(selectedSet?.collections || []).some((col: any) => col.paymentOptionId) && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <Label className="text-xs text-muted-foreground">Rozpis platieb</Label>
+                  {(selectedSet?.collections || []).map((col: any) => {
+                    if (!col.paymentOptionId) return null;
+                    const inst = instances.find((i: any) => i.id === col.instanceId);
+                    const lineGross = parseFloat(col.lineGrossAmount || 0);
+                    
+                    return (
+                      <PaymentBreakdownItem 
+                        key={col.id}
+                        instanceId={col.instanceId}
+                        instanceName={inst?.name || "Odber"}
+                        paymentOptionId={col.paymentOptionId}
+                        amount={lineGross}
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

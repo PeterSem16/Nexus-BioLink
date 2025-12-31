@@ -1563,14 +1563,17 @@ function ProductDetailDialog({
                           </div>
                           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingPriceId(null); setEditingPriceData(null); }}>{t.common.cancel}</Button>
-                            <Button size="sm" onClick={() => updatePriceMutation.mutate({ 
-                              id: editingPriceId, 
-                              data: {
-                                ...editingPriceData,
-                                fromDate: componentsToISOString(editingPriceData.fromDay, editingPriceData.fromMonth, editingPriceData.fromYear),
-                                toDate: componentsToISOString(editingPriceData.toDay, editingPriceData.toMonth, editingPriceData.toYear),
-                              }
-                            })}>{t.common.save}</Button>
+                            <Button size="sm" onClick={() => {
+                              const { id, instanceId, createdAt, fromDay, fromMonth, fromYear, toDay, toMonth, toYear, ...updateData } = editingPriceData;
+                              updatePriceMutation.mutate({ 
+                                id: editingPriceId, 
+                                data: {
+                                  ...updateData,
+                                  fromDate: componentsToISOString(fromDay, fromMonth, fromYear),
+                                  toDate: componentsToISOString(toDay, toMonth, toYear),
+                                }
+                              });
+                            }}>{t.common.save}</Button>
                           </div>
                         </Card>
                       )}
@@ -1764,14 +1767,17 @@ function ProductDetailDialog({
                           </div>
                           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingPaymentId(null); setEditingPaymentData(null); }}>{t.common.cancel}</Button>
-                            <Button size="sm" onClick={() => updatePaymentMutation.mutate({ 
-                              id: editingPaymentId, 
-                              data: {
-                                ...editingPaymentData,
-                                fromDate: componentsToISOString(editingPaymentData.fromDay, editingPaymentData.fromMonth, editingPaymentData.fromYear),
-                                toDate: componentsToISOString(editingPaymentData.toDay, editingPaymentData.toMonth, editingPaymentData.toYear),
-                              }
-                            })}>{t.common.save}</Button>
+                            <Button size="sm" onClick={() => {
+                              const { id, instanceId, createdAt, fromDay, fromMonth, fromYear, toDay, toMonth, toYear, ...updateData } = editingPaymentData;
+                              updatePaymentMutation.mutate({ 
+                                id: editingPaymentId, 
+                                data: {
+                                  ...updateData,
+                                  fromDate: componentsToISOString(fromDay, fromMonth, fromYear),
+                                  toDate: componentsToISOString(toDay, toMonth, toYear),
+                                }
+                              });
+                            }}>{t.common.save}</Button>
                           </div>
                         </Card>
                       )}
@@ -1982,14 +1988,17 @@ function ProductDetailDialog({
                           </div>
                           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                             <Button size="sm" variant="outline" onClick={() => { setEditingDiscountId(null); setEditingDiscountData(null); }}>{t.common.cancel}</Button>
-                            <Button size="sm" onClick={() => updateDiscountMutation.mutate({ 
-                              id: editingDiscountId, 
-                              data: {
-                                ...editingDiscountData,
-                                fromDate: componentsToISOString(editingDiscountData.fromDay, editingDiscountData.fromMonth, editingDiscountData.fromYear),
-                                toDate: componentsToISOString(editingDiscountData.toDay, editingDiscountData.toMonth, editingDiscountData.toYear),
-                              }
-                            })}>{t.common.save}</Button>
+                            <Button size="sm" onClick={() => {
+                              const { id, instanceId, createdAt, fromDay, fromMonth, fromYear, toDay, toMonth, toYear, ...updateData } = editingDiscountData;
+                              updateDiscountMutation.mutate({ 
+                                id: editingDiscountId, 
+                                data: {
+                                  ...updateData,
+                                  fromDate: componentsToISOString(fromDay, fromMonth, fromYear),
+                                  toDate: componentsToISOString(toDay, toMonth, toYear),
+                                }
+                              });
+                            }}>{t.common.save}</Button>
                           </div>
                         </Card>
                       )}

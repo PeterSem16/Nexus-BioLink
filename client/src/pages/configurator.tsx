@@ -883,20 +883,20 @@ function CollectionConfigDialog({
   const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  // Fetch all sub-form data for the instance
+  // Fetch all sub-form data for the instance using new unified endpoints
   const { data: prices = [] } = useQuery<any[]>({
-    queryKey: ["/api/product-instances", instanceId, "prices"],
+    queryKey: ["/api/instance-prices", instanceId, "market_instance"],
     queryFn: async () => {
-      const res = await fetch(`/api/product-instances/${instanceId}/prices`, { credentials: "include" });
+      const res = await fetch(`/api/instance-prices/${instanceId}/market_instance`, { credentials: "include" });
       return res.ok ? res.json() : [];
     },
     enabled: open && !!instanceId,
   });
 
   const { data: discounts = [] } = useQuery<any[]>({
-    queryKey: ["/api/product-instances", instanceId, "discounts"],
+    queryKey: ["/api/instance-discounts", instanceId, "market_instance"],
     queryFn: async () => {
-      const res = await fetch(`/api/product-instances/${instanceId}/discounts`, { credentials: "include" });
+      const res = await fetch(`/api/instance-discounts/${instanceId}/market_instance`, { credentials: "include" });
       return res.ok ? res.json() : [];
     },
     enabled: open && !!instanceId,
@@ -905,16 +905,16 @@ function CollectionConfigDialog({
   const { data: vatRates = [] } = useQuery<any[]>({
     queryKey: ["/api/instance-vat-rates", instanceId, "market_instance"],
     queryFn: async () => {
-      const res = await fetch(`/api/instance-vat-rates?instanceId=${instanceId}&instanceType=market_instance`, { credentials: "include" });
+      const res = await fetch(`/api/instance-vat-rates/${instanceId}/market_instance`, { credentials: "include" });
       return res.ok ? res.json() : [];
     },
     enabled: open && !!instanceId,
   });
 
   const { data: paymentOptions = [] } = useQuery<any[]>({
-    queryKey: ["/api/product-instances", instanceId, "payment-options"],
+    queryKey: ["/api/instance-payment-options", instanceId, "market_instance"],
     queryFn: async () => {
-      const res = await fetch(`/api/product-instances/${instanceId}/payment-options`, { credentials: "include" });
+      const res = await fetch(`/api/instance-payment-options/${instanceId}/market_instance`, { credentials: "include" });
       return res.ok ? res.json() : [];
     },
     enabled: open && !!instanceId,
@@ -928,14 +928,14 @@ function CollectionConfigDialog({
   const basePrice = parseFloat(selectedPrice?.price || 0);
   let discountAmount = 0;
   if (selectedDiscount) {
-    if (selectedDiscount.isPercentage) {
-      discountAmount = basePrice * (parseFloat(selectedDiscount.percentageValue || 0) / 100);
-    } else if (selectedDiscount.isFixed) {
-      discountAmount = parseFloat(selectedDiscount.fixedValue || 0);
+    if (selectedDiscount.isPercentage && selectedDiscount.percentageValue) {
+      discountAmount = basePrice * (parseFloat(selectedDiscount.percentageValue) / 100);
+    } else if (selectedDiscount.isFixed && selectedDiscount.fixedValue) {
+      discountAmount = parseFloat(selectedDiscount.fixedValue);
     }
   }
   const netAmount = (basePrice - discountAmount) * quantity;
-  const vatRate = parseFloat(selectedVat?.rate || 0);
+  const vatRate = parseFloat(selectedVat?.vatRate || 0);
   const vatAmount = netAmount * (vatRate / 100);
   const grossAmount = netAmount + vatAmount;
 
@@ -1041,10 +1041,10 @@ function CollectionConfigDialog({
                   onClick={() => setSelectedVatRateId(vat.id)}
                 >
                   <div>
-                    <span className="text-sm font-medium">{vat.name}</span>
+                    <span className="text-sm font-medium">{vat.name || vat.category}</span>
                     {vat.fromDate && <span className="text-xs text-muted-foreground ml-2">od {formatDate(vat.fromDate)}</span>}
                   </div>
-                  <Badge variant="outline">{parseFloat(vat.rate || 0).toFixed(0)}%</Badge>
+                  <Badge variant="outline">{parseFloat(vat.vatRate || 0).toFixed(0)}%</Badge>
                 </div>
               ))}
             </div>

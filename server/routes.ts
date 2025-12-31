@@ -85,6 +85,18 @@ const uploadInvoiceImage = multer({
   },
 });
 
+// Helper function to convert date strings to Date objects
+function parseDateFields(data: Record<string, any>): Record<string, any> {
+  const result = { ...data };
+  if (result.fromDate && typeof result.fromDate === 'string') {
+    result.fromDate = new Date(result.fromDate);
+  }
+  if (result.toDate && typeof result.toDate === 'string') {
+    result.toDate = new Date(result.toDate);
+  }
+  return result;
+}
+
 // Extract text from PDF
 async function extractPdfText(filePath: string): Promise<string> {
   try {
@@ -515,10 +527,8 @@ export async function registerRoutes(
 
   app.post("/api/products/:productId/instances", requireAuth, async (req, res) => {
     try {
-      const instance = await storage.createMarketProductInstance({
-        ...req.body,
-        productId: req.params.productId,
-      });
+      const data = parseDateFields({ ...req.body, productId: req.params.productId });
+      const instance = await storage.createMarketProductInstance(data);
       res.status(201).json(instance);
     } catch (error) {
       console.error("Error creating market product instance:", error);
@@ -528,7 +538,8 @@ export async function registerRoutes(
 
   app.patch("/api/product-instances/:id", requireAuth, async (req, res) => {
     try {
-      const instance = await storage.updateMarketProductInstance(req.params.id, req.body);
+      const data = parseDateFields(req.body);
+      const instance = await storage.updateMarketProductInstance(req.params.id, data);
       if (!instance) {
         return res.status(404).json({ error: "Instance not found" });
       }
@@ -565,7 +576,8 @@ export async function registerRoutes(
 
   app.post("/api/instance-prices", requireAuth, async (req, res) => {
     try {
-      const price = await storage.createInstancePrice(req.body);
+      const data = parseDateFields(req.body);
+      const price = await storage.createInstancePrice(data);
       res.status(201).json(price);
     } catch (error) {
       console.error("Error creating instance price:", error);
@@ -575,7 +587,8 @@ export async function registerRoutes(
 
   app.patch("/api/instance-prices/:id", requireAuth, async (req, res) => {
     try {
-      const price = await storage.updateInstancePrice(req.params.id, req.body);
+      const data = parseDateFields(req.body);
+      const price = await storage.updateInstancePrice(req.params.id, data);
       if (!price) {
         return res.status(404).json({ error: "Price not found" });
       }
@@ -612,7 +625,8 @@ export async function registerRoutes(
 
   app.post("/api/instance-payment-options", requireAuth, async (req, res) => {
     try {
-      const option = await storage.createInstancePaymentOption(req.body);
+      const data = parseDateFields(req.body);
+      const option = await storage.createInstancePaymentOption(data);
       res.status(201).json(option);
     } catch (error) {
       console.error("Error creating payment option:", error);
@@ -622,7 +636,8 @@ export async function registerRoutes(
 
   app.patch("/api/instance-payment-options/:id", requireAuth, async (req, res) => {
     try {
-      const option = await storage.updateInstancePaymentOption(req.params.id, req.body);
+      const data = parseDateFields(req.body);
+      const option = await storage.updateInstancePaymentOption(req.params.id, data);
       if (!option) {
         return res.status(404).json({ error: "Payment option not found" });
       }
@@ -659,7 +674,8 @@ export async function registerRoutes(
 
   app.post("/api/instance-discounts", requireAuth, async (req, res) => {
     try {
-      const discount = await storage.createInstanceDiscount(req.body);
+      const data = parseDateFields(req.body);
+      const discount = await storage.createInstanceDiscount(data);
       res.status(201).json(discount);
     } catch (error) {
       console.error("Error creating discount:", error);
@@ -669,7 +685,8 @@ export async function registerRoutes(
 
   app.patch("/api/instance-discounts/:id", requireAuth, async (req, res) => {
     try {
-      const discount = await storage.updateInstanceDiscount(req.params.id, req.body);
+      const data = parseDateFields(req.body);
+      const discount = await storage.updateInstanceDiscount(req.params.id, data);
       if (!discount) {
         return res.status(404).json({ error: "Discount not found" });
       }
@@ -706,10 +723,8 @@ export async function registerRoutes(
 
   app.post("/api/product-instances/:instanceId/services", requireAuth, async (req, res) => {
     try {
-      const service = await storage.createMarketProductService({
-        ...req.body,
-        instanceId: req.params.instanceId,
-      });
+      const data = parseDateFields({ ...req.body, instanceId: req.params.instanceId });
+      const service = await storage.createMarketProductService(data);
       res.status(201).json(service);
     } catch (error) {
       console.error("Error creating service:", error);
@@ -719,7 +734,8 @@ export async function registerRoutes(
 
   app.patch("/api/product-services/:id", requireAuth, async (req, res) => {
     try {
-      const service = await storage.updateMarketProductService(req.params.id, req.body);
+      const data = parseDateFields(req.body);
+      const service = await storage.updateMarketProductService(req.params.id, data);
       if (!service) {
         return res.status(404).json({ error: "Service not found" });
       }

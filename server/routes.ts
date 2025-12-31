@@ -14,6 +14,7 @@ import {
   insertSavedSearchSchema,
   insertCampaignSchema, insertCampaignContactSchema, insertCampaignContactHistorySchema,
   insertSipSettingsSchema, insertCallLogSchema,
+  insertInstanceVatRateSchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria,
   type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout, type Role,
   type Campaign, type CampaignContact
@@ -780,6 +781,75 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting discount:", error);
       res.status(500).json({ error: "Failed to delete discount" });
+    }
+  });
+
+  // Instance VAT Rates API
+  app.get("/api/instance-vat-rates/:instanceId/:instanceType", requireAuth, async (req, res) => {
+    try {
+      const vatRates = await storage.getInstanceVatRates(req.params.instanceId, req.params.instanceType);
+      res.json(vatRates);
+    } catch (error) {
+      console.error("Error fetching VAT rates:", error);
+      res.status(500).json({ error: "Failed to fetch VAT rates" });
+    }
+  });
+
+  app.post("/api/instance-vat-rates", requireAuth, async (req, res) => {
+    try {
+      // Preprocess data - convert empty strings to null for optional fields
+      const rawData = { ...req.body };
+      if (rawData.vatRate === "") rawData.vatRate = null;
+      if (rawData.accountingCode === "") rawData.accountingCode = null;
+      if (rawData.billingDetailsId === "") rawData.billingDetailsId = null;
+      if (rawData.category === "") rawData.category = null;
+      if (rawData.description === "") rawData.description = null;
+      
+      // Validate with Zod schema
+      const validationResult = insertInstanceVatRateSchema.safeParse(rawData);
+      if (!validationResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: validationResult.error.flatten() });
+      }
+      
+      const vatRate = await storage.createInstanceVatRate(validationResult.data);
+      res.status(201).json(vatRate);
+    } catch (error) {
+      console.error("Error creating VAT rate:", error);
+      res.status(500).json({ error: "Failed to create VAT rate" });
+    }
+  });
+
+  app.patch("/api/instance-vat-rates/:id", requireAuth, async (req, res) => {
+    try {
+      // Preprocess data - convert empty strings to null for optional fields
+      const rawData = { ...req.body };
+      if (rawData.vatRate === "") rawData.vatRate = null;
+      if (rawData.accountingCode === "") rawData.accountingCode = null;
+      if (rawData.billingDetailsId === "") rawData.billingDetailsId = null;
+      if (rawData.category === "") rawData.category = null;
+      if (rawData.description === "") rawData.description = null;
+      
+      const vatRate = await storage.updateInstanceVatRate(req.params.id, rawData);
+      if (!vatRate) {
+        return res.status(404).json({ error: "VAT rate not found" });
+      }
+      res.json(vatRate);
+    } catch (error) {
+      console.error("Error updating VAT rate:", error);
+      res.status(500).json({ error: "Failed to update VAT rate" });
+    }
+  });
+
+  app.delete("/api/instance-vat-rates/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInstanceVatRate(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "VAT rate not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting VAT rate:", error);
+      res.status(500).json({ error: "Failed to delete VAT rate" });
     }
   });
 

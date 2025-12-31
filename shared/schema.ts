@@ -386,6 +386,25 @@ export const instanceDiscounts = pgTable("instance_discounts", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Instance VAT Rates - VAT rates for market instances and services
+export const instanceVatRates = pgTable("instance_vat_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(),
+  instanceType: text("instance_type").notNull().default("market_instance"), // market_instance or service
+  billingDetailsId: varchar("billing_details_id"), // optional accounting company
+  category: text("category"),
+  accountingCode: text("accounting_code"),
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }),
+  description: text("description"),
+  createAsNewVat: boolean("create_as_new_vat").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertInstanceVatRateSchema = createInsertSchema(instanceVatRates).omit({ id: true, createdAt: true });
+export type InsertInstanceVatRate = z.infer<typeof insertInstanceVatRateSchema>;
+export type InstanceVatRate = typeof instanceVatRates.$inferSelect;
+
 // Market Product Services - services within market product instances
 export const marketProductServices = pgTable("market_product_services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

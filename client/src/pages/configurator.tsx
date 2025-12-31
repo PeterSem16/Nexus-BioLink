@@ -855,14 +855,15 @@ function ProductDetailDialog({
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("detail");
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
-  const [instanceSubTab, setInstanceSubTab] = useState<"prices" | "payments" | "discounts">("prices");
+  const [instanceSubTab, setInstanceSubTab] = useState<"prices" | "payments" | "discounts" | "vat">("prices");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [serviceSubTab, setServiceSubTab] = useState<"prices" | "payments" | "discounts">("prices");
+  const [serviceSubTab, setServiceSubTab] = useState<"prices" | "payments" | "discounts" | "vat">("prices");
   const [isAddingInstance, setIsAddingInstance] = useState(false);
   const [isAddingService, setIsAddingService] = useState(false);
   const [isAddingPrice, setIsAddingPrice] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [isAddingDiscount, setIsAddingDiscount] = useState(false);
+  const [isAddingVat, setIsAddingVat] = useState(false);
   
   const [productData, setProductData] = useState<any>({
     name: "", description: "", countries: [] as string[], isActive: true
@@ -930,6 +931,17 @@ function ProductDetailDialog({
     queryFn: async () => {
       if (!selectedInstanceId) return [];
       const res = await fetch(`/api/instance-discounts/${selectedInstanceId}/market_instance`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedInstanceId,
+  });
+
+  const { data: instanceVatRates = [], refetch: refetchVatRates } = useQuery<any[]>({
+    queryKey: ["/api/instance-vat-rates", selectedInstanceId, "market_instance"],
+    queryFn: async () => {
+      if (!selectedInstanceId) return [];
+      const res = await fetch(`/api/instance-vat-rates/${selectedInstanceId}/market_instance`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1037,6 +1049,24 @@ function ProductDetailDialog({
     },
   });
 
+  const createVatRateMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/instance-vat-rates", data),
+    onSuccess: () => {
+      refetchVatRates();
+      setIsAddingVat(false);
+      setNewVatRateData({ category: "", accountingCode: "", vatRate: "", createAsNewVat: false });
+      toast({ title: t.success.created });
+    },
+  });
+
+  const deleteVatRateMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/instance-vat-rates/${id}`),
+    onSuccess: () => {
+      refetchVatRates();
+      toast({ title: t.success.deleted });
+    },
+  });
+
   const createServiceMutation = useMutation({
     mutationFn: (data: Partial<MarketProductService>) => 
       apiRequest("POST", `/api/product-instances/${selectedInstanceId}/services`, data),
@@ -1131,6 +1161,9 @@ function ProductDetailDialog({
     name: "", type: "", invoiceItemText: "", analyticalAccount: "", accountingCode: "",
     isFixed: false, fixedValue: "", isPercentage: true, percentageValue: "",
     fromDay: 0, fromMonth: 0, fromYear: 0, toDay: 0, toMonth: 0, toYear: 0, isActive: true, description: ""
+  });
+  const [newVatRateData, setNewVatRateData] = useState<any>({ 
+    category: "", accountingCode: "", vatRate: "", createAsNewVat: false
   });
   const [newServiceData, setNewServiceData] = useState<any>({ 
     name: "", invoiceIdentifier: "", invoiceable: false, collectable: false, storable: false,
@@ -1439,6 +1472,7 @@ function ProductDetailDialog({
                       <TabsTrigger value="prices">Ceny</TabsTrigger>
                       <TabsTrigger value="payments">Platobné možnosti</TabsTrigger>
                       <TabsTrigger value="discounts">Zľavy</TabsTrigger>
+                      <TabsTrigger value="vat">VAT sadzby</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="prices" className="space-y-3 mt-3">
@@ -2488,6 +2522,84 @@ function ProductDetailDialog({
                           </div>
                         </Card>
                       )}
+                    </TabsContent>
+
+                    <TabsContent value="vat" className="space-y-3 mt-3">
+                      <div className="flex justify-end">
+                        <Button size="sm" onClick={() => setIsAddingVat(true)}><Plus className="h-4 w-4 mr-1" />{t.common.add}</Button>
+                      </div>
+                      {isAddingVat && (
+                        <Card className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label>Kategória</Label>
+                                <Input 
+                                  value={newVatRateData.category} 
+                                  onChange={(e) => setNewVatRateData({...newVatRateData, category: e.target.value})} 
+                                  placeholder="Napr. standard, reduced"
+                                  data-testid="input-vat-category"
+                                />
+                              </div>
+                              <div>
+                                <Label>Účtovný kód</Label>
+                                <Input 
+                                  value={newVatRateData.accountingCode} 
+                                  onChange={(e) => setNewVatRateData({...newVatRateData, accountingCode: e.target.value})}
+                                  data-testid="input-vat-accounting-code"
+                                />
+                              </div>
+                              <div>
+                                <Label>VAT sadzba (%)</Label>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  value={newVatRateData.vatRate} 
+                                  onChange={(e) => setNewVatRateData({...newVatRateData, vatRate: e.target.value})}
+                                  data-testid="input-vat-rate"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch 
+                                checked={newVatRateData.createAsNewVat} 
+                                onCheckedChange={(v) => setNewVatRateData({...newVatRateData, createAsNewVat: v})}
+                                data-testid="switch-vat-create-as-new"
+                              />
+                              <Label>Vytvoriť ako nové VAT</Label>
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                            <Button size="sm" variant="outline" onClick={() => setIsAddingVat(false)}>{t.common.cancel}</Button>
+                            <Button 
+                              size="sm" 
+                              disabled={!newVatRateData.category || createVatRateMutation.isPending}
+                              onClick={() => {
+                                const payload: any = {
+                                  instanceId: selectedInstanceId!,
+                                  instanceType: "market_instance",
+                                  category: newVatRateData.category,
+                                  accountingCode: newVatRateData.accountingCode || null,
+                                  vatRate: newVatRateData.vatRate === "" ? null : newVatRateData.vatRate,
+                                  createAsNewVat: newVatRateData.createAsNewVat,
+                                };
+                                createVatRateMutation.mutate(payload);
+                              }}
+                            >{t.common.save}</Button>
+                          </div>
+                        </Card>
+                      )}
+                      {instanceVatRates.map((vat: any) => (
+                        <div key={vat.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{vat.category}</span>
+                            {vat.vatRate && <Badge variant="outline">{vat.vatRate}%</Badge>}
+                            {vat.accountingCode && <span className="text-sm text-muted-foreground">{vat.accountingCode}</span>}
+                            {vat.createAsNewVat && <Badge variant="secondary">Nové VAT</Badge>}
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => deleteVatRateMutation.mutate(vat.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      ))}
                     </TabsContent>
                   </Tabs>
                 </CardContent>

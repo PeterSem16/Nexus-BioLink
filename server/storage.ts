@@ -8,7 +8,7 @@ import {
   serviceConfigurations, serviceInstances, numberRanges, invoiceTemplates, invoiceLayouts,
   roles, roleModulePermissions, roleFieldPermissions, userRoles, departments,
   billingCompanyAccounts, billingCompanyAuditLog, billingCompanyLaboratories, billingCompanyCollaborators, billingCompanyCouriers,
-  marketProductInstances, instancePrices, instancePaymentOptions, instanceDiscounts, marketProductServices, paymentInstallments,
+  marketProductInstances, instancePrices, instancePaymentOptions, instanceDiscounts, instanceVatRates, marketProductServices, paymentInstallments,
   type User, type InsertUser, type UpdateUser, type SafeUser,
   type Customer, type InsertCustomer,
   type Product, type InsertProduct,
@@ -685,6 +685,28 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInstanceDiscount(id: string): Promise<boolean> {
     const result = await db.delete(instanceDiscounts).where(eq(instanceDiscounts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Instance VAT Rates
+  async getInstanceVatRates(instanceId: string, instanceType: string): Promise<any[]> {
+    return await db.select().from(instanceVatRates).where(
+      and(eq(instanceVatRates.instanceId, instanceId), eq(instanceVatRates.instanceType, instanceType))
+    );
+  }
+
+  async createInstanceVatRate(data: any): Promise<any> {
+    const [vatRate] = await db.insert(instanceVatRates).values(data).returning();
+    return vatRate;
+  }
+
+  async updateInstanceVatRate(id: string, data: any): Promise<any> {
+    const [vatRate] = await db.update(instanceVatRates).set(data).where(eq(instanceVatRates.id, id)).returning();
+    return vatRate;
+  }
+
+  async deleteInstanceVatRate(id: string): Promise<boolean> {
+    const result = await db.delete(instanceVatRates).where(eq(instanceVatRates.id, id)).returning();
     return result.length > 0;
   }
 

@@ -190,9 +190,7 @@ interface WizardInstance {
   name: string;
   isActive: boolean;
   billingDetailsId: string;
-  prices: { priceType: string; amount: string; currency: string }[];
-  paymentOptions: { name: string; installments: number; intervalMonths: number; interestRate: string }[];
-  discounts: { name: string; discountType: string; value: string }[];
+  currency: string;
 }
 
 function DateFields({
@@ -423,67 +421,11 @@ function ProductWizard({
       name: `${productData.name} - ${countryCode}`,
       isActive: true,
       billingDetailsId: "",
-      prices: [],
-      paymentOptions: [],
-      discounts: [],
+      currency: countryCode === "CZ" ? "CZK" : countryCode === "HU" ? "HUF" : countryCode === "RO" ? "RON" : countryCode === "US" ? "USD" : countryCode === "CH" ? "CHF" : "EUR",
     }));
     setInstances(newInstances);
     setCurrentInstanceIndex(0);
     setStep(2);
-  };
-
-  const addPriceToInstance = (idx: number) => {
-    const updated = [...instances];
-    updated[idx].prices.push({ priceType: "base", amount: "", currency: "EUR" });
-    setInstances(updated);
-  };
-
-  const updatePrice = (instIdx: number, priceIdx: number, field: string, value: string) => {
-    const updated = [...instances];
-    (updated[instIdx].prices[priceIdx] as any)[field] = value;
-    setInstances(updated);
-  };
-
-  const removePrice = (instIdx: number, priceIdx: number) => {
-    const updated = [...instances];
-    updated[instIdx].prices.splice(priceIdx, 1);
-    setInstances(updated);
-  };
-
-  const addPaymentToInstance = (idx: number) => {
-    const updated = [...instances];
-    updated[idx].paymentOptions.push({ name: "", installments: 1, intervalMonths: 1, interestRate: "0" });
-    setInstances(updated);
-  };
-
-  const updatePayment = (instIdx: number, payIdx: number, field: string, value: any) => {
-    const updated = [...instances];
-    (updated[instIdx].paymentOptions[payIdx] as any)[field] = value;
-    setInstances(updated);
-  };
-
-  const removePayment = (instIdx: number, payIdx: number) => {
-    const updated = [...instances];
-    updated[instIdx].paymentOptions.splice(payIdx, 1);
-    setInstances(updated);
-  };
-
-  const addDiscountToInstance = (idx: number) => {
-    const updated = [...instances];
-    updated[idx].discounts.push({ name: "", discountType: "percentage", value: "" });
-    setInstances(updated);
-  };
-
-  const updateDiscount = (instIdx: number, discIdx: number, field: string, value: string) => {
-    const updated = [...instances];
-    (updated[instIdx].discounts[discIdx] as any)[field] = value;
-    setInstances(updated);
-  };
-
-  const removeDiscount = (instIdx: number, discIdx: number) => {
-    const updated = [...instances];
-    updated[instIdx].discounts.splice(discIdx, 1);
-    setInstances(updated);
   };
 
   const updateInstanceField = (idx: number, field: string, value: any) => {
@@ -512,59 +454,10 @@ function ProductWizard({
           name: instance.name,
           isActive: instance.isActive,
           billingDetailsId: instance.billingDetailsId || null,
+          currency: instance.currency,
         });
         if (!instanceRes.ok) {
           throw new Error(`Nepodarilo sa vytvoriť instance pre ${instance.countryCode}`);
-        }
-        const createdInstance = await instanceRes.json();
-        
-        for (const price of instance.prices) {
-          if (price.amount) {
-            const priceRes = await apiRequest("POST", "/api/instance-prices", {
-              instanceId: createdInstance.id,
-              instanceType: "market_instance",
-              priceType: price.priceType,
-              amount: price.amount,
-              currency: price.currency,
-              isActive: true,
-            });
-            if (!priceRes.ok) {
-              console.error("Failed to create price");
-            }
-          }
-        }
-        
-        for (const payment of instance.paymentOptions) {
-          if (payment.name) {
-            const payRes = await apiRequest("POST", "/api/instance-payment-options", {
-              instanceId: createdInstance.id,
-              instanceType: "market_instance",
-              name: payment.name,
-              installments: payment.installments,
-              intervalMonths: payment.intervalMonths,
-              interestRate: payment.interestRate,
-              isActive: true,
-            });
-            if (!payRes.ok) {
-              console.error("Failed to create payment option");
-            }
-          }
-        }
-        
-        for (const discount of instance.discounts) {
-          if (discount.name && discount.value) {
-            const discRes = await apiRequest("POST", "/api/instance-discounts", {
-              instanceId: createdInstance.id,
-              instanceType: "market_instance",
-              name: discount.name,
-              discountType: discount.discountType,
-              value: discount.value,
-              isActive: true,
-            });
-            if (!discRes.ok) {
-              console.error("Failed to create discount");
-            }
-          }
         }
       }
       
@@ -667,7 +560,7 @@ function ProductWizard({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label>{t.common.name}</Label>
                     <Input
@@ -689,86 +582,20 @@ function ProductWizard({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Ceny</h4>
-                    <Button size="sm" variant="outline" onClick={() => addPriceToInstance(currentInstanceIndex)}>
-                      <Plus className="h-4 w-4 mr-1" /> Pridať cenu
-                    </Button>
+                  <div>
+                    <Label>Mena</Label>
+                    <Select
+                      value={currentInstance.currency}
+                      onValueChange={(v) => updateInstanceField(currentInstanceIndex, "currency", v)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  {currentInstance.prices.map((price, pIdx) => (
-                    <div key={pIdx} className="grid grid-cols-4 gap-2 mb-2">
-                      <Select value={price.priceType} onValueChange={(v) => updatePrice(currentInstanceIndex, pIdx, "priceType", v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="base">Base</SelectItem>
-                          <SelectItem value="fee">Fee</SelectItem>
-                          <SelectItem value="surcharge">Surcharge</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder="Suma"
-                        value={price.amount}
-                        onChange={(e) => updatePrice(currentInstanceIndex, pIdx, "amount", e.target.value)}
-                      />
-                      <Select value={price.currency} onValueChange={(v) => updatePrice(currentInstanceIndex, pIdx, "currency", v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {["EUR", "USD", "CZK", "HUF", "RON", "CHF"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Button size="icon" variant="ghost" onClick={() => removePrice(currentInstanceIndex, pIdx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Platobné možnosti</h4>
-                    <Button size="sm" variant="outline" onClick={() => addPaymentToInstance(currentInstanceIndex)}>
-                      <Plus className="h-4 w-4 mr-1" /> Pridať platbu
-                    </Button>
-                  </div>
-                  {currentInstance.paymentOptions.map((pay, payIdx) => (
-                    <div key={payIdx} className="grid grid-cols-5 gap-2 mb-2">
-                      <Input placeholder="Názov" value={pay.name} onChange={(e) => updatePayment(currentInstanceIndex, payIdx, "name", e.target.value)} />
-                      <Input type="number" placeholder="Splátky" value={pay.installments} onChange={(e) => updatePayment(currentInstanceIndex, payIdx, "installments", parseInt(e.target.value) || 1)} />
-                      <Input type="number" placeholder="Interval (mes.)" value={pay.intervalMonths} onChange={(e) => updatePayment(currentInstanceIndex, payIdx, "intervalMonths", parseInt(e.target.value) || 1)} />
-                      <Input placeholder="Úrok %" value={pay.interestRate} onChange={(e) => updatePayment(currentInstanceIndex, payIdx, "interestRate", e.target.value)} />
-                      <Button size="icon" variant="ghost" onClick={() => removePayment(currentInstanceIndex, payIdx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Zľavy</h4>
-                    <Button size="sm" variant="outline" onClick={() => addDiscountToInstance(currentInstanceIndex)}>
-                      <Plus className="h-4 w-4 mr-1" /> Pridať zľavu
-                    </Button>
-                  </div>
-                  {currentInstance.discounts.map((disc, dIdx) => (
-                    <div key={dIdx} className="grid grid-cols-4 gap-2 mb-2">
-                      <Input placeholder="Názov" value={disc.name} onChange={(e) => updateDiscount(currentInstanceIndex, dIdx, "name", e.target.value)} />
-                      <Select value={disc.discountType} onValueChange={(v) => updateDiscount(currentInstanceIndex, dIdx, "discountType", v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">Percentuálna</SelectItem>
-                          <SelectItem value="fixed">Fixná suma</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input placeholder="Hodnota" value={disc.value} onChange={(e) => updateDiscount(currentInstanceIndex, dIdx, "value", e.target.value)} />
-                      <Button size="icon" variant="ghost" onClick={() => removeDiscount(currentInstanceIndex, dIdx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -815,17 +642,7 @@ function ProductWizard({
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="secondary">{inst.countryCode}</Badge>
                   <span className="font-medium">{inst.name}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Ceny:</span> {inst.prices.length}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Platby:</span> {inst.paymentOptions.length}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Zľavy:</span> {inst.discounts.length}
-                  </div>
+                  <Badge variant="outline">{inst.currency}</Badge>
                 </div>
               </Card>
             ))}
@@ -2384,7 +2201,7 @@ function ProductDetailDialog({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="detail">{t.common.detail}</TabsTrigger>
-            <TabsTrigger value="instances">Odbery (collections)</TabsTrigger>
+            <TabsTrigger value="instances">Odbery</TabsTrigger>
             <TabsTrigger value="services">Skladovanie</TabsTrigger>
             <TabsTrigger value="setts">Zostavy</TabsTrigger>
           </TabsList>
@@ -2460,7 +2277,7 @@ function ProductDetailDialog({
 
           <TabsContent value="instances" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium">Odbery (collections)</h4>
+              <h4 className="font-medium">Odbery</h4>
               <Button size="sm" onClick={() => setIsAddingInstance(true)} data-testid="button-add-instance">
                 <Plus className="h-4 w-4 mr-1" /> {t.common.add}
               </Button>

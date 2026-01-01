@@ -1435,6 +1435,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [configuringInstanceId, setConfiguringInstanceId] = useState<string | null>(null);
   const [editingCollectionItem, setEditingCollectionItem] = useState<any>(null);
+  const [editingStorageItem, setEditingStorageItem] = useState<any>(null);
   const [addingStorageServiceId, setAddingStorageServiceId] = useState<string | null>(null);
   const [configuringStorageService, setConfiguringStorageService] = useState<any>(null);
   const [newItemPrice, setNewItemPrice] = useState<string>("");
@@ -1566,6 +1567,20 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
     onSuccess: () => {
       toast({ title: "Skladovanie pridané do zostavy" });
       queryClient.invalidateQueries({ queryKey: ["/api/product-sets", selectedSetId] });
+    },
+  });
+
+  const updateStorageMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updateData } = data;
+      return apiRequest("PATCH", `/api/product-set-storage/${id}`, updateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Skladovanie aktualizované" });
+      queryClient.invalidateQueries({ queryKey: ["/api/product-sets", selectedSetId] });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri aktualizácii", variant: "destructive" });
     },
   });
 
@@ -1839,6 +1854,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               
               {(selectedSet?.collections || []).map((col: any) => {
                 const inst = instances.find((i: any) => i.id === col.instanceId);
+                const countryInfo = COUNTRIES.find(c => c.code === inst?.countryCode);
                 const lineGross = parseFloat(col.lineGrossAmount || 0);
                 const lineNet = parseFloat(col.lineNetAmount || 0);
                 const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
@@ -1846,7 +1862,9 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   <div key={col.id} className="p-2 rounded mb-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300">{inst?.countryCode}</Badge>
+                        <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300">
+                          {countryInfo?.flag} {inst?.countryCode}
+                        </Badge>
                         <span className="text-sm font-medium text-blue-900 dark:text-blue-100">{inst?.name || "Odber"}</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1915,8 +1933,8 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 </Popover>
               </div>
 
-              {/* Storage Config Dialog */}
-              {configuringStorageService && (
+              {/* Storage Config Dialog - for adding new */}
+              {configuringStorageService && !editingStorageItem && (
                 <StorageConfigDialog
                   open={!!configuringStorageService}
                   onOpenChange={(open) => !open && setConfiguringStorageService(null)}
@@ -1929,9 +1947,26 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   }}
                 />
               )}
+
+              {/* Storage Config Dialog - for editing existing */}
+              {editingStorageItem && (
+                <StorageConfigDialog
+                  open={!!editingStorageItem}
+                  onOpenChange={(open) => !open && setEditingStorageItem(null)}
+                  serviceId={editingStorageItem.serviceId}
+                  serviceName={allStorageServices.find((s: any) => s.id === editingStorageItem.serviceId)?.name || ""}
+                  serviceCountry={allStorageServices.find((s: any) => s.id === editingStorageItem.serviceId)?.instanceCountryCode || ""}
+                  editingItem={editingStorageItem}
+                  onSave={(config) => {
+                    updateStorageMutation.mutate(config);
+                    setEditingStorageItem(null);
+                  }}
+                />
+              )}
               
               {(selectedSet?.storage || []).map((stor: any) => {
                 const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
+                const countryInfo = COUNTRIES.find(c => c.code === svc?.instanceCountryCode);
                 const lineNet = parseFloat(stor.lineNetAmount || 0);
                 const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
                 const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
@@ -1939,13 +1974,27 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   <div key={stor.id} className="p-2 rounded mb-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {svc?.instanceCountryCode && <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">{svc.instanceCountryCode}</Badge>}
+                        {svc?.instanceCountryCode && (
+                          <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">
+                            {countryInfo?.flag} {svc.instanceCountryCode}
+                          </Badge>
+                        )}
                         <span className="text-sm font-medium text-green-900 dark:text-green-100">{svc?.name || "Skladovanie"}</span>
                         {stor.quantity > 1 && <span className="text-xs text-muted-foreground">({stor.quantity}x)</span>}
                       </div>
-                      <Button size="icon" variant="ghost" onClick={() => removeStorageMutation.mutate(stor.id)}>
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          onClick={() => setEditingStorageItem(stor)}
+                          data-testid={`button-edit-storage-${stor.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => removeStorageMutation.mutate(stor.id)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     {lineGross > 0 && (
                       <div className="mt-1 text-xs text-green-600 dark:text-green-300 flex items-center gap-2 flex-wrap">

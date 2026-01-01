@@ -1622,9 +1622,11 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
     // Calculate from storage
     (selectedSet.storage || []).forEach((stor: any) => {
       const lineNet = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
+      const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
       const lineVat = parseFloat(stor.lineVatAmount || 0);
       const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
       net += lineNet;
+      discount += lineDiscount;
       vat += lineVat;
       gross += lineGross;
     });
@@ -2049,10 +2051,16 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               {(selectedSet?.storage || []).map((stor: any, idx: number) => {
                 const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
                 const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
+                const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
                 return (
-                  <div key={stor.id} className="flex justify-between text-sm py-1.5 px-2 rounded bg-green-50 dark:bg-green-900/20 border-l-2 border-green-400 mb-1">
-                    <span className="text-green-900 dark:text-green-100">{(selectedSet?.collections?.length || 0) + idx + 1}. {svc?.name || "Skladovanie"}</span>
-                    <span className="font-mono font-medium text-green-700 dark:text-green-300">{lineGross.toFixed(2)} €</span>
+                  <div key={stor.id} className="py-1.5 px-2 rounded bg-green-50 dark:bg-green-900/20 border-l-2 border-green-400 mb-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-900 dark:text-green-100">{(selectedSet?.collections?.length || 0) + idx + 1}. {svc?.name || "Skladovanie"}</span>
+                      <span className="font-mono font-medium text-green-700 dark:text-green-300">{lineGross.toFixed(2)} €</span>
+                    </div>
+                    {lineDiscount > 0 && (
+                      <div className="text-xs text-green-600 text-right">zľava: -{lineDiscount.toFixed(2)} €</div>
+                    )}
                   </div>
                 );
               })}
@@ -5362,21 +5370,72 @@ function ProductDetailDialog({
                                     <Label>Aktívne</Label>
                                   </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox checked={newServiceDiscountData.isPercentage} onCheckedChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, isPercentage: !!v, isFixed: !v})} />
+                                
+                                <Separator />
+                                <p className="text-sm font-medium text-muted-foreground">Typ a hodnota zľavy</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <Label>Typ zľavy</Label>
+                                    <Input value={newServiceDiscountData.type || ""} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, type: e.target.value})} placeholder="Napr. loyalty, promo" />
+                                  </div>
+                                  <div className="flex items-center gap-2 pt-6">
+                                    <Switch checked={newServiceDiscountData.isPercentage} onCheckedChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, isPercentage: v, isFixed: !v})} />
                                     <Label>Percentuálna</Label>
-                                    {newServiceDiscountData.isPercentage && (
-                                      <Input type="number" step="0.01" className="w-24" value={newServiceDiscountData.percentageValue} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, percentageValue: e.target.value})} placeholder="%" />
-                                    )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox checked={newServiceDiscountData.isFixed} onCheckedChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, isFixed: !!v, isPercentage: !v})} />
-                                    <Label>Fixná suma</Label>
-                                    {newServiceDiscountData.isFixed && (
-                                      <Input type="number" step="0.01" className="w-24" value={newServiceDiscountData.fixedValue} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, fixedValue: e.target.value})} placeholder="€" />
-                                    )}
+                                  <div>
+                                    <Label>{newServiceDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01" 
+                                      value={newServiceDiscountData.isPercentage ? newServiceDiscountData.percentageValue : newServiceDiscountData.fixedValue} 
+                                      onChange={(e) => setNewServiceDiscountData({
+                                        ...newServiceDiscountData, 
+                                        [newServiceDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
+                                      })} 
+                                    />
                                   </div>
+                                </div>
+                                
+                                <Separator />
+                                <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <Label>Text na faktúre</Label>
+                                    <Input value={newServiceDiscountData.invoiceItemText || ""} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, invoiceItemText: e.target.value})} />
+                                  </div>
+                                  <div>
+                                    <Label>Účtovný kód</Label>
+                                    <Input value={newServiceDiscountData.accountingCode || ""} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, accountingCode: e.target.value})} />
+                                  </div>
+                                  <div>
+                                    <Label>Analytický účet</Label>
+                                    <Input value={newServiceDiscountData.analyticalAccount || ""} onChange={(e) => setNewServiceDiscountData({...newServiceDiscountData, analyticalAccount: e.target.value})} />
+                                  </div>
+                                </div>
+                                
+                                <Separator />
+                                <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <DateFields
+                                    label="Platné od"
+                                    dayValue={newServiceDiscountData.fromDay}
+                                    monthValue={newServiceDiscountData.fromMonth}
+                                    yearValue={newServiceDiscountData.fromYear}
+                                    onDayChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, fromDay: v})}
+                                    onMonthChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, fromMonth: v})}
+                                    onYearChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, fromYear: v})}
+                                    testIdPrefix="new-service-discount-from"
+                                  />
+                                  <DateFields
+                                    label="Platné do"
+                                    dayValue={newServiceDiscountData.toDay}
+                                    monthValue={newServiceDiscountData.toMonth}
+                                    yearValue={newServiceDiscountData.toYear}
+                                    onDayChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, toDay: v})}
+                                    onMonthChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, toMonth: v})}
+                                    onYearChange={(v) => setNewServiceDiscountData({...newServiceDiscountData, toYear: v})}
+                                    testIdPrefix="new-service-discount-to"
+                                  />
                                 </div>
                               </div>
                               <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
@@ -5437,26 +5496,49 @@ function ProductDetailDialog({
                                     <Label>Aktívne</Label>
                                   </div>
                                 </div>
+                                
+                                <Separator />
+                                <p className="text-sm font-medium text-muted-foreground">Typ a hodnota zľavy</p>
                                 <div className="grid grid-cols-3 gap-3">
                                   <div>
                                     <Label>Typ zľavy</Label>
                                     <Input value={editingServiceDiscountData.type || ""} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, type: e.target.value})} />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox checked={editingServiceDiscountData.isPercentage} onCheckedChange={(v) => setEditingServiceDiscountData({...editingServiceDiscountData, isPercentage: !!v, isFixed: !v})} />
+                                  <div className="flex items-center gap-2 pt-6">
+                                    <Switch checked={editingServiceDiscountData.isPercentage} onCheckedChange={(v) => setEditingServiceDiscountData({...editingServiceDiscountData, isPercentage: v, isFixed: !v})} />
                                     <Label>Percentuálna</Label>
-                                    {editingServiceDiscountData.isPercentage && (
-                                      <Input type="number" step="0.01" className="w-24" value={editingServiceDiscountData.percentageValue} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, percentageValue: e.target.value})} placeholder="%" />
-                                    )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox checked={editingServiceDiscountData.isFixed} onCheckedChange={(v) => setEditingServiceDiscountData({...editingServiceDiscountData, isFixed: !!v, isPercentage: !v})} />
-                                    <Label>Fixná suma</Label>
-                                    {editingServiceDiscountData.isFixed && (
-                                      <Input type="number" step="0.01" className="w-24" value={editingServiceDiscountData.fixedValue} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, fixedValue: e.target.value})} placeholder="€" />
-                                    )}
+                                  <div>
+                                    <Label>{editingServiceDiscountData.isPercentage ? "Percento (%)" : "Fixná hodnota"}</Label>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01" 
+                                      value={editingServiceDiscountData.isPercentage ? (editingServiceDiscountData.percentageValue || "") : (editingServiceDiscountData.fixedValue || "")} 
+                                      onChange={(e) => setEditingServiceDiscountData({
+                                        ...editingServiceDiscountData, 
+                                        [editingServiceDiscountData.isPercentage ? "percentageValue" : "fixedValue"]: e.target.value
+                                      })} 
+                                    />
                                   </div>
                                 </div>
+                                
+                                <Separator />
+                                <p className="text-sm font-medium text-muted-foreground">Fakturácia</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <Label>Text na faktúre</Label>
+                                    <Input value={editingServiceDiscountData.invoiceItemText || ""} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, invoiceItemText: e.target.value})} />
+                                  </div>
+                                  <div>
+                                    <Label>Účtovný kód</Label>
+                                    <Input value={editingServiceDiscountData.accountingCode || ""} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, accountingCode: e.target.value})} />
+                                  </div>
+                                  <div>
+                                    <Label>Analytický účet</Label>
+                                    <Input value={editingServiceDiscountData.analyticalAccount || ""} onChange={(e) => setEditingServiceDiscountData({...editingServiceDiscountData, analyticalAccount: e.target.value})} />
+                                  </div>
+                                </div>
+                                
                                 <Separator />
                                 <p className="text-sm font-medium text-muted-foreground">Platnosť</p>
                                 <div className="grid grid-cols-2 gap-3">

@@ -2387,12 +2387,15 @@ export const productSetStorage = pgTable("product_set_storage", {
   productSetId: varchar("product_set_id").notNull(),
   serviceId: varchar("service_id").notNull(), // FK to market_product_services
   priceId: varchar("price_id"), // selected price from instance_prices (for service)
+  discountId: varchar("discount_id"), // selected discount from instance_discounts (for service)
   vatRateId: varchar("vat_rate_id"), // selected VAT from instance_vat_rates (for service)
+  paymentOptionId: varchar("payment_option_id"), // selected payment option from instance_payment_options (for service)
   quantity: integer("quantity").notNull().default(1),
   priceOverride: decimal("price_override", { precision: 12, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
   // Calculated line totals
   lineNetAmount: decimal("line_net_amount", { precision: 12, scale: 2 }),
+  lineDiscountAmount: decimal("line_discount_amount", { precision: 12, scale: 2 }),
   lineVatAmount: decimal("line_vat_amount", { precision: 12, scale: 2 }),
   lineGrossAmount: decimal("line_gross_amount", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -2402,6 +2405,7 @@ export const insertProductSetStorageSchema = createInsertSchema(productSetStorag
   id: true, 
   createdAt: true,
   lineNetAmount: true,
+  lineDiscountAmount: true,
   lineVatAmount: true,
   lineGrossAmount: true,
 });

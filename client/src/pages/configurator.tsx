@@ -1331,12 +1331,18 @@ function PaymentBreakdownItem({
   instanceId, 
   instanceName, 
   paymentOptionId, 
-  amount 
+  amount,
+  storageIncluded = false,
+  storageAmount = 0,
+  collectionAmount = 0
 }: { 
   instanceId: string; 
   instanceName: string; 
   paymentOptionId: string; 
   amount: number;
+  storageIncluded?: boolean;
+  storageAmount?: number;
+  collectionAmount?: number;
 }) {
   const { data: paymentOptions = [] } = useQuery<any[]>({
     queryKey: ["/api/instance-payment-options", instanceId, "market_instance"],
@@ -1364,16 +1370,29 @@ function PaymentBreakdownItem({
     
     return (
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <CreditCard className="h-4 w-4 text-blue-600" />
           <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{instanceName}</span>
           <Badge variant="secondary" className="text-xs">Splátky</Badge>
+          {storageIncluded && <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-800 border-green-300 dark:border-green-700">+ Sklad</Badge>}
         </div>
         <div className="text-xs space-y-1">
           <div className="flex justify-between">
             <span>Typ platby:</span>
             <span className="font-medium">{paymentOption.name}</span>
           </div>
+          {storageIncluded && (
+            <>
+              <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                <span>Odber:</span>
+                <span>{collectionAmount.toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between text-green-600 dark:text-green-400">
+                <span>Skladovanie:</span>
+                <span>+{storageAmount.toFixed(2)} €</span>
+              </div>
+            </>
+          )}
           {fee > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <span>Poplatok:</span>
@@ -2093,27 +2112,50 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               </div>
             </div>
 
-            {/* Payment breakdown for collections with payment options */}
+            {/* Payment breakdown for collections with payment options - including storage */}
             {(selectedSet?.collections || []).some((col: any) => col.paymentOptionId) && (
               <>
                 <Separator />
                 <div className="space-y-3">
                   <Label className="text-xs text-muted-foreground">Rozpis platieb</Label>
-                  {(selectedSet?.collections || []).map((col: any) => {
-                    if (!col.paymentOptionId) return null;
-                    const inst = instances.find((i: any) => i.id === col.instanceId);
-                    const lineGross = parseFloat(col.lineGrossAmount || 0);
+                  {(() => {
+                    // Calculate total storage amount to add to installments
+                    const storageTotal = (selectedSet?.storage || []).reduce((sum: number, stor: any) => {
+                      return sum + parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
+                    }, 0);
                     
-                    return (
-                      <PaymentBreakdownItem 
-                        key={col.id}
-                        instanceId={col.instanceId}
-                        instanceName={inst?.name || "Odber"}
-                        paymentOptionId={col.paymentOptionId}
-                        amount={lineGross}
-                      />
-                    );
-                  })}
+                    // Find collections with multi-payment option
+                    const collectionsWithPayment = (selectedSet?.collections || []).filter((col: any) => col.paymentOptionId);
+                    
+                    // Storage is only added to the FIRST collection with payment option to avoid duplication
+                    let storageAlreadyAdded = false;
+                    
+                    return collectionsWithPayment.map((col: any) => {
+                      const inst = instances.find((i: any) => i.id === col.instanceId);
+                      const lineGross = parseFloat(col.lineGrossAmount || 0);
+                      
+                      // Add storage only to the first collection with installments
+                      const includeStorage = storageTotal > 0 && !storageAlreadyAdded;
+                      if (includeStorage) {
+                        storageAlreadyAdded = true;
+                      }
+                      
+                      const combinedAmount = includeStorage ? lineGross + storageTotal : lineGross;
+                      
+                      return (
+                        <PaymentBreakdownItem 
+                          key={col.id}
+                          instanceId={col.instanceId}
+                          instanceName={includeStorage ? `${inst?.name || "Odber"} + Skladovanie` : (inst?.name || "Odber")}
+                          paymentOptionId={col.paymentOptionId}
+                          amount={combinedAmount}
+                          storageIncluded={includeStorage}
+                          storageAmount={includeStorage ? storageTotal : 0}
+                          collectionAmount={lineGross}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </>
             )}
@@ -4858,17 +4900,8 @@ function ProductDetailDialog({
                                   <Textarea value={newServicePaymentData.description} onChange={(e) => setNewServicePaymentData({...newServicePaymentData, description: e.target.value})} className="min-h-[60px]" />
                                 </div>
                                 
-                                <Separator />
-                                <div className="flex items-center gap-2">
-                                  <Checkbox 
-                                    id="isMultiPaymentService" 
-                                    checked={newServicePaymentData.isMultiPayment} 
-                                    onCheckedChange={(v) => setNewServicePaymentData({...newServicePaymentData, isMultiPayment: !!v})} 
-                                  />
-                                  <Label htmlFor="isMultiPaymentService" className="font-medium">Viacnásobná platba (splátky)</Label>
-                                </div>
-                                
-                                {newServicePaymentData.isMultiPayment && (
+                                {/* Multi-payment disabled for storage services - only single payment allowed */}
+                                {false && newServicePaymentData.isMultiPayment && (
                                   <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                                     <div className="grid grid-cols-4 gap-3">
                                       <div>
@@ -5157,17 +5190,8 @@ function ProductDetailDialog({
                                   <Textarea value={editingServicePaymentData.description || ""} onChange={(e) => setEditingServicePaymentData({...editingServicePaymentData, description: e.target.value})} className="min-h-[60px]" />
                                 </div>
                                 
-                                <Separator />
-                                <div className="flex items-center gap-2">
-                                  <Checkbox 
-                                    id="editIsMultiPaymentService" 
-                                    checked={editingServicePaymentData.isMultiPayment} 
-                                    onCheckedChange={(v) => setEditingServicePaymentData({...editingServicePaymentData, isMultiPayment: !!v})} 
-                                  />
-                                  <Label htmlFor="editIsMultiPaymentService" className="font-medium">Viacnásobná platba (splátky)</Label>
-                                </div>
-                                
-                                {editingServicePaymentData.isMultiPayment && (
+                                {/* Multi-payment disabled for storage services - only single payment allowed */}
+                                {false && editingServicePaymentData.isMultiPayment && (
                                   <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                                     <div className="grid grid-cols-4 gap-3">
                                       <div>

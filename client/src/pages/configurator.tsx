@@ -1036,6 +1036,296 @@ function CollectionConfigDialog({
   );
 }
 
+// Storage Configuration Dialog for selecting prices, discounts, VAT, payment options for storage services
+function StorageConfigDialog({ 
+  open, 
+  onOpenChange, 
+  serviceId, 
+  serviceName,
+  serviceCountry,
+  onSave,
+  editingItem
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  serviceId: string; 
+  serviceName: string;
+  serviceCountry: string;
+  onSave: (config: any) => void;
+  editingItem?: any;
+}) {
+  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(editingItem?.priceId || null);
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string | null>(editingItem?.discountId || null);
+  const [selectedVatRateId, setSelectedVatRateId] = useState<string | null>(editingItem?.vatRateId || null);
+  const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState<string | null>(editingItem?.paymentOptionId || null);
+  const [quantity, setQuantity] = useState(editingItem?.quantity || 1);
+
+  // Reset state when editingItem changes
+  useEffect(() => {
+    if (open) {
+      setSelectedPriceId(editingItem?.priceId || null);
+      setSelectedDiscountId(editingItem?.discountId || null);
+      setSelectedVatRateId(editingItem?.vatRateId || null);
+      setSelectedPaymentOptionId(editingItem?.paymentOptionId || null);
+      setQuantity(editingItem?.quantity || 1);
+    }
+  }, [open, editingItem]);
+
+  // Fetch all sub-form data for the service using "service" instanceType
+  const { data: prices = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-prices", serviceId, "service"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-prices/${serviceId}/service`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: open && !!serviceId,
+  });
+
+  const { data: discounts = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-discounts", serviceId, "service"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-discounts/${serviceId}/service`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: open && !!serviceId,
+  });
+
+  const { data: vatRates = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-vat-rates", serviceId, "service"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-vat-rates/${serviceId}/service`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: open && !!serviceId,
+  });
+
+  const { data: paymentOptions = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-payment-options", serviceId, "service"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-payment-options/${serviceId}/service`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: open && !!serviceId,
+  });
+
+  // Calculate preview
+  const selectedPrice = prices.find((p: any) => p.id === selectedPriceId);
+  const selectedDiscount = discounts.find((d: any) => d.id === selectedDiscountId);
+  const selectedVat = vatRates.find((v: any) => v.id === selectedVatRateId);
+  
+  const basePrice = parseFloat(selectedPrice?.price || 0);
+  let discountAmount = 0;
+  if (selectedDiscount) {
+    if (selectedDiscount.isPercentage && selectedDiscount.percentageValue) {
+      discountAmount = basePrice * (parseFloat(selectedDiscount.percentageValue) / 100);
+    } else if (selectedDiscount.isFixed && selectedDiscount.fixedValue) {
+      discountAmount = parseFloat(selectedDiscount.fixedValue);
+    }
+  }
+  const netAmount = (basePrice - discountAmount) * quantity;
+  const vatRate = parseFloat(selectedVat?.vatRate || 0);
+  const vatAmount = netAmount * (vatRate / 100);
+  const grossAmount = netAmount + vatAmount;
+
+  const handleSave = () => {
+    onSave({
+      id: editingItem?.id,
+      serviceId,
+      priceId: selectedPriceId || null,
+      discountId: selectedDiscountId || null,
+      vatRateId: selectedVatRateId || null,
+      paymentOptionId: selectedPaymentOptionId || null,
+      quantity,
+      priceOverride: grossAmount > 0 ? grossAmount.toFixed(2) : null,
+      lineNetAmount: netAmount > 0 ? netAmount.toFixed(2) : null,
+      lineDiscountAmount: discountAmount > 0 ? discountAmount.toFixed(2) : null,
+      lineVatAmount: vatAmount > 0 ? vatAmount.toFixed(2) : null,
+      lineGrossAmount: grossAmount > 0 ? grossAmount.toFixed(2) : null,
+    });
+    onOpenChange(false);
+    // Reset
+    setSelectedPriceId(null);
+    setSelectedDiscountId(null);
+    setSelectedVatRateId(null);
+    setSelectedPaymentOptionId(null);
+    setQuantity(1);
+  };
+
+  const isEditing = !!editingItem;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">{serviceCountry}</Badge>
+            {isEditing ? "Editácia skladovania:" : "Konfigurácia skladovania:"} {serviceName}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Prices Section */}
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4" /> Cenník
+            </Label>
+            <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+              {prices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">Žiadne ceny</p>
+              ) : prices.map((price: any) => (
+                <div 
+                  key={price.id} 
+                  className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedPriceId === price.id ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                  onClick={() => setSelectedPriceId(price.id)}
+                >
+                  <div>
+                    <span className="text-sm font-medium">{price.name}</span>
+                    {price.fromDate && <span className="text-xs text-muted-foreground ml-2">od {formatDate(price.fromDate)}</span>}
+                  </div>
+                  <Badge variant="outline">{parseFloat(price.price || 0).toFixed(2)} €</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Discounts Section */}
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+              <Percent className="h-4 w-4" /> Zľavy
+            </Label>
+            <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+              <div 
+                className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedDiscountId === null ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                onClick={() => setSelectedDiscountId(null)}
+              >
+                <span className="text-sm">Bez zľavy</span>
+              </div>
+              {discounts.map((discount: any) => (
+                <div 
+                  key={discount.id} 
+                  className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedDiscountId === discount.id ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                  onClick={() => setSelectedDiscountId(discount.id)}
+                >
+                  <div>
+                    <span className="text-sm font-medium">{discount.name}</span>
+                    {discount.fromDate && <span className="text-xs text-muted-foreground ml-2">od {formatDate(discount.fromDate)}</span>}
+                  </div>
+                  <Badge variant="outline">
+                    {discount.isPercentage ? `${discount.percentageValue}%` : `${parseFloat(discount.fixedValue || 0).toFixed(2)} €`}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* VAT Rates Section */}
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+              <Calculator className="h-4 w-4" /> DPH sadzby
+            </Label>
+            <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+              {vatRates.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">Žiadne DPH sadzby</p>
+              ) : vatRates.map((vat: any) => (
+                <div 
+                  key={vat.id} 
+                  className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedVatRateId === vat.id ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                  onClick={() => setSelectedVatRateId(vat.id)}
+                >
+                  <div>
+                    <span className="text-sm font-medium">{vat.name || vat.category}</span>
+                    {vat.fromDate && <span className="text-xs text-muted-foreground ml-2">od {formatDate(vat.fromDate)}</span>}
+                  </div>
+                  <Badge variant="outline">{parseFloat(vat.vatRate || 0).toFixed(0)}%</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment Options Section */}
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+              <CreditCard className="h-4 w-4" /> Platobné možnosti
+            </Label>
+            <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+              <div 
+                className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedPaymentOptionId === null ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                onClick={() => setSelectedPaymentOptionId(null)}
+              >
+                <span className="text-sm">Bez platobnej možnosti</span>
+              </div>
+              {paymentOptions.map((opt: any) => (
+                <div 
+                  key={opt.id} 
+                  className={`p-2 rounded cursor-pointer hover-elevate flex justify-between items-center ${selectedPaymentOptionId === opt.id ? 'bg-green-100 dark:bg-green-800/50 border border-green-500' : 'border'}`}
+                  onClick={() => setSelectedPaymentOptionId(opt.id)}
+                >
+                  <div>
+                    <span className="text-sm font-medium">{opt.name}</span>
+                    {opt.isMultiPayment && <Badge variant="secondary" className="ml-2 text-xs">Splátky</Badge>}
+                  </div>
+                  {opt.paymentTypeFee && <Badge variant="outline">{parseFloat(opt.paymentTypeFee || 0).toFixed(2)} €</Badge>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quantity */}
+          <div className="flex items-center gap-4">
+            <Label className="text-sm font-medium">Množstvo:</Label>
+            <Input 
+              type="number" 
+              min="1" 
+              value={quantity} 
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              className="w-20"
+            />
+          </div>
+
+          {/* Preview calculation */}
+          <Card className="bg-green-50 dark:bg-green-900/20">
+            <CardContent className="p-4">
+              <h4 className="text-sm font-medium mb-2 text-green-800 dark:text-green-200">Náhľad výpočtu</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Základná cena:</span>
+                  <span className="font-mono">{basePrice.toFixed(2)} €</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Zľava:</span>
+                    <span className="font-mono">-{discountAmount.toFixed(2)} €</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Netto ({quantity}x):</span>
+                  <span className="font-mono">{netAmount.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>DPH ({vatRate}%):</span>
+                  <span className="font-mono">{vatAmount.toFixed(2)} €</span>
+                </div>
+                <Separator className="my-1" />
+                <div className="flex justify-between font-bold text-green-800 dark:text-green-200">
+                  <span>Celkom:</span>
+                  <span className="font-mono">{grossAmount.toFixed(2)} €</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Zrušiť</Button>
+          <Button onClick={handleSave} disabled={!selectedPriceId} className="bg-green-600 hover:bg-green-700">
+            <Check className="h-4 w-4 mr-2" /> {isEditing ? "Uložiť zmeny" : "Pridať do zostavy"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Payment breakdown component for invoice preview
 function PaymentBreakdownItem({ 
   instanceId, 
@@ -1146,6 +1436,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
   const [configuringInstanceId, setConfiguringInstanceId] = useState<string | null>(null);
   const [editingCollectionItem, setEditingCollectionItem] = useState<any>(null);
   const [addingStorageServiceId, setAddingStorageServiceId] = useState<string | null>(null);
+  const [configuringStorageService, setConfiguringStorageService] = useState<any>(null);
   const [newItemPrice, setNewItemPrice] = useState<string>("");
   const [isEditingSetName, setIsEditingSetName] = useState(false);
   const [editedSetName, setEditedSetName] = useState("");
@@ -1595,62 +1886,26 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 <Label className="text-sm font-medium">Skladovanie v zostave</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300">
                       <Plus className="h-4 w-4 mr-1" /> Pridať skladovanie
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-72">
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">Vyberte skladovanie a zadajte cenu</Label>
+                      <Label className="text-sm font-medium">Vyberte službu skladovania</Label>
                       {allStorageServices.map((svc: any) => (
-                        <div key={svc.id} className="space-y-2 border-b pb-2">
-                          <div className="flex items-center gap-2">
-                            {svc.instanceCountryCode && <Badge variant="secondary">{svc.instanceCountryCode}</Badge>}
+                        <Button
+                          key={svc.id}
+                          size="sm"
+                          variant="ghost"
+                          className="w-full justify-start text-sm hover:bg-green-50 dark:hover:bg-green-900/20"
+                          onClick={() => setConfiguringStorageService(svc)}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            {svc.instanceCountryCode && <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">{svc.instanceCountryCode}</Badge>}
                             <span className="text-sm font-medium">{svc.name}</span>
                           </div>
-                          {addingStorageServiceId === svc.id ? (
-                            <div className="flex gap-2">
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                placeholder="Cena €" 
-                                value={newItemPrice}
-                                onChange={(e) => setNewItemPrice(e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button size="sm" onClick={() => {
-                                const price = parseFloat(newItemPrice) || 0;
-                                addStorageMutation.mutate({ 
-                                  serviceId: svc.id, 
-                                  quantity: 1,
-                                  priceOverride: price > 0 ? price.toString() : null
-                                });
-                                setAddingStorageServiceId(null);
-                                setNewItemPrice("");
-                              }}>
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => {
-                                setAddingStorageServiceId(null);
-                                setNewItemPrice("");
-                              }}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full justify-start text-sm"
-                              onClick={() => {
-                                setAddingStorageServiceId(svc.id);
-                                setNewItemPrice("");
-                              }}
-                            >
-                              <Plus className="h-3 w-3 mr-1" /> Pridať s cenou
-                            </Button>
-                          )}
-                        </div>
+                        </Button>
                       ))}
                       {allStorageServices.length === 0 && (
                         <p className="text-sm text-muted-foreground">Žiadne skladovanie k dispozícii</p>
@@ -1659,20 +1914,46 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Storage Config Dialog */}
+              {configuringStorageService && (
+                <StorageConfigDialog
+                  open={!!configuringStorageService}
+                  onOpenChange={(open) => !open && setConfiguringStorageService(null)}
+                  serviceId={configuringStorageService.id}
+                  serviceName={configuringStorageService.name}
+                  serviceCountry={configuringStorageService.instanceCountryCode || ""}
+                  onSave={(config) => {
+                    addStorageMutation.mutate(config);
+                    setConfiguringStorageService(null);
+                  }}
+                />
+              )}
               
               {(selectedSet?.storage || []).map((stor: any) => {
                 const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
-                const storPrice = parseFloat(stor.priceOverride || 0);
+                const lineNet = parseFloat(stor.lineNetAmount || 0);
+                const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
+                const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
                 return (
-                  <div key={stor.id} className="flex items-center justify-between p-2 rounded mb-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                    <div className="flex items-center gap-2">
-                      {svc?.instanceCountryCode && <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">{svc.instanceCountryCode}</Badge>}
-                      <span className="text-sm font-medium text-green-900 dark:text-green-100">{svc?.name || "Skladovanie"}</span>
-                      {storPrice > 0 && <Badge variant="outline" className="border-green-300 dark:border-green-600">{storPrice.toFixed(2)} €</Badge>}
+                  <div key={stor.id} className="p-2 rounded mb-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {svc?.instanceCountryCode && <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300">{svc.instanceCountryCode}</Badge>}
+                        <span className="text-sm font-medium text-green-900 dark:text-green-100">{svc?.name || "Skladovanie"}</span>
+                        {stor.quantity > 1 && <span className="text-xs text-muted-foreground">({stor.quantity}x)</span>}
+                      </div>
+                      <Button size="icon" variant="ghost" onClick={() => removeStorageMutation.mutate(stor.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => removeStorageMutation.mutate(stor.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {lineGross > 0 && (
+                      <div className="mt-1 text-xs text-green-600 dark:text-green-300 flex items-center gap-2 flex-wrap">
+                        <span>Netto: {lineNet.toFixed(2)} €</span>
+                        {lineDiscount > 0 && <span className="text-green-700">Zľava: -{lineDiscount.toFixed(2)} €</span>}
+                        <Badge variant="outline" className="ml-auto border-green-300 dark:border-green-600">{lineGross.toFixed(2)} €</Badge>
+                      </div>
+                    )}
                   </div>
                 );
               })}

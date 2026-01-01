@@ -1338,7 +1338,8 @@ function PaymentBreakdownItem({
   amount,
   storageIncluded = false,
   storageAmount = 0,
-  collectionAmount = 0
+  collectionAmount = 0,
+  t
 }: { 
   instanceId: string; 
   instanceName: string; 
@@ -1347,6 +1348,7 @@ function PaymentBreakdownItem({
   storageIncluded?: boolean;
   storageAmount?: number;
   collectionAmount?: number;
+  t: any;
 }) {
   const { data: paymentOptions = [] } = useQuery<any[]>({
     queryKey: ["/api/instance-payment-options", instanceId, "market_instance"],
@@ -1368,43 +1370,43 @@ function PaymentBreakdownItem({
 
   if (paymentOption.isMultiPayment && paymentOption.installmentCount > 1) {
     const installmentAmount = totalWithFee / paymentOption.installmentCount;
-    const frequencyLabel = paymentOption.frequency === 'monthly' ? 'mesačne' : 
-                          paymentOption.frequency === 'quarterly' ? 'štvrťročne' : 
-                          paymentOption.frequency === 'yearly' ? 'ročne' : paymentOption.frequency;
+    const frequencyLabel = paymentOption.frequency === 'monthly' ? t.konfigurator.monthly : 
+                          paymentOption.frequency === 'quarterly' ? t.konfigurator.quarterly : 
+                          paymentOption.frequency === 'yearly' ? t.konfigurator.yearly : paymentOption.frequency;
     
     return (
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <CreditCard className="h-4 w-4 text-blue-600" />
           <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{instanceName}</span>
-          <Badge variant="secondary" className="text-xs">Splátky</Badge>
-          {storageIncluded && <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-800 border-green-300 dark:border-green-700">+ Sklad</Badge>}
+          <Badge variant="secondary" className="text-xs">{t.konfigurator.installmentsLabel}</Badge>
+          {storageIncluded && <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-800 border-green-300 dark:border-green-700">{t.konfigurator.storageAddOn}</Badge>}
         </div>
         <div className="text-xs space-y-1">
           <div className="flex justify-between">
-            <span>Typ platby:</span>
+            <span>{t.konfigurator.paymentType}:</span>
             <span className="font-medium">{paymentOption.name}</span>
           </div>
           {storageIncluded && (
             <>
               <div className="flex justify-between text-blue-600 dark:text-blue-400">
-                <span>Odber:</span>
+                <span>{t.konfigurator.collectionItem}:</span>
                 <span>{collectionAmount.toFixed(2)} €</span>
               </div>
               <div className="flex justify-between text-green-600 dark:text-green-400">
-                <span>Skladovanie:</span>
+                <span>{t.konfigurator.storageItem}:</span>
                 <span>+{storageAmount.toFixed(2)} €</span>
               </div>
             </>
           )}
           {fee > 0 && (
             <div className="flex justify-between text-muted-foreground">
-              <span>Poplatok:</span>
+              <span>{t.konfigurator.feeLabel}:</span>
               <span>+{fee.toFixed(2)} €</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span>Celkom:</span>
+            <span>{t.konfigurator.totalLabel}:</span>
             <span className="font-medium">{totalWithFee.toFixed(2)} €</span>
           </div>
           <Separator className="my-1" />
@@ -1415,13 +1417,13 @@ function PaymentBreakdownItem({
           <div className="pt-1 border-t border-blue-200 dark:border-blue-800 mt-1 space-y-0.5">
             {Array.from({ length: Math.min(paymentOption.installmentCount, 6) }, (_, i) => (
               <div key={i} className="flex justify-between text-muted-foreground">
-                <span>Splátka {i + 1}:</span>
+                <span>{t.konfigurator.installmentLabel} {i + 1}:</span>
                 <span>{installmentAmount.toFixed(2)} €</span>
               </div>
             ))}
             {paymentOption.installmentCount > 6 && (
               <div className="text-center text-xs text-muted-foreground pt-1">
-                ... a ďalších {paymentOption.installmentCount - 6} splátok
+                {t.konfigurator.andMoreInstallments.replace('{count}', paymentOption.installmentCount - 6)}
               </div>
             )}
           </div>
@@ -1434,15 +1436,15 @@ function PaymentBreakdownItem({
         <div className="flex items-center gap-2 mb-1">
           <CreditCard className="h-4 w-4 text-green-600" />
           <span className="text-sm font-medium text-green-700 dark:text-green-400">{instanceName}</span>
-          <Badge variant="outline" className="text-xs">Jednorázová</Badge>
+          <Badge variant="outline" className="text-xs">{t.konfigurator.oneTimePayment}</Badge>
         </div>
         <div className="text-xs space-y-1">
           <div className="flex justify-between">
-            <span>Typ platby:</span>
+            <span>{t.konfigurator.paymentType}:</span>
             <span className="font-medium">{paymentOption.name}</span>
           </div>
           <div className="flex justify-between font-medium text-green-700 dark:text-green-400">
-            <span>K úhrade:</span>
+            <span>{t.konfigurator.amountDue}:</span>
             <span>{amount.toFixed(2)} €</span>
           </div>
         </div>
@@ -2038,7 +2040,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                         <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300">
                           {countryInfo?.flag} {inst?.countryCode}
                         </Badge>
-                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">{inst?.name || "Odber"}</span>
+                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">{inst?.name || t.konfigurator.collectionItem}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button 
@@ -2056,8 +2058,8 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                     </div>
                     {lineGross > 0 && (
                       <div className="mt-1 text-xs text-blue-600 dark:text-blue-300 flex items-center gap-2 flex-wrap">
-                        <span>Netto: {lineNet.toFixed(2)} €</span>
-                        {lineDiscount > 0 && <span className="text-green-600">Zľava: -{lineDiscount.toFixed(2)} €</span>}
+                        <span>{t.konfigurator.netWithoutVat}: {lineNet.toFixed(2)} €</span>
+                        {lineDiscount > 0 && <span className="text-green-600">{t.konfigurator.discountText}: -{lineDiscount.toFixed(2)} €</span>}
                         <Badge variant="outline" className="ml-auto border-blue-300 dark:border-blue-600">{lineGross.toFixed(2)} €</Badge>
                       </div>
                     )}
@@ -2154,7 +2156,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                             {countryInfo?.flag} {svc.instanceCountryCode}
                           </Badge>
                         )}
-                        <span className="text-sm font-medium text-green-900 dark:text-green-100">{svc?.name || "Skladovanie"}</span>
+                        <span className="text-sm font-medium text-green-900 dark:text-green-100">{svc?.name || t.konfigurator.storageItem}</span>
                         {stor.quantity > 1 && <span className="text-xs text-muted-foreground">({stor.quantity}x)</span>}
                       </div>
                       <div className="flex items-center gap-1">
@@ -2173,8 +2175,8 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                     </div>
                     {lineGross > 0 && (
                       <div className="mt-1 text-xs text-green-600 dark:text-green-300 flex items-center gap-2 flex-wrap">
-                        <span>Netto: {lineNet.toFixed(2)} €</span>
-                        {lineDiscount > 0 && <span className="text-green-700">Zľava: -{lineDiscount.toFixed(2)} €</span>}
+                        <span>{t.konfigurator.netWithoutVat}: {lineNet.toFixed(2)} €</span>
+                        {lineDiscount > 0 && <span className="text-green-700">{t.konfigurator.discountText}: -{lineDiscount.toFixed(2)} €</span>}
                         <Badge variant="outline" className="ml-auto border-green-300 dark:border-green-600">{lineGross.toFixed(2)} €</Badge>
                       </div>
                     )}
@@ -2191,7 +2193,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
 
       {/* Right Panel - Invoice Preview & Totals */}
       <div className="border rounded-lg p-4 overflow-y-auto">
-        <h4 className="font-medium mb-4">Náhľad faktúry</h4>
+        <h4 className="font-medium mb-4">{t.konfigurator.invoicePreviewTitle}</h4>
         
         {!selectedSetId ? (
           <div className="text-center py-16 text-muted-foreground">
@@ -2202,7 +2204,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
           <div className="space-y-4">
             {/* Line Items */}
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Položky</Label>
+              <Label className="text-xs text-muted-foreground">{t.konfigurator.lineItemsLabel}</Label>
               
               {(selectedSet?.collections || []).map((col: any, idx: number) => {
                 const inst = instances.find((i: any) => i.id === col.instanceId);
@@ -2211,11 +2213,11 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 return (
                   <div key={col.id} className="py-1.5 px-2 rounded bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-400 mb-1">
                     <div className="flex justify-between text-sm">
-                      <span className="text-blue-900 dark:text-blue-100">{idx + 1}. {inst?.name || "Odber"} {col.quantity > 1 && `(${col.quantity}x)`}</span>
+                      <span className="text-blue-900 dark:text-blue-100">{idx + 1}. {inst?.name || t.konfigurator.collectionItem} {col.quantity > 1 && `(${col.quantity}x)`}</span>
                       <span className="font-mono font-medium text-blue-700 dark:text-blue-300">{lineGross.toFixed(2)} €</span>
                     </div>
                     {lineDiscount > 0 && (
-                      <div className="text-xs text-green-600 text-right">zľava: -{lineDiscount.toFixed(2)} €</div>
+                      <div className="text-xs text-green-600 text-right">{t.konfigurator.discountText}: -{lineDiscount.toFixed(2)} €</div>
                     )}
                   </div>
                 );
@@ -2228,18 +2230,18 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 return (
                   <div key={stor.id} className="py-1.5 px-2 rounded bg-green-50 dark:bg-green-900/20 border-l-2 border-green-400 mb-1">
                     <div className="flex justify-between text-sm">
-                      <span className="text-green-900 dark:text-green-100">{(selectedSet?.collections?.length || 0) + idx + 1}. {svc?.name || "Skladovanie"}</span>
+                      <span className="text-green-900 dark:text-green-100">{(selectedSet?.collections?.length || 0) + idx + 1}. {svc?.name || t.konfigurator.storageItem}</span>
                       <span className="font-mono font-medium text-green-700 dark:text-green-300">{lineGross.toFixed(2)} €</span>
                     </div>
                     {lineDiscount > 0 && (
-                      <div className="text-xs text-green-600 text-right">zľava: -{lineDiscount.toFixed(2)} €</div>
+                      <div className="text-xs text-green-600 text-right">{t.konfigurator.discountText}: -{lineDiscount.toFixed(2)} €</div>
                     )}
                   </div>
                 );
               })}
 
               {(selectedSet?.collections || []).length === 0 && (selectedSet?.storage || []).length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">Pridajte položky do zostavy</p>
+                <p className="text-xs text-muted-foreground text-center py-4">{t.konfigurator.addItemsToSet}</p>
               )}
             </div>
 
@@ -2248,20 +2250,20 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
             {/* Totals */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Suma bez DPH:</span>
+                <span>{t.konfigurator.netWithoutVat}:</span>
                 <span className="font-mono">{totals.net.toFixed(2)} €</span>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Zľava:</span>
+                <span>{t.konfigurator.discountText}:</span>
                 <span className="font-mono">-{totals.discount.toFixed(2)} €</span>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>DPH:</span>
+                <span>{t.konfigurator.vatText}:</span>
                 <span className="font-mono">+{totals.vat.toFixed(2)} €</span>
               </div>
               <Separator />
               <div className="flex justify-between font-medium">
-                <span>Celkom:</span>
+                <span>{t.konfigurator.totalLabel}:</span>
                 <span className="font-mono text-lg">{totals.gross.toFixed(2)} €</span>
               </div>
             </div>
@@ -2271,7 +2273,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               <>
                 <Separator />
                 <div className="space-y-3">
-                  <Label className="text-xs text-muted-foreground">Rozpis platieb</Label>
+                  <Label className="text-xs text-muted-foreground">{t.konfigurator.paymentBreakdown}</Label>
                   {(() => {
                     // Calculate total storage amount to add to installments
                     const storageTotal = (selectedSet?.storage || []).reduce((sum: number, stor: any) => {
@@ -2300,12 +2302,13 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                         <PaymentBreakdownItem 
                           key={col.id}
                           instanceId={col.instanceId}
-                          instanceName={includeStorage ? `${inst?.name || "Odber"} + Skladovanie` : (inst?.name || "Odber")}
+                          instanceName={includeStorage ? `${inst?.name || t.konfigurator.collectionItem} + ${t.konfigurator.storageItem}` : (inst?.name || t.konfigurator.collectionItem)}
                           paymentOptionId={col.paymentOptionId}
                           amount={combinedAmount}
                           storageIncluded={includeStorage}
                           storageAmount={includeStorage ? storageTotal : 0}
                           collectionAmount={lineGross}
+                          t={t}
                         />
                       );
                     });

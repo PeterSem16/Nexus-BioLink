@@ -2831,48 +2831,53 @@ function ProductDetailDialog({
             )}
 
             <div className="grid grid-cols-4 gap-2">
-              {instances.map(instance => (
-                <Card 
-                  key={instance.id} 
-                  className={`p-3 cursor-pointer hover-elevate ${selectedInstanceId === instance.id ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => setSelectedInstanceId(instance.id)}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <Badge variant="secondary">{instance.countryCode}</Badge>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setEditingInstanceId(instance.id);
-                        const fromParts = parseDateToComponents(instance.fromDate);
-                        const toParts = parseDateToComponents(instance.toDate);
-                        setEditingInstanceData({
-                          ...instance,
-                          fromDay: fromParts.day,
-                          fromMonth: fromParts.month,
-                          fromYear: fromParts.year,
-                          toDay: toParts.day,
-                          toMonth: toParts.month,
-                          toYear: toParts.year,
-                        });
-                      }}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteInstanceMutation.mutate(instance.id); }}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+              {instances.map(instance => {
+                const countryInfo = COUNTRIES.find(c => c.code === instance.countryCode);
+                return (
+                  <Card 
+                    key={instance.id} 
+                    className={`p-3 cursor-pointer hover-elevate bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ${selectedInstanceId === instance.id ? 'ring-2 ring-blue-500' : ''}`}
+                    onClick={() => setSelectedInstanceId(instance.id)}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
+                        {countryInfo?.flag} {instance.countryCode}
+                      </Badge>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setEditingInstanceId(instance.id);
+                          const fromParts = parseDateToComponents(instance.fromDate);
+                          const toParts = parseDateToComponents(instance.toDate);
+                          setEditingInstanceData({
+                            ...instance,
+                            fromDay: fromParts.day,
+                            fromMonth: fromParts.month,
+                            fromYear: fromParts.year,
+                            toDay: toParts.day,
+                            toMonth: toParts.month,
+                            toYear: toParts.year,
+                          });
+                        }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteInstanceMutation.mutate(instance.id); }}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm font-medium mt-1 break-words">{instance.name}</p>
-                  {(instance.fromDate || instance.toDate) && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {instance.fromDate ? new Date(instance.fromDate).toLocaleDateString() : "..."} - {instance.toDate ? new Date(instance.toDate).toLocaleDateString() : "..."}
-                    </p>
-                  )}
-                  <Badge variant={instance.isActive ? "default" : "secondary"} className="mt-1">
-                    {instance.isActive ? t.common.active : t.common.inactive}
-                  </Badge>
-                </Card>
-              ))}
+                    <p className="text-sm font-medium mt-1 break-words text-blue-900 dark:text-blue-100">{instance.name}</p>
+                    {(instance.fromDate || instance.toDate) && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        {instance.fromDate ? new Date(instance.fromDate).toLocaleDateString() : "..."} - {instance.toDate ? new Date(instance.toDate).toLocaleDateString() : "..."}
+                      </p>
+                    )}
+                    <Badge variant={instance.isActive ? "default" : "secondary"} className="mt-1">
+                      {instance.isActive ? t.common.active : t.common.inactive}
+                    </Badge>
+                  </Card>
+                );
+              })}
             </div>
 
             {editingInstanceId && editingInstanceData && (
@@ -4376,60 +4381,66 @@ function ProductDetailDialog({
                 )}
 
                 <div className="grid grid-cols-3 gap-2">
-                  {(services as any[]).map(service => (
-                    <Card 
-                      key={service.id} 
-                      className={`p-3 cursor-pointer hover-elevate ${selectedServiceId === service.id ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setSelectedServiceId(service.id)}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs text-muted-foreground">{service.invoiceIdentifier}</span>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
-                            e.stopPropagation();
-                            const fromParts = parseDateToComponents(service.fromDate);
-                            const toParts = parseDateToComponents(service.toDate);
-                            setEditingServiceId(service.id);
-                            setEditingServiceData({
-                              ...service,
-                              fromDay: fromParts.day,
-                              fromMonth: fromParts.month,
-                              fromYear: fromParts.year,
-                              toDay: toParts.day,
-                              toMonth: toParts.month,
-                              toYear: toParts.year,
-                            });
-                          }}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setCopyingService(service);
-                            setCopyTargetInstanceId("");
-                          }}>
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteServiceMutation.mutate(service.id); }}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                  {(services as any[]).map(service => {
+                    const countryInfo = COUNTRIES.find(c => c.code === selectedInstance?.countryCode);
+                    return (
+                      <Card 
+                        key={service.id} 
+                        className={`p-3 cursor-pointer hover-elevate bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ${selectedServiceId === service.id ? 'ring-2 ring-green-500' : ''}`}
+                        onClick={() => setSelectedServiceId(service.id)}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                            {countryInfo?.flag} {selectedInstance?.countryCode}
+                          </Badge>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
+                              e.stopPropagation();
+                              const fromParts = parseDateToComponents(service.fromDate);
+                              const toParts = parseDateToComponents(service.toDate);
+                              setEditingServiceId(service.id);
+                              setEditingServiceData({
+                                ...service,
+                                fromDay: fromParts.day,
+                                fromMonth: fromParts.month,
+                                fromYear: fromParts.year,
+                                toDay: toParts.day,
+                                toMonth: toParts.month,
+                                toYear: toParts.year,
+                              });
+                            }}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setCopyingService(service);
+                              setCopyTargetInstanceId("");
+                            }}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteServiceMutation.mutate(service.id); }}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-sm font-medium mt-1 truncate">{service.name}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {service.invoiceable && <Badge variant="outline" className="text-xs">Faktúr.</Badge>}
-                        {service.collectable && <Badge variant="outline" className="text-xs">Zber.</Badge>}
-                        {service.storable && <Badge variant="outline" className="text-xs">Sklad.</Badge>}
-                      </div>
-                      {(service.fromDate || service.toDate) && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {service.fromDate ? new Date(service.fromDate).toLocaleDateString() : "..."} - {service.toDate ? new Date(service.toDate).toLocaleDateString() : "..."}
-                        </p>
-                      )}
-                      <Badge variant={service.isActive ? "default" : "secondary"} className="mt-1">
-                        {service.isActive ? t.common.active : t.common.inactive}
-                      </Badge>
-                    </Card>
-                  ))}
+                        <p className="text-sm font-medium mt-1 truncate text-green-900 dark:text-green-100">{service.name}</p>
+                        <div className="text-xs text-green-600 dark:text-green-400">{service.invoiceIdentifier}</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {service.invoiceable && <Badge variant="outline" className="text-xs border-green-300 dark:border-green-700">Faktúr.</Badge>}
+                          {service.collectable && <Badge variant="outline" className="text-xs border-green-300 dark:border-green-700">Zber.</Badge>}
+                          {service.storable && <Badge variant="outline" className="text-xs border-green-300 dark:border-green-700">Sklad.</Badge>}
+                        </div>
+                        {(service.fromDate || service.toDate) && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            {service.fromDate ? new Date(service.fromDate).toLocaleDateString() : "..."} - {service.toDate ? new Date(service.toDate).toLocaleDateString() : "..."}
+                          </p>
+                        )}
+                        <Badge variant={service.isActive ? "default" : "secondary"} className="mt-1">
+                          {service.isActive ? t.common.active : t.common.inactive}
+                        </Badge>
+                      </Card>
+                    );
+                  })}
                 </div>
 
                 {editingServiceId && editingServiceData && (

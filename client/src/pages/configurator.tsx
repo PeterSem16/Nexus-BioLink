@@ -1682,15 +1682,15 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 <Label className="text-sm font-medium">{t.konfigurator.validFrom}</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label className="text-xs">Deň</Label>
+                    <Label className="text-xs">{t.collaborators.fields.day}</Label>
                     <Input type="number" min={1} max={31} value={editSetDetails.fromDay || ""} onChange={(e) => setEditSetDetails({ ...editSetDetails, fromDay: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div>
-                    <Label className="text-xs">Mesiac</Label>
+                    <Label className="text-xs">{t.collaborators.fields.month}</Label>
                     <Input type="number" min={1} max={12} value={editSetDetails.fromMonth || ""} onChange={(e) => setEditSetDetails({ ...editSetDetails, fromMonth: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div>
-                    <Label className="text-xs">Rok</Label>
+                    <Label className="text-xs">{t.collaborators.fields.year}</Label>
                     <Input type="number" min={2020} max={2100} value={editSetDetails.fromYear || ""} onChange={(e) => setEditSetDetails({ ...editSetDetails, fromYear: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>

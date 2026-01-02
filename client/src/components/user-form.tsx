@@ -1,14 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Phone, User, Shield, MapPin } from "lucide-react";
+import { Phone, User, Shield, MapPin, Camera, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import {
   Form,
   FormControl,
@@ -71,8 +74,12 @@ interface UserFormProps {
 
 export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFormProps) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const { isHidden, isReadonly } = useModuleFieldPermissions("users");
   const isEditing = !!initialData;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>((initialData as any)?.avatarUrl || null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   
   const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: ["/api/roles"],
@@ -144,8 +151,96 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     form.setValue("assignedCountries", []);
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!isEditing || !initialData?.id) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      
+      const response = await fetch(`/api/users/${initialData.id}/avatar`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to upload avatar");
+      }
+      
+      const data = await response.json();
+      setAvatarPreview(data.avatarUrl);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Avatar nahraný", description: "Profilový obrázok bol úspešne aktualizovaný" });
+    } catch (error) {
+      toast({ title: "Chyba", description: "Nepodarilo sa nahrať avatar", variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   const renderProfileTab = () => (
     <div className="space-y-4">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative">
+          <Avatar className="h-20 w-20">
+            <AvatarImage src={avatarPreview || undefined} />
+            <AvatarFallback className="text-lg">
+              {getInitials(form.watch("fullName") || "U")}
+            </AvatarFallback>
+          </Avatar>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingAvatar}
+            data-testid="button-upload-avatar"
+          >
+            {isUploadingAvatar ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Camera className="h-3 w-3" />
+            )}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            className="hidden"
+            onChange={handleAvatarChange}
+            data-testid="input-avatar"
+          />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Profilový obrázok</p>
+          <p className="text-xs text-muted-foreground">
+            Kliknite na ikonu fotoaparátu pre nahratie obrázka
+          </p>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {!isHidden("full_name") && (
           <FormField

@@ -20,6 +20,7 @@ import { usePermissions } from "@/contexts/permissions-context";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@shared/schema";
 import {
   Sidebar,
@@ -179,16 +180,24 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 space-y-3">
         {user && (
           <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-sidebar-accent">
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{user.fullName}</span>
-                {pendingTasksCount > 0 && (
-                  <Badge variant="destructive" className="text-xs px-1.5 py-0" data-testid="badge-pending-tasks">
-                    {pendingTasksCount}
-                  </Badge>
-                )}
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarImage src={(user as any).avatarUrl || undefined} />
+                <AvatarFallback className="text-xs">
+                  {user.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate">{user.fullName}</span>
+                  {pendingTasksCount > 0 && (
+                    <Badge variant="destructive" className="text-xs px-1.5 py-0" data-testid="badge-pending-tasks">
+                      {pendingTasksCount}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground truncate">{user.role}</span>
               </div>
-              <span className="text-xs text-muted-foreground truncate">{user.role}</span>
             </div>
             <Button
               size="icon"

@@ -15,6 +15,25 @@ export const COUNTRIES = [
   { code: "CH", name: "Switzerland", flag: "🇨🇭" },
 ] as const;
 
+export const CURRENCIES = [
+  { code: "EUR", symbol: "€", name: "Euro", countries: ["SK", "IT", "DE"] },
+  { code: "CZK", symbol: "Kč", name: "Czech Koruna", countries: ["CZ"] },
+  { code: "HUF", symbol: "Ft", name: "Hungarian Forint", countries: ["HU"] },
+  { code: "RON", symbol: "lei", name: "Romanian Leu", countries: ["RO"] },
+  { code: "USD", symbol: "$", name: "US Dollar", countries: ["US"] },
+  { code: "CHF", symbol: "Fr.", name: "Swiss Franc", countries: ["CH"] },
+] as const;
+
+export const getCurrencySymbol = (currencyCode: string): string => {
+  const currency = CURRENCIES.find(c => c.code === currencyCode);
+  return currency?.symbol || "€";
+};
+
+export const getCountryCurrency = (countryCode: string): string => {
+  const currency = CURRENCIES.find(c => c.countries.includes(countryCode));
+  return currency?.code || "EUR";
+};
+
 // Global country list for address selection
 export const WORLD_COUNTRIES = [
   { code: "AF", name: "Afghanistan" },

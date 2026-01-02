@@ -68,6 +68,7 @@ export interface Translations {
     code: string;
     default: string;
     unknown: string;
+    noResults: string;
   };
   advancedFilters: {
     title: string;
@@ -121,6 +122,8 @@ export interface Translations {
     optionalCustomer: string;
     selectCustomer: string;
     noteContent: string;
+    duplicateWarning: string;
+    searchCustomer: string;
   };
   tasks: {
     title: string;
@@ -1425,6 +1428,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Code',
       default: 'Default',
       unknown: 'Unknown',
+      noResults: 'No results found',
     },
     advancedFilters: {
       title: 'Advanced Filters',
@@ -1478,6 +1482,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Optional - select a customer',
       selectCustomer: 'Select Customer',
       noteContent: 'Note Content',
+      duplicateWarning: 'Possible duplicate contact found:',
+      searchCustomer: 'Search customer...',
     },
     tasks: {
       title: 'Tasks',
@@ -2798,6 +2804,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Kód',
       default: 'Predvolené',
       unknown: 'Neznáme',
+      noResults: 'Žiadne výsledky',
     },
     advancedFilters: {
       title: 'Pokročilé filtre',
@@ -2851,6 +2858,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Voliteľné - vyberte zákazníka',
       selectCustomer: 'Vybrať zákazníka',
       noteContent: 'Obsah poznámky',
+      duplicateWarning: 'Možný duplicitný kontakt:',
+      searchCustomer: 'Vyhľadať zákazníka...',
     },
     tasks: {
       title: 'Úlohy',
@@ -4156,6 +4165,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Kód',
       default: 'Výchozí',
       unknown: 'Neznámé',
+      noResults: 'Žádné výsledky',
     },
     advancedFilters: {
       title: 'Pokročilé filtry',
@@ -4209,6 +4219,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Volitelné - vyberte zákazníka',
       selectCustomer: 'Vybrat zákazníka',
       noteContent: 'Obsah poznámky',
+      duplicateWarning: 'Možný duplicitní kontakt:',
+      searchCustomer: 'Vyhledat zákazníka...',
     },
     tasks: {
       title: 'Úkoly',
@@ -5477,6 +5489,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Kód',
       default: 'Alapértelmezett',
       unknown: 'Ismeretlen',
+      noResults: 'Nincs találat',
     },
     advancedFilters: {
       title: 'Speciális szűrők',
@@ -5530,6 +5543,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opcionális - válasszon ügyfelet',
       selectCustomer: 'Ügyfél kiválasztása',
       noteContent: 'Megjegyzés tartalma',
+      duplicateWarning: 'Lehetséges duplikált kapcsolat:',
+      searchCustomer: 'Ügyfél keresése...',
     },
     tasks: {
       title: 'Feladatok',
@@ -6798,6 +6813,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Cod',
       default: 'Implicit',
       unknown: 'Necunoscut',
+      noResults: 'Niciun rezultat',
     },
     advancedFilters: {
       title: 'Filtre avansate',
@@ -6851,6 +6867,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opțional - selectați un client',
       selectCustomer: 'Selectați clientul',
       noteContent: 'Conținutul notei',
+      duplicateWarning: 'Posibil contact duplicat:',
+      searchCustomer: 'Căutare client...',
     },
     tasks: {
       title: 'Sarcini',
@@ -8119,6 +8137,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Codice',
       default: 'Predefinito',
       unknown: 'Sconosciuto',
+      noResults: 'Nessun risultato',
     },
     advancedFilters: {
       title: 'Filtri avanzati',
@@ -8172,6 +8191,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opzionale - seleziona un cliente',
       selectCustomer: 'Seleziona cliente',
       noteContent: 'Contenuto nota',
+      duplicateWarning: 'Possibile contatto duplicato:',
+      searchCustomer: 'Cerca cliente...',
     },
     tasks: {
       title: 'Attività',
@@ -9440,6 +9461,7 @@ export const translations: Record<Locale, Translations> = {
       code: 'Code',
       default: 'Standard',
       unknown: 'Unbekannt',
+      noResults: 'Keine Ergebnisse',
     },
     advancedFilters: {
       title: 'Erweiterte Filter',
@@ -9493,6 +9515,8 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Optional - Kunden auswählen',
       selectCustomer: 'Kunde auswählen',
       noteContent: 'Notizinhalt',
+      duplicateWarning: 'Möglicher doppelter Kontakt:',
+      searchCustomer: 'Kunde suchen...',
     },
     tasks: {
       title: 'Aufgaben',

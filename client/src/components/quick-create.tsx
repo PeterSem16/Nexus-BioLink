@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, User, ClipboardList, FileText, Loader2 } from "lucide-react";
+import { Plus, User, ClipboardList, FileText, Loader2, AlertTriangle, Search, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +36,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useI18n } from "@/i18n";
@@ -74,6 +89,9 @@ export function QuickCreate() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [openDialog, setOpenDialog] = useState<"contact" | "task" | "note" | null>(null);
+  const [taskCustomerOpen, setTaskCustomerOpen] = useState(false);
+  const [noteCustomerOpen, setNoteCustomerOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
 
   const { data: users = [] } = useQuery<SafeUser[]>({
     queryKey: ["/api/users"],
@@ -82,6 +100,18 @@ export function QuickCreate() {
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
+
+  // Filter customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return customers;
+    const search = customerSearch.toLowerCase();
+    return customers.filter(c => 
+      c.firstName?.toLowerCase().includes(search) ||
+      c.lastName?.toLowerCase().includes(search) ||
+      c.email?.toLowerCase().includes(search) ||
+      c.phone?.includes(search)
+    );
+  }, [customers, customerSearch]);
 
   const contactForm = useForm<QuickContactValues>({
     resolver: zodResolver(quickContactSchema),
@@ -113,6 +143,27 @@ export function QuickCreate() {
       content: "",
     },
   });
+
+  // Watch contact form fields for duplicate detection
+  const watchedLastName = contactForm.watch("lastName");
+  const watchedEmail = contactForm.watch("email");
+  const watchedPhone = contactForm.watch("phone");
+
+  // Detect potential duplicates
+  const potentialDuplicates = useMemo(() => {
+    if (!watchedLastName && !watchedEmail && !watchedPhone) return [];
+    
+    return customers.filter(c => {
+      const lastNameMatch = watchedLastName && 
+        c.lastName?.toLowerCase() === watchedLastName.toLowerCase();
+      const emailMatch = watchedEmail && 
+        c.email?.toLowerCase() === watchedEmail.toLowerCase();
+      const phoneMatch = watchedPhone && watchedPhone.length > 4 && 
+        (c.phone?.includes(watchedPhone) || c.mobile?.includes(watchedPhone));
+      
+      return lastNameMatch || emailMatch || phoneMatch;
+    });
+  }, [customers, watchedLastName, watchedEmail, watchedPhone]);
 
   const createContactMutation = useMutation({
     mutationFn: async (data: QuickContactValues) => {
@@ -327,6 +378,23 @@ export function QuickCreate() {
                   </FormItem>
                 )}
               />
+              
+              {potentialDuplicates.length > 0 && (
+                <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-amber-700 dark:text-amber-300">
+                    <div className="font-medium mb-1">{t.quickCreate.duplicateWarning}</div>
+                    <ul className="text-sm space-y-1">
+                      {potentialDuplicates.slice(0, 3).map(c => (
+                        <li key={c.id}>
+                          {c.firstName} {c.lastName} - {c.email || c.phone}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpenDialog(null)}>
                   {t.common.cancel}
@@ -427,30 +495,74 @@ export function QuickCreate() {
               <FormField
                 control={taskForm.control}
                 name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.quickCreate.linkedCustomer}</FormLabel>
-                    <Select 
-                      onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} 
-                      value={field.value || "__none__"}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-quick-customer">
-                          <SelectValue placeholder={t.quickCreate.optionalCustomer} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="__none__">{t.common.none}</SelectItem>
-                        {customers.filter(c => c.id).map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.firstName} {c.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedCustomer = customers.find(c => c.id === field.value);
+                  return (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>{t.quickCreate.linkedCustomer}</FormLabel>
+                      <Popover open={taskCustomerOpen} onOpenChange={setTaskCustomerOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={taskCustomerOpen}
+                              className="justify-between font-normal"
+                              data-testid="select-quick-customer"
+                            >
+                              {selectedCustomer
+                                ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                                : t.quickCreate.optionalCustomer}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder={t.quickCreate.searchCustomer}
+                              onValueChange={setCustomerSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>{t.common.noResults}</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="__none__"
+                                  onSelect={() => {
+                                    field.onChange("");
+                                    setTaskCustomerOpen(false);
+                                    setCustomerSearch("");
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
+                                  {t.common.none}
+                                </CommandItem>
+                                {filteredCustomers.slice(0, 50).map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={`${c.firstName} ${c.lastName} ${c.email || ""}`}
+                                    onSelect={() => {
+                                      field.onChange(c.id);
+                                      setTaskCustomerOpen(false);
+                                      setCustomerSearch("");
+                                    }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col">
+                                      <span>{c.firstName} {c.lastName}</span>
+                                      {c.email && <span className="text-xs text-muted-foreground">{c.email}</span>}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpenDialog(null)}>
@@ -477,26 +589,63 @@ export function QuickCreate() {
               <FormField
                 control={noteForm.control}
                 name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.quickCreate.selectCustomer}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-quick-note-customer">
-                          <SelectValue placeholder={t.common.select} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.filter(c => c.id).map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.firstName} {c.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedCustomer = customers.find(c => c.id === field.value);
+                  return (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>{t.quickCreate.selectCustomer}</FormLabel>
+                      <Popover open={noteCustomerOpen} onOpenChange={setNoteCustomerOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={noteCustomerOpen}
+                              className="justify-between font-normal"
+                              data-testid="select-quick-note-customer"
+                            >
+                              {selectedCustomer
+                                ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                                : t.common.select}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder={t.quickCreate.searchCustomer}
+                              onValueChange={setCustomerSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>{t.common.noResults}</CommandEmpty>
+                              <CommandGroup>
+                                {filteredCustomers.slice(0, 50).map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={`${c.firstName} ${c.lastName} ${c.email || ""}`}
+                                    onSelect={() => {
+                                      field.onChange(c.id);
+                                      setNoteCustomerOpen(false);
+                                      setCustomerSearch("");
+                                    }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col">
+                                      <span>{c.firstName} {c.lastName}</span>
+                                      {c.email && <span className="text-xs text-muted-foreground">{c.email}</span>}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={noteForm.control}

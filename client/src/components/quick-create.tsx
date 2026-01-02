@@ -412,7 +412,7 @@ export function QuickCreate() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {users.map((u) => (
+                          {users.filter(u => u.id).map((u) => (
                             <SelectItem key={u.id} value={u.id}>
                               {u.fullName || u.username}
                             </SelectItem>
@@ -430,15 +430,18 @@ export function QuickCreate() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.quickCreate.linkedCustomer}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select 
+                      onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} 
+                      value={field.value || "__none__"}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-quick-customer">
                           <SelectValue placeholder={t.quickCreate.optionalCustomer} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">{t.common.none}</SelectItem>
-                        {customers.map((c) => (
+                        <SelectItem value="__none__">{t.common.none}</SelectItem>
+                        {customers.filter(c => c.id).map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.firstName} {c.lastName}
                           </SelectItem>
@@ -484,7 +487,7 @@ export function QuickCreate() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {customers.map((c) => (
+                        {customers.filter(c => c.id).map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.firstName} {c.lastName}
                           </SelectItem>

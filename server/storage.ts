@@ -57,7 +57,7 @@ import {
   type CampaignOperatorSetting, type InsertCampaignOperatorSetting,
   type CampaignContactSession, type InsertCampaignContactSession,
   type CampaignMetricsSnapshot, type InsertCampaignMetricsSnapshot,
-  sipSettings, callLogs,
+  sipSettings, callLogs, chatMessages,
   productSets, productSetCollections, productSetStorage, customerConsents, tasks,
   type SipSettings, type InsertSipSettings,
   type CallLog, type InsertCallLog,
@@ -65,10 +65,11 @@ import {
   type ProductSetCollection, type InsertProductSetCollection,
   type ProductSetStorage, type InsertProductSetStorage,
   type CustomerConsent, type InsertCustomerConsent,
-  type Task, type InsertTask
+  type Task, type InsertTask,
+  type ChatMessage, type InsertChatMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, inArray, sql, desc, and } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
@@ -478,6 +479,12 @@ export interface IStorage {
 
   // Product Duplication
   duplicateProduct(productId: string, newName: string): Promise<Product>;
+
+  // Chat Messages
+  getChatMessages(userId1: string, userId2: string, limit?: number): Promise<ChatMessage[]>;
+  getChatConversations(userId: string): Promise<{ partnerId: string; lastMessage: ChatMessage; unreadCount: number }[]>;
+  createChatMessage(data: InsertChatMessage): Promise<ChatMessage>;
+  markMessagesAsRead(senderId: string, receiverId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2788,6 +2795,67 @@ export class DatabaseStorage implements IStorage {
     }
 
     return newProduct;
+  }
+
+  // Chat Messages
+  async getChatMessages(userId1: string, userId2: string, limit: number = 50): Promise<ChatMessage[]> {
+    return await db.select()
+      .from(chatMessages)
+      .where(
+        or(
+          and(eq(chatMessages.senderId, userId1), eq(chatMessages.receiverId, userId2)),
+          and(eq(chatMessages.senderId, userId2), eq(chatMessages.receiverId, userId1))
+        )
+      )
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit);
+  }
+
+  async getChatConversations(userId: string): Promise<{ partnerId: string; lastMessage: ChatMessage; unreadCount: number }[]> {
+    const messages = await db.select()
+      .from(chatMessages)
+      .where(
+        or(
+          eq(chatMessages.senderId, userId),
+          eq(chatMessages.receiverId, userId)
+        )
+      )
+      .orderBy(desc(chatMessages.createdAt));
+
+    const conversationMap = new Map<string, { lastMessage: ChatMessage; unreadCount: number }>();
+
+    for (const msg of messages) {
+      const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      
+      if (!conversationMap.has(partnerId)) {
+        const unreadCount = messages.filter(
+          m => m.senderId === partnerId && m.receiverId === userId && !m.isRead
+        ).length;
+        conversationMap.set(partnerId, { lastMessage: msg, unreadCount });
+      }
+    }
+
+    return Array.from(conversationMap.entries()).map(([partnerId, data]) => ({
+      partnerId,
+      ...data
+    }));
+  }
+
+  async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
+    const [message] = await db.insert(chatMessages).values(data).returning();
+    return message;
+  }
+
+  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+    await db.update(chatMessages)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(chatMessages.senderId, senderId),
+          eq(chatMessages.receiverId, receiverId),
+          eq(chatMessages.isRead, false)
+        )
+      );
   }
 }
 

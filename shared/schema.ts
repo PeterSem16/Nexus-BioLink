@@ -2533,3 +2533,17 @@ export const insertProductSetStorageSchema = createInsertSchema(productSetStorag
 });
 export type InsertProductSetStorage = z.infer<typeof insertProductSetStorageSchema>;
 export type ProductSetStorage = typeof productSetStorage.$inferSelect;
+
+// Chat Messages - direct messages between users
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;

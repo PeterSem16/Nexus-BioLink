@@ -1636,25 +1636,27 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
     let vat = 0;
     let gross = 0;
 
-    // Calculate from collections
+    // Calculate from collections - net is original price BEFORE discount
     (selectedSet.collections || []).forEach((col: any) => {
-      const lineNet = parseFloat(col.lineNetAmount || 0);
+      const lineNetAfterDiscount = parseFloat(col.lineNetAmount || 0);
       const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
+      const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
       const lineVat = parseFloat(col.lineVatAmount || 0);
       const lineGross = parseFloat(col.lineGrossAmount || 0);
-      net += lineNet;
+      net += lineNetBeforeDiscount;
       discount += lineDiscount;
       vat += lineVat;
       gross += lineGross;
     });
 
-    // Calculate from storage
+    // Calculate from storage - net is original price BEFORE discount
     (selectedSet.storage || []).forEach((stor: any) => {
-      const lineNet = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
+      const lineNetAfterDiscount = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
       const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
+      const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
       const lineVat = parseFloat(stor.lineVatAmount || 0);
       const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
-      net += lineNet;
+      net += lineNetBeforeDiscount;
       discount += lineDiscount;
       vat += lineVat;
       gross += lineGross;

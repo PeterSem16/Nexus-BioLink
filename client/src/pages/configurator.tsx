@@ -2208,8 +2208,9 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               
               {(selectedSet?.collections || []).map((col: any, idx: number) => {
                 const inst = instances.find((i: any) => i.id === col.instanceId);
-                const lineNet = parseFloat(col.lineNetAmount || 0);
+                const lineNetAfterDiscount = parseFloat(col.lineNetAmount || 0);
                 const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
+                const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
                 const lineVat = parseFloat(col.lineVatAmount || 0);
                 const lineGross = parseFloat(col.lineGrossAmount || 0);
                 return (
@@ -2220,7 +2221,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                     <div className="mt-1 space-y-0.5 text-xs text-blue-700 dark:text-blue-300">
                       <div className="flex justify-between">
                         <span>{t.konfigurator.priceWithoutVat}:</span>
-                        <span className="font-mono">{lineNet.toFixed(2)} €</span>
+                        <span className="font-mono">{lineNetBeforeDiscount.toFixed(2)} €</span>
                       </div>
                       {lineDiscount > 0 && (
                         <div className="flex justify-between text-amber-600 dark:text-amber-400">
@@ -2245,8 +2246,9 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
               
               {(selectedSet?.storage || []).map((stor: any, idx: number) => {
                 const svc = allStorageServices.find((s: any) => s.id === stor.serviceId);
-                const lineNet = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
+                const lineNetAfterDiscount = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
                 const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
+                const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
                 const lineVat = parseFloat(stor.lineVatAmount || 0);
                 const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
                 return (
@@ -2257,7 +2259,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                     <div className="mt-1 space-y-0.5 text-xs text-green-700 dark:text-green-300">
                       <div className="flex justify-between">
                         <span>{t.konfigurator.priceWithoutVat}:</span>
-                        <span className="font-mono">{lineNet.toFixed(2)} €</span>
+                        <span className="font-mono">{lineNetBeforeDiscount.toFixed(2)} €</span>
                       </div>
                       {lineDiscount > 0 && (
                         <div className="flex justify-between text-amber-600 dark:text-amber-400">

@@ -57,7 +57,7 @@ import {
   type CampaignOperatorSetting, type InsertCampaignOperatorSetting,
   type CampaignContactSession, type InsertCampaignContactSession,
   type CampaignMetricsSnapshot, type InsertCampaignMetricsSnapshot,
-  sipSettings, callLogs, chatMessages, exchangeRates,
+  sipSettings, callLogs, chatMessages, exchangeRates, inflationRates,
   productSets, productSetCollections, productSetStorage, customerConsents, tasks,
   type SipSettings, type InsertSipSettings,
   type CallLog, type InsertCallLog,
@@ -67,7 +67,8 @@ import {
   type CustomerConsent, type InsertCustomerConsent,
   type Task, type InsertTask,
   type ChatMessage, type InsertChatMessage,
-  type ExchangeRate, type InsertExchangeRate
+  type ExchangeRate, type InsertExchangeRate,
+  type InflationRate, type InsertInflationRate
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
@@ -492,6 +493,11 @@ export interface IStorage {
   getExchangeRateByCode(currencyCode: string): Promise<ExchangeRate | undefined>;
   upsertExchangeRates(rates: InsertExchangeRate[]): Promise<ExchangeRate[]>;
   getExchangeRatesLastUpdate(): Promise<Date | null>;
+
+  // Inflation Rates
+  getInflationRates(): Promise<InflationRate[]>;
+  upsertInflationRate(data: InsertInflationRate): Promise<InflationRate>;
+  getInflationRatesLastUpdate(): Promise<Date | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2912,6 +2918,46 @@ export class DatabaseStorage implements IStorage {
     const [rate] = await db.select()
       .from(exchangeRates)
       .orderBy(desc(exchangeRates.updatedAt))
+      .limit(1);
+    return rate?.updatedAt || null;
+  }
+
+  // Inflation Rates
+  async getInflationRates(): Promise<InflationRate[]> {
+    const rates = await db.select()
+      .from(inflationRates)
+      .orderBy(desc(inflationRates.year));
+    return rates;
+  }
+
+  async upsertInflationRate(data: InsertInflationRate): Promise<InflationRate> {
+    const existing = await db.select()
+      .from(inflationRates)
+      .where(eq(inflationRates.year, data.year))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(inflationRates)
+        .set({
+          rate: data.rate,
+          source: data.source,
+          updatedAt: sql`now()`
+        })
+        .where(eq(inflationRates.year, data.year))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(inflationRates)
+        .values(data)
+        .returning();
+      return created;
+    }
+  }
+
+  async getInflationRatesLastUpdate(): Promise<Date | null> {
+    const [rate] = await db.select()
+      .from(inflationRates)
+      .orderBy(desc(inflationRates.updatedAt))
       .limit(1);
     return rate?.updatedAt || null;
   }

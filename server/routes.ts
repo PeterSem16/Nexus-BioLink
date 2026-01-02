@@ -5846,6 +5846,52 @@ export async function registerRoutes(
   // Set up automatic daily refresh at midnight (server timezone)
   scheduleExchangeRateUpdate();
 
+  // ===== INFLATION RATES =====
+  
+  // Get all inflation rates
+  app.get("/api/inflation-rates", requireAuth, async (req, res) => {
+    try {
+      const rates = await storage.getInflationRates();
+      const lastUpdate = await storage.getInflationRatesLastUpdate();
+      res.json({ rates, lastUpdate });
+    } catch (error) {
+      console.error("Failed to fetch inflation rates:", error);
+      res.status(500).json({ error: "Failed to fetch inflation rates" });
+    }
+  });
+
+  // Update/create inflation rate
+  app.post("/api/inflation-rates", requireAuth, async (req, res) => {
+    try {
+      const { year, rate, source } = req.body;
+      
+      if (!year || rate === undefined) {
+        return res.status(400).json({ error: "Year and rate are required" });
+      }
+      
+      const savedRate = await storage.upsertInflationRate({
+        year: parseInt(year),
+        rate: rate.toString(),
+        source: source || "Štatistický úrad SR"
+      });
+      
+      await logActivity(
+        req.session.user!.id,
+        "updated",
+        "inflationRates",
+        savedRate.id,
+        `Updated inflation rate for ${year}: ${rate}%`,
+        { year, rate },
+        req.ip
+      );
+      
+      res.json(savedRate);
+    } catch (error) {
+      console.error("Failed to update inflation rate:", error);
+      res.status(500).json({ error: "Failed to update inflation rate" });
+    }
+  });
+
   return httpServer;
 }
 

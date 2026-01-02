@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard, TrendingUp } from "lucide-react";
 import { COUNTRIES, CURRENCIES, getCurrencySymbol } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9080,6 +9080,235 @@ function ExchangeRatesTab() {
   );
 }
 
+interface InflationRate {
+  id: string;
+  year: number;
+  rate: string;
+  source: string | null;
+  updatedAt: Date | string;
+}
+
+function InflationTab() {
+  const { toast } = useToast();
+  const [editingYear, setEditingYear] = useState<number | null>(null);
+  const [editingRate, setEditingRate] = useState("");
+  const [newYear, setNewYear] = useState("");
+  const [newRate, setNewRate] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  const { data: inflationData, isLoading } = useQuery<{ rates: InflationRate[]; lastUpdate: string | null }>({
+    queryKey: ["/api/inflation-rates"],
+  });
+  
+  const updateMutation = useMutation({
+    mutationFn: async ({ year, rate }: { year: number; rate: string }) => {
+      const response = await fetch("/api/inflation-rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ year, rate }),
+      });
+      if (!response.ok) throw new Error("Failed to update inflation rate");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inflation-rates"] });
+      setEditingYear(null);
+      setShowAddForm(false);
+      setNewYear("");
+      setNewRate("");
+      toast({
+        title: "Úspech",
+        description: "Miera inflácie bola aktualizovaná",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať mieru inflácie",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const formatDate = (dateInput: string | Date | null | undefined) => {
+    if (!dateInput) return "-";
+    const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    return date.toLocaleDateString("sk-SK", { 
+      day: "2-digit", 
+      month: "2-digit", 
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+  
+  const handleEdit = (year: number, currentRate: string) => {
+    setEditingYear(year);
+    setEditingRate(currentRate);
+  };
+  
+  const handleSave = () => {
+    if (editingYear !== null && editingRate) {
+      updateMutation.mutate({ year: editingYear, rate: editingRate });
+    }
+  };
+  
+  const handleAdd = () => {
+    const year = parseInt(newYear);
+    if (year && newRate) {
+      updateMutation.mutate({ year, rate: newRate });
+    }
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+  
+  const rates = inflationData?.rates || [];
+  const lastUpdate = inflationData?.lastUpdate;
+  const currentYear = new Date().getFullYear();
+  const last5Years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-sm text-muted-foreground">
+          Posledná aktualizácia: {formatDate(lastUpdate)}
+        </div>
+        <Button 
+          onClick={() => setShowAddForm(!showAddForm)}
+          variant={showAddForm ? "outline" : "default"}
+          data-testid="button-add-inflation"
+        >
+          {showAddForm ? "Zrušiť" : "Pridať rok"}
+        </Button>
+      </div>
+      
+      {showAddForm && (
+        <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Rok:</label>
+            <Input
+              type="number"
+              value={newYear}
+              onChange={(e) => setNewYear(e.target.value)}
+              placeholder="2024"
+              className="w-24"
+              data-testid="input-new-year"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Inflácia (%):</label>
+            <Input
+              type="number"
+              step="0.1"
+              value={newRate}
+              onChange={(e) => setNewRate(e.target.value)}
+              placeholder="5.5"
+              className="w-24"
+              data-testid="input-new-rate"
+            />
+          </div>
+          <Button 
+            onClick={handleAdd}
+            disabled={updateMutation.isPending || !newYear || !newRate}
+            data-testid="button-save-new-inflation"
+          >
+            {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Uložiť
+          </Button>
+        </div>
+      )}
+      
+      {rates.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          Žiadne údaje o inflácii. Kliknite na "Pridať rok" pre zadanie údajov.
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left py-3 px-4 font-medium">Rok</th>
+                <th className="text-right py-3 px-4 font-medium">Miera inflácie (%)</th>
+                <th className="text-left py-3 px-4 font-medium">Zdroj</th>
+                <th className="text-right py-3 px-4 font-medium">Aktualizované</th>
+                <th className="text-right py-3 px-4 font-medium">Akcie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rates.map((rate, index) => (
+                <tr key={rate.id} className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}>
+                  <td className="py-2 px-4 font-mono font-medium">{rate.year}</td>
+                  <td className="py-2 px-4 text-right">
+                    {editingYear === rate.year ? (
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={editingRate}
+                        onChange={(e) => setEditingRate(e.target.value)}
+                        className="w-24 ml-auto"
+                        data-testid={`input-edit-rate-${rate.year}`}
+                      />
+                    ) : (
+                      <span className="font-mono">{parseFloat(rate.rate).toFixed(1)} %</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 text-muted-foreground">{rate.source || "Štatistický úrad SR"}</td>
+                  <td className="py-2 px-4 text-right text-muted-foreground text-sm">
+                    {formatDate(rate.updatedAt)}
+                  </td>
+                  <td className="py-2 px-4 text-right">
+                    {editingYear === rate.year ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={updateMutation.isPending}
+                          data-testid={`button-save-rate-${rate.year}`}
+                        >
+                          {updateMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                          Uložiť
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingYear(null)}
+                          data-testid={`button-cancel-rate-${rate.year}`}
+                        >
+                          Zrušiť
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleEdit(rate.year, rate.rate)}
+                        data-testid={`button-edit-rate-${rate.year}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      
+      <div className="text-xs text-muted-foreground">
+        Údaje o inflácii je potrebné aktualizovať manuálne. Zdroj: Štatistický úrad Slovenskej republiky.
+      </div>
+    </div>
+  );
+}
+
 const roleFormSchema = z.object({
   name: z.string().min(1, "Role name is required"),
   description: z.string().optional(),
@@ -11587,6 +11816,10 @@ export default function ConfiguratorPage() {
             <DollarSign className="h-4 w-4" />
             {t.konfigurator.exchangeRates || "Kurzy"}
           </TabsTrigger>
+          <TabsTrigger value="inflation" className="flex items-center gap-2" data-testid="tab-inflation">
+            <TrendingUp className="h-4 w-4" />
+            Inflácie
+          </TabsTrigger>
           <TabsTrigger value="permissions" className="flex items-center gap-2" data-testid="tab-permissions">
             <Shield className="h-4 w-4" />
             {t.konfigurator.permissionsRoles}
@@ -11661,6 +11894,18 @@ export default function ConfiguratorPage() {
             </CardHeader>
             <CardContent>
               <ExchangeRatesTab />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="inflation">
+          <Card>
+            <CardHeader>
+              <CardTitle>Inflácie v SR</CardTitle>
+              <CardDescription>Ročná miera inflácie v Slovenskej republike za posledných 5 rokov</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InflationTab />
             </CardContent>
           </Card>
         </TabsContent>

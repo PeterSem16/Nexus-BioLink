@@ -2562,3 +2562,16 @@ export const exchangeRates = pgTable("exchange_rates", {
 export const insertExchangeRateSchema = createInsertSchema(exchangeRates).omit({ id: true, updatedAt: true });
 export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
 export type ExchangeRate = typeof exchangeRates.$inferSelect;
+
+// Inflation Rates - Slovak inflation data (annual rates)
+export const inflationRates = pgTable("inflation_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  year: integer("year").notNull().unique(), // e.g., 2024
+  rate: decimal("rate", { precision: 6, scale: 2 }).notNull(), // e.g., 10.5 (percent)
+  source: text("source").default("Štatistický úrad SR"), // data source
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertInflationRateSchema = createInsertSchema(inflationRates).omit({ id: true, updatedAt: true });
+export type InsertInflationRate = z.infer<typeof insertInflationRateSchema>;
+export type InflationRate = typeof inflationRates.$inferSelect;

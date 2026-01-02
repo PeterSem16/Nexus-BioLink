@@ -15,6 +15,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { TourProvider, TourTrigger } from "@/components/tour-provider";
 import { SipPhoneHeaderButton } from "@/components/sip-phone";
 import { QuickCreate } from "@/components/quick-create";
+import { ChatProvider } from "@/contexts/chat-context";
+import { ChatContainer } from "@/components/chat-container";
 import Dashboard from "@/pages/dashboard";
 import UsersPage from "@/pages/users";
 import CustomersPage from "@/pages/customers";
@@ -98,6 +100,7 @@ function AuthenticatedApp() {
     <CountryFilterProvider>
       <PermissionsProvider>
         <I18nWrapper userCountries={user?.assignedCountries || []}>
+          <ChatProvider>
           <TourProvider>
           <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex h-screen w-full">
@@ -137,8 +140,10 @@ function AuthenticatedApp() {
               </main>
             </div>
           </div>
+          <ChatContainer />
           </SidebarProvider>
           </TourProvider>
+          </ChatProvider>
           <Toaster />
         </I18nWrapper>
       </PermissionsProvider>

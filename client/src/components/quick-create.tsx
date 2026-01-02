@@ -3,7 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, User, ClipboardList, FileText, Loader2, AlertTriangle, Search, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, User, ClipboardList, FileText, Loader2, AlertTriangle, Search, Check, ChevronsUpDown, MessageCircle, Circle } from "lucide-react";
+import { useChatContext } from "@/contexts/chat-context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -89,7 +90,8 @@ export function QuickCreate() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [openDialog, setOpenDialog] = useState<"contact" | "task" | "note" | null>(null);
+  const { onlineUsers, openChat, isConnected } = useChatContext();
+  const [openDialog, setOpenDialog] = useState<"contact" | "task" | "note" | "chat" | null>(null);
   const [taskCustomerOpen, setTaskCustomerOpen] = useState(false);
   const [noteCustomerOpen, setNoteCustomerOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -289,6 +291,19 @@ export function QuickCreate() {
           >
             <FileText className="h-4 w-4 mr-2" />
             {t.quickCreate.newNote}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => handleOpenChange("chat")}
+            data-testid="menu-item-quick-chat"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            {t.quickCreate?.chat || "Chat"}
+            {onlineUsers.length > 0 && (
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                <Circle className="h-2 w-2 fill-green-500 text-green-500" />
+                {onlineUsers.length}
+              </span>
+            )}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -681,6 +696,63 @@ export function QuickCreate() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openDialog === "chat"} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              {t.quickCreate?.chatWithUser || "Start a Chat"}
+            </DialogTitle>
+            <DialogDescription>
+              {t.quickCreate?.selectOnlineUser || "Select an online user to start chatting"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {!isConnected && (
+              <div className="text-center py-4 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                {t.quickCreate?.connecting || "Connecting..."}
+              </div>
+            )}
+            {isConnected && onlineUsers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                {t.quickCreate?.noOnlineUsers || "No users online right now"}
+              </div>
+            )}
+            {onlineUsers.map((onlineUser) => (
+              <button
+                key={onlineUser.id}
+                onClick={() => {
+                  openChat(onlineUser);
+                  setOpenDialog(null);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg hover-elevate text-left"
+                data-testid={`button-chat-user-${onlineUser.id}`}
+              >
+                <div className="relative">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                    <span className="text-sm font-medium">
+                      {onlineUser.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </span>
+                  </div>
+                  <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-green-500 text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{onlineUser.fullName}</p>
+                  <p className="text-xs text-muted-foreground truncate">@{onlineUser.username}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(null)}>
+              {t.common.close}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

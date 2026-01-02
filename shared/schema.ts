@@ -2548,3 +2548,17 @@ export const chatMessages = pgTable("chat_messages", {
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// Exchange Rates - daily ECB exchange rates from NBS
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  currencyCode: text("currency_code").notNull(), // e.g., "USD", "CZK", "HUF"
+  currencyName: text("currency_name").notNull(), // e.g., "americký dolár"
+  rate: decimal("rate", { precision: 12, scale: 6 }).notNull(), // rate against EUR
+  rateDate: date("rate_date").notNull(), // date of the rate
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertExchangeRateSchema = createInsertSchema(exchangeRates).omit({ id: true, updatedAt: true });
+export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
+export type ExchangeRate = typeof exchangeRates.$inferSelect;

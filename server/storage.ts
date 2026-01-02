@@ -1216,7 +1216,7 @@ export class DatabaseStorage implements IStorage {
     if (!customer) return null;
 
     const customerProducts = await this.getCustomerProducts(customerId);
-    const customerInvoices = await this.getCustomerInvoices(customerId);
+    const customerInvoices = await this.getInvoicesByCustomer(customerId);
     const notes = await this.getCustomerNotes(customerId);
     const consents = await this.getCustomerConsents(customerId);
     const messages = await this.getCommunicationMessagesByCustomer(customerId);

@@ -26,6 +26,7 @@ import CollaboratorsPage from "@/pages/collaborators";
 import ConfiguratorPage from "@/pages/configurator";
 import CampaignsPage from "@/pages/campaigns";
 import CampaignDetailPage from "@/pages/campaign-detail";
+import TasksPage from "@/pages/tasks";
 import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -124,6 +125,7 @@ function AuthenticatedApp() {
                     <Route path="/collaborators" component={CollaboratorsPage} />
                     <Route path="/campaigns" component={CampaignsPage} />
                     <Route path="/campaigns/:id" component={CampaignDetailPage} />
+                    <Route path="/tasks" component={TasksPage} />
                     <Route path="/settings" component={SettingsPage} />
                     <Route path="/configurator" component={ConfiguratorPage} />
                     <Route path="/login">

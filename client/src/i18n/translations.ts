@@ -19,6 +19,7 @@ export interface Translations {
     hospitals: string;
     collaborators: string;
     campaigns: string;
+    tasks: string;
     users: string;
     settings: string;
     konfigurator: string;
@@ -120,6 +121,37 @@ export interface Translations {
     optionalCustomer: string;
     selectCustomer: string;
     noteContent: string;
+  };
+  tasks: {
+    title: string;
+    description: string;
+    noTasks: string;
+    myTasks: string;
+    allTasks: string;
+    searchPlaceholder: string;
+    pending: string;
+    inProgress: string;
+    completed: string;
+    editTask: string;
+    editTaskDesc: string;
+    taskUpdated: string;
+    updateFailed: string;
+    startWorking: string;
+    markComplete: string;
+    cancel: string;
+    linkedTo: string;
+    priorities: {
+      low: string;
+      medium: string;
+      high: string;
+      urgent: string;
+    };
+    statuses: {
+      pending: string;
+      in_progress: string;
+      completed: string;
+      cancelled: string;
+    };
   };
   dashboard: {
     title: string;
@@ -1344,6 +1376,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Hospitals',
       collaborators: 'Collaborators',
       campaigns: 'Campaigns',
+      tasks: 'Tasks',
       users: 'Users',
       settings: 'Settings',
       konfigurator: 'Configurator',
@@ -1445,6 +1478,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Optional - select a customer',
       selectCustomer: 'Select Customer',
       noteContent: 'Note Content',
+    },
+    tasks: {
+      title: 'Tasks',
+      description: 'Manage and track your tasks',
+      noTasks: 'No tasks found',
+      myTasks: 'My Tasks',
+      allTasks: 'All Tasks',
+      searchPlaceholder: 'Search tasks...',
+      pending: 'Pending',
+      inProgress: 'In Progress',
+      completed: 'Completed',
+      editTask: 'Edit Task',
+      editTaskDesc: 'Update task details',
+      taskUpdated: 'Task updated successfully',
+      updateFailed: 'Failed to update task',
+      startWorking: 'Start Working',
+      markComplete: 'Mark Complete',
+      cancel: 'Cancel',
+      linkedTo: 'Linked to',
+      priorities: {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        urgent: 'Urgent',
+      },
+      statuses: {
+        pending: 'Pending',
+        in_progress: 'In Progress',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      },
     },
     dashboard: {
       title: 'Dashboard',
@@ -2685,6 +2749,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Nemocnice',
       collaborators: 'Spolupracovníci',
       campaigns: 'Kampane',
+      tasks: 'Úlohy',
       users: 'Používatelia',
       settings: 'Nastavenia',
       konfigurator: 'Konfigurátor',
@@ -2786,6 +2851,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Voliteľné - vyberte zákazníka',
       selectCustomer: 'Vybrať zákazníka',
       noteContent: 'Obsah poznámky',
+    },
+    tasks: {
+      title: 'Úlohy',
+      description: 'Spravujte a sledujte svoje úlohy',
+      noTasks: 'Nenašli sa žiadne úlohy',
+      myTasks: 'Moje úlohy',
+      allTasks: 'Všetky úlohy',
+      searchPlaceholder: 'Hľadať úlohy...',
+      pending: 'Čakajúce',
+      inProgress: 'Prebiehajúce',
+      completed: 'Dokončené',
+      editTask: 'Upraviť úlohu',
+      editTaskDesc: 'Aktualizovať detaily úlohy',
+      taskUpdated: 'Úloha bola úspešne aktualizovaná',
+      updateFailed: 'Nepodarilo sa aktualizovať úlohu',
+      startWorking: 'Začať pracovať',
+      markComplete: 'Označiť ako dokončené',
+      cancel: 'Zrušiť',
+      linkedTo: 'Prepojené s',
+      priorities: {
+        low: 'Nízka',
+        medium: 'Stredná',
+        high: 'Vysoká',
+        urgent: 'Urgentná',
+      },
+      statuses: {
+        pending: 'Čakajúca',
+        in_progress: 'Prebieha',
+        completed: 'Dokončená',
+        cancelled: 'Zrušená',
+      },
     },
     dashboard: {
       title: 'Prehľad',
@@ -4011,6 +4107,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Nemocnice',
       collaborators: 'Spolupracovníci',
       campaigns: 'Kampaně',
+      tasks: 'Úkoly',
       users: 'Uživatelé',
       settings: 'Nastavení',
       konfigurator: 'Konfigurátor',
@@ -4112,6 +4209,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Volitelné - vyberte zákazníka',
       selectCustomer: 'Vybrat zákazníka',
       noteContent: 'Obsah poznámky',
+    },
+    tasks: {
+      title: 'Úkoly',
+      description: 'Spravujte a sledujte své úkoly',
+      noTasks: 'Nebyly nalezeny žádné úkoly',
+      myTasks: 'Moje úkoly',
+      allTasks: 'Všechny úkoly',
+      searchPlaceholder: 'Hledat úkoly...',
+      pending: 'Čekající',
+      inProgress: 'Probíhající',
+      completed: 'Dokončené',
+      editTask: 'Upravit úkol',
+      editTaskDesc: 'Aktualizovat detaily úkolu',
+      taskUpdated: 'Úkol byl úspěšně aktualizován',
+      updateFailed: 'Nepodařilo se aktualizovat úkol',
+      startWorking: 'Začít pracovat',
+      markComplete: 'Označit jako dokončené',
+      cancel: 'Zrušit',
+      linkedTo: 'Propojeno s',
+      priorities: {
+        low: 'Nízká',
+        medium: 'Střední',
+        high: 'Vysoká',
+        urgent: 'Urgentní',
+      },
+      statuses: {
+        pending: 'Čekající',
+        in_progress: 'Probíhá',
+        completed: 'Dokončeno',
+        cancelled: 'Zrušeno',
+      },
     },
     dashboard: {
       title: 'Přehled',
@@ -5300,6 +5428,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Kórházak',
       collaborators: 'Munkatársak',
       campaigns: 'Kampányok',
+      tasks: 'Feladatok',
       users: 'Felhasználók',
       settings: 'Beállítások',
       konfigurator: 'Konfigurátor',
@@ -5401,6 +5530,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opcionális - válasszon ügyfelet',
       selectCustomer: 'Ügyfél kiválasztása',
       noteContent: 'Megjegyzés tartalma',
+    },
+    tasks: {
+      title: 'Feladatok',
+      description: 'Kezelje és kövesse feladatait',
+      noTasks: 'Nem találhatók feladatok',
+      myTasks: 'Saját feladataim',
+      allTasks: 'Összes feladat',
+      searchPlaceholder: 'Feladatok keresése...',
+      pending: 'Függőben',
+      inProgress: 'Folyamatban',
+      completed: 'Befejezve',
+      editTask: 'Feladat szerkesztése',
+      editTaskDesc: 'Feladat részleteinek frissítése',
+      taskUpdated: 'Feladat sikeresen frissítve',
+      updateFailed: 'Nem sikerült frissíteni a feladatot',
+      startWorking: 'Munka megkezdése',
+      markComplete: 'Befejezettként jelölés',
+      cancel: 'Mégse',
+      linkedTo: 'Kapcsolódik',
+      priorities: {
+        low: 'Alacsony',
+        medium: 'Közepes',
+        high: 'Magas',
+        urgent: 'Sürgős',
+      },
+      statuses: {
+        pending: 'Függőben',
+        in_progress: 'Folyamatban',
+        completed: 'Befejezve',
+        cancelled: 'Törölve',
+      },
     },
     dashboard: {
       title: 'Irányítópult',
@@ -6589,6 +6749,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Spitale',
       collaborators: 'Colaboratori',
       campaigns: 'Campanii',
+      tasks: 'Sarcini',
       users: 'Utilizatori',
       settings: 'Setări',
       konfigurator: 'Configurator',
@@ -6690,6 +6851,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opțional - selectați un client',
       selectCustomer: 'Selectați clientul',
       noteContent: 'Conținutul notei',
+    },
+    tasks: {
+      title: 'Sarcini',
+      description: 'Gestionați și urmăriți sarcinile',
+      noTasks: 'Nu s-au găsit sarcini',
+      myTasks: 'Sarcinile mele',
+      allTasks: 'Toate sarcinile',
+      searchPlaceholder: 'Căutare sarcini...',
+      pending: 'În așteptare',
+      inProgress: 'În desfășurare',
+      completed: 'Finalizate',
+      editTask: 'Editare sarcină',
+      editTaskDesc: 'Actualizați detaliile sarcinii',
+      taskUpdated: 'Sarcină actualizată cu succes',
+      updateFailed: 'Nu s-a putut actualiza sarcina',
+      startWorking: 'Începe lucrul',
+      markComplete: 'Marchează ca finalizat',
+      cancel: 'Anulare',
+      linkedTo: 'Legat de',
+      priorities: {
+        low: 'Scăzută',
+        medium: 'Medie',
+        high: 'Înaltă',
+        urgent: 'Urgentă',
+      },
+      statuses: {
+        pending: 'În așteptare',
+        in_progress: 'În desfășurare',
+        completed: 'Finalizat',
+        cancelled: 'Anulat',
+      },
     },
     dashboard: {
       title: 'Panou de control',
@@ -7878,6 +8070,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Ospedali',
       collaborators: 'Collaboratori',
       campaigns: 'Campagne',
+      tasks: 'Attività',
       users: 'Utenti',
       settings: 'Impostazioni',
       konfigurator: 'Configuratore',
@@ -7979,6 +8172,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Opzionale - seleziona un cliente',
       selectCustomer: 'Seleziona cliente',
       noteContent: 'Contenuto nota',
+    },
+    tasks: {
+      title: 'Attività',
+      description: 'Gestisci e monitora le tue attività',
+      noTasks: 'Nessuna attività trovata',
+      myTasks: 'Le mie attività',
+      allTasks: 'Tutte le attività',
+      searchPlaceholder: 'Cerca attività...',
+      pending: 'In attesa',
+      inProgress: 'In corso',
+      completed: 'Completate',
+      editTask: 'Modifica attività',
+      editTaskDesc: 'Aggiorna i dettagli dell\'attività',
+      taskUpdated: 'Attività aggiornata con successo',
+      updateFailed: 'Impossibile aggiornare l\'attività',
+      startWorking: 'Inizia a lavorare',
+      markComplete: 'Segna come completato',
+      cancel: 'Annulla',
+      linkedTo: 'Collegato a',
+      priorities: {
+        low: 'Bassa',
+        medium: 'Media',
+        high: 'Alta',
+        urgent: 'Urgente',
+      },
+      statuses: {
+        pending: 'In attesa',
+        in_progress: 'In corso',
+        completed: 'Completato',
+        cancelled: 'Annullato',
+      },
     },
     dashboard: {
       title: 'Dashboard',
@@ -9167,6 +9391,7 @@ export const translations: Record<Locale, Translations> = {
       hospitals: 'Krankenhäuser',
       collaborators: 'Mitarbeiter',
       campaigns: 'Kampagnen',
+      tasks: 'Aufgaben',
       users: 'Benutzer',
       settings: 'Einstellungen',
       konfigurator: 'Konfigurator',
@@ -9268,6 +9493,37 @@ export const translations: Record<Locale, Translations> = {
       optionalCustomer: 'Optional - Kunden auswählen',
       selectCustomer: 'Kunde auswählen',
       noteContent: 'Notizinhalt',
+    },
+    tasks: {
+      title: 'Aufgaben',
+      description: 'Verwalten und verfolgen Sie Ihre Aufgaben',
+      noTasks: 'Keine Aufgaben gefunden',
+      myTasks: 'Meine Aufgaben',
+      allTasks: 'Alle Aufgaben',
+      searchPlaceholder: 'Aufgaben suchen...',
+      pending: 'Ausstehend',
+      inProgress: 'In Bearbeitung',
+      completed: 'Abgeschlossen',
+      editTask: 'Aufgabe bearbeiten',
+      editTaskDesc: 'Aufgabendetails aktualisieren',
+      taskUpdated: 'Aufgabe erfolgreich aktualisiert',
+      updateFailed: 'Aufgabe konnte nicht aktualisiert werden',
+      startWorking: 'Arbeit beginnen',
+      markComplete: 'Als erledigt markieren',
+      cancel: 'Abbrechen',
+      linkedTo: 'Verknüpft mit',
+      priorities: {
+        low: 'Niedrig',
+        medium: 'Mittel',
+        high: 'Hoch',
+        urgent: 'Dringend',
+      },
+      statuses: {
+        pending: 'Ausstehend',
+        in_progress: 'In Bearbeitung',
+        completed: 'Abgeschlossen',
+        cancelled: 'Abgebrochen',
+      },
     },
     dashboard: {
       title: 'Dashboard',

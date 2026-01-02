@@ -2566,9 +2566,10 @@ export type ExchangeRate = typeof exchangeRates.$inferSelect;
 // Inflation Rates - Slovak inflation data (annual rates)
 export const inflationRates = pgTable("inflation_rates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  year: integer("year").notNull().unique(), // e.g., 2024
+  year: integer("year").notNull(), // e.g., 2024
+  country: varchar("country", { length: 2 }).notNull().default("SK"), // ISO country code
   rate: decimal("rate", { precision: 6, scale: 2 }).notNull(), // e.g., 10.5 (percent)
-  source: text("source").default("Štatistický úrad SR"), // data source
+  source: text("source"), // data source
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 

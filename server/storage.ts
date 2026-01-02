@@ -495,9 +495,9 @@ export interface IStorage {
   getExchangeRatesLastUpdate(): Promise<Date | null>;
 
   // Inflation Rates
-  getInflationRates(): Promise<InflationRate[]>;
+  getInflationRates(country?: string): Promise<InflationRate[]>;
   upsertInflationRate(data: InsertInflationRate): Promise<InflationRate>;
-  getInflationRatesLastUpdate(): Promise<Date | null>;
+  getInflationRatesLastUpdate(country?: string): Promise<Date | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2923,7 +2923,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Inflation Rates
-  async getInflationRates(): Promise<InflationRate[]> {
+  async getInflationRates(country?: string): Promise<InflationRate[]> {
+    if (country) {
+      const rates = await db.select()
+        .from(inflationRates)
+        .where(eq(inflationRates.country, country))
+        .orderBy(desc(inflationRates.year));
+      return rates;
+    }
     const rates = await db.select()
       .from(inflationRates)
       .orderBy(desc(inflationRates.year));
@@ -2931,9 +2938,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertInflationRate(data: InsertInflationRate): Promise<InflationRate> {
+    const country = data.country || "SK";
     const existing = await db.select()
       .from(inflationRates)
-      .where(eq(inflationRates.year, data.year))
+      .where(and(eq(inflationRates.year, data.year), eq(inflationRates.country, country)))
       .limit(1);
     
     if (existing.length > 0) {
@@ -2943,7 +2951,7 @@ export class DatabaseStorage implements IStorage {
           source: data.source,
           updatedAt: sql`now()`
         })
-        .where(eq(inflationRates.year, data.year))
+        .where(and(eq(inflationRates.year, data.year), eq(inflationRates.country, country)))
         .returning();
       return updated;
     } else {
@@ -2954,7 +2962,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getInflationRatesLastUpdate(): Promise<Date | null> {
+  async getInflationRatesLastUpdate(country?: string): Promise<Date | null> {
+    if (country) {
+      const [rate] = await db.select()
+        .from(inflationRates)
+        .where(eq(inflationRates.country, country))
+        .orderBy(desc(inflationRates.updatedAt))
+        .limit(1);
+      return rate?.updatedAt || null;
+    }
     const [rate] = await db.select()
       .from(inflationRates)
       .orderBy(desc(inflationRates.updatedAt))

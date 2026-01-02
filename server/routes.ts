@@ -5851,8 +5851,9 @@ export async function registerRoutes(
   // Get all inflation rates
   app.get("/api/inflation-rates", requireAuth, async (req, res) => {
     try {
-      const rates = await storage.getInflationRates();
-      const lastUpdate = await storage.getInflationRatesLastUpdate();
+      const country = req.query.country as string | undefined;
+      const rates = await storage.getInflationRates(country);
+      const lastUpdate = await storage.getInflationRatesLastUpdate(country);
       res.json({ rates, lastUpdate });
     } catch (error) {
       console.error("Failed to fetch inflation rates:", error);
@@ -5863,7 +5864,7 @@ export async function registerRoutes(
   // Update/create inflation rate
   app.post("/api/inflation-rates", requireAuth, async (req, res) => {
     try {
-      const { year, rate, source } = req.body;
+      const { year, rate, source, country } = req.body;
       
       if (!year || rate === undefined) {
         return res.status(400).json({ error: "Year and rate are required" });
@@ -5872,7 +5873,8 @@ export async function registerRoutes(
       const savedRate = await storage.upsertInflationRate({
         year: parseInt(year),
         rate: rate.toString(),
-        source: source || "Štatistický úrad SR"
+        source: source || null,
+        country: country || "SK"
       });
       
       await logActivity(
@@ -5880,8 +5882,8 @@ export async function registerRoutes(
         "updated",
         "inflationRates",
         savedRate.id,
-        `Updated inflation rate for ${year}: ${rate}%`,
-        { year, rate },
+        `Updated inflation rate for ${country || "SK"} ${year}: ${rate}%`,
+        { year, rate, country },
         req.ip
       );
       

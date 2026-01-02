@@ -9083,13 +9083,26 @@ function ExchangeRatesTab() {
 interface InflationRate {
   id: string;
   year: number;
+  country: string;
   rate: string;
   source: string | null;
   updatedAt: Date | string;
 }
 
+const INFLATION_COUNTRIES = [
+  { code: "SK", name: "Slovensko" },
+  { code: "CZ", name: "Česká republika" },
+  { code: "HU", name: "Maďarsko" },
+  { code: "RO", name: "Rumunsko" },
+  { code: "IT", name: "Taliansko" },
+  { code: "DE", name: "Nemecko" },
+  { code: "US", name: "USA" },
+];
+
 function InflationTab() {
+  const { t } = useI18n();
   const { toast } = useToast();
+  const [selectedCountry, setSelectedCountry] = useState("SK");
   const [editingYear, setEditingYear] = useState<number | null>(null);
   const [editingRate, setEditingRate] = useState("");
   const [newYear, setNewYear] = useState("");
@@ -9097,35 +9110,42 @@ function InflationTab() {
   const [showAddForm, setShowAddForm] = useState(false);
   
   const { data: inflationData, isLoading } = useQuery<{ rates: InflationRate[]; lastUpdate: string | null }>({
-    queryKey: ["/api/inflation-rates"],
+    queryKey: ["/api/inflation-rates", selectedCountry],
+    queryFn: async () => {
+      const response = await fetch(`/api/inflation-rates?country=${selectedCountry}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch inflation rates");
+      return response.json();
+    },
   });
   
   const updateMutation = useMutation({
-    mutationFn: async ({ year, rate }: { year: number; rate: string }) => {
+    mutationFn: async ({ year, rate, country }: { year: number; rate: string; country: string }) => {
       const response = await fetch("/api/inflation-rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ year, rate }),
+        body: JSON.stringify({ year, rate, country }),
       });
       if (!response.ok) throw new Error("Failed to update inflation rate");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inflation-rates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inflation-rates", selectedCountry] });
       setEditingYear(null);
       setShowAddForm(false);
       setNewYear("");
       setNewRate("");
       toast({
-        title: "Úspech",
-        description: "Miera inflácie bola aktualizovaná",
+        title: t.common.success || "Úspech",
+        description: t.konfigurator.inflationUpdated || "Miera inflácie bola aktualizovaná",
       });
     },
     onError: () => {
       toast({
-        title: "Chyba",
-        description: "Nepodarilo sa aktualizovať mieru inflácie",
+        title: t.common.error || "Chyba",
+        description: t.konfigurator.inflationUpdateFailed || "Nepodarilo sa aktualizovať mieru inflácie",
         variant: "destructive",
       });
     },
@@ -9150,16 +9170,18 @@ function InflationTab() {
   
   const handleSave = () => {
     if (editingYear !== null && editingRate) {
-      updateMutation.mutate({ year: editingYear, rate: editingRate });
+      updateMutation.mutate({ year: editingYear, rate: editingRate, country: selectedCountry });
     }
   };
   
   const handleAdd = () => {
     const year = parseInt(newYear);
     if (year && newRate) {
-      updateMutation.mutate({ year, rate: newRate });
+      updateMutation.mutate({ year, rate: newRate, country: selectedCountry });
     }
   };
+  
+  const countryName = INFLATION_COUNTRIES.find(c => c.code === selectedCountry)?.name || selectedCountry;
   
   if (isLoading) {
     return (
@@ -9171,28 +9193,40 @@ function InflationTab() {
   
   const rates = inflationData?.rates || [];
   const lastUpdate = inflationData?.lastUpdate;
-  const currentYear = new Date().getFullYear();
-  const last5Years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
-          Posledná aktualizácia: {formatDate(lastUpdate)}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+            <SelectTrigger className="w-48" data-testid="select-inflation-country">
+              <SelectValue placeholder={t.common.country || "Krajina"} />
+            </SelectTrigger>
+            <SelectContent>
+              {INFLATION_COUNTRIES.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="text-sm text-muted-foreground">
+            {t.konfigurator.lastUpdate || "Posledná aktualizácia"}: {formatDate(lastUpdate)}
+          </div>
         </div>
         <Button 
           onClick={() => setShowAddForm(!showAddForm)}
           variant={showAddForm ? "outline" : "default"}
           data-testid="button-add-inflation"
         >
-          {showAddForm ? "Zrušiť" : "Pridať rok"}
+          {showAddForm ? t.common.cancel : (t.konfigurator.addInflationYear || "Pridať rok")}
         </Button>
       </div>
       
       {showAddForm && (
-        <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
+        <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30 flex-wrap">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Rok:</label>
+            <label className="text-sm font-medium">{t.konfigurator.inflationYear || "Rok"}:</label>
             <Input
               type="number"
               value={newYear}
@@ -9203,7 +9237,7 @@ function InflationTab() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Inflácia (%):</label>
+            <label className="text-sm font-medium">{t.konfigurator.inflationRate || "Inflácia (%)"}:</label>
             <Input
               type="number"
               step="0.1"
@@ -9220,25 +9254,25 @@ function InflationTab() {
             data-testid="button-save-new-inflation"
           >
             {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Uložiť
+            {t.common.save}
           </Button>
         </div>
       )}
       
       {rates.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          Žiadne údaje o inflácii. Kliknite na "Pridať rok" pre zadanie údajov.
+          {t.konfigurator.noInflationData || "Žiadne údaje o inflácii. Kliknite na \"Pridať rok\" pre zadanie údajov."}
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left py-3 px-4 font-medium">Rok</th>
-                <th className="text-right py-3 px-4 font-medium">Miera inflácie (%)</th>
-                <th className="text-left py-3 px-4 font-medium">Zdroj</th>
-                <th className="text-right py-3 px-4 font-medium">Aktualizované</th>
-                <th className="text-right py-3 px-4 font-medium">Akcie</th>
+                <th className="text-left py-3 px-4 font-medium">{t.konfigurator.inflationYear || "Rok"}</th>
+                <th className="text-right py-3 px-4 font-medium">{t.konfigurator.inflationRate || "Miera inflácie (%)"}</th>
+                <th className="text-left py-3 px-4 font-medium">{t.konfigurator.inflationSource || "Zdroj"}</th>
+                <th className="text-right py-3 px-4 font-medium">{t.konfigurator.updated || "Aktualizované"}</th>
+                <th className="text-right py-3 px-4 font-medium">{t.common.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -9259,7 +9293,7 @@ function InflationTab() {
                       <span className="font-mono">{parseFloat(rate.rate).toFixed(1)} %</span>
                     )}
                   </td>
-                  <td className="py-2 px-4 text-muted-foreground">{rate.source || "Štatistický úrad SR"}</td>
+                  <td className="py-2 px-4 text-muted-foreground">{rate.source || "-"}</td>
                   <td className="py-2 px-4 text-right text-muted-foreground text-sm">
                     {formatDate(rate.updatedAt)}
                   </td>
@@ -9273,7 +9307,7 @@ function InflationTab() {
                           data-testid={`button-save-rate-${rate.year}`}
                         >
                           {updateMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                          Uložiť
+                          {t.common.save}
                         </Button>
                         <Button
                           size="sm"
@@ -9281,7 +9315,7 @@ function InflationTab() {
                           onClick={() => setEditingYear(null)}
                           data-testid={`button-cancel-rate-${rate.year}`}
                         >
-                          Zrušiť
+                          {t.common.cancel}
                         </Button>
                       </div>
                     ) : (
@@ -9303,7 +9337,7 @@ function InflationTab() {
       )}
       
       <div className="text-xs text-muted-foreground">
-        Údaje o inflácii je potrebné aktualizovať manuálne. Zdroj: Štatistický úrad Slovenskej republiky.
+        {t.konfigurator.inflationManualNote || "Údaje o inflácii je potrebné aktualizovať manuálne."}
       </div>
     </div>
   );
@@ -11791,7 +11825,7 @@ export default function ConfiguratorPage() {
       />
       
       <Tabs defaultValue="products" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 max-w-6xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-5xl">
           <TabsTrigger value="products" className="flex items-center gap-2" data-testid="tab-products">
             <Package className="h-4 w-4" />
             {t.products.title}
@@ -11812,13 +11846,9 @@ export default function ConfiguratorPage() {
             <Layout className="h-4 w-4" />
             {t.konfigurator.invoiceEditor}
           </TabsTrigger>
-          <TabsTrigger value="exchange-rates" className="flex items-center gap-2" data-testid="tab-exchange-rates">
+          <TabsTrigger value="rates-inflation" className="flex items-center gap-2" data-testid="tab-rates-inflation">
             <DollarSign className="h-4 w-4" />
-            {t.konfigurator.exchangeRates || "Kurzy"}
-          </TabsTrigger>
-          <TabsTrigger value="inflation" className="flex items-center gap-2" data-testid="tab-inflation">
-            <TrendingUp className="h-4 w-4" />
-            Inflácie
+            {t.konfigurator.exchangeRatesAndInflation || "Kurzy & Inflácie"}
           </TabsTrigger>
           <TabsTrigger value="permissions" className="flex items-center gap-2" data-testid="tab-permissions">
             <Shield className="h-4 w-4" />
@@ -11886,26 +11916,31 @@ export default function ConfiguratorPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="exchange-rates">
+        <TabsContent value="rates-inflation">
           <Card>
             <CardHeader>
-              <CardTitle>{t.konfigurator.exchangeRates || "Kurzy mien"}</CardTitle>
-              <CardDescription>{t.konfigurator.exchangeRatesDescription || "Kurzy mien z NBS (Národná banka Slovenska)"}</CardDescription>
+              <CardTitle>{t.konfigurator.exchangeRatesAndInflation || "Kurzy & Inflácie"}</CardTitle>
+              <CardDescription>{t.konfigurator.exchangeRatesDescription || "Kurzy mien z NBS a ročné miery inflácie"}</CardDescription>
             </CardHeader>
             <CardContent>
-              <ExchangeRatesTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="inflation">
-          <Card>
-            <CardHeader>
-              <CardTitle>Inflácie v SR</CardTitle>
-              <CardDescription>Ročná miera inflácie v Slovenskej republike za posledných 5 rokov</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InflationTab />
+              <Tabs defaultValue="exchange-rates" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="exchange-rates" data-testid="subtab-exchange-rates">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    {t.konfigurator.exchangeRates || "Kurzy mien"}
+                  </TabsTrigger>
+                  <TabsTrigger value="inflation" data-testid="subtab-inflation">
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    {t.konfigurator.inflation || "Inflácie"}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="exchange-rates">
+                  <ExchangeRatesTab />
+                </TabsContent>
+                <TabsContent value="inflation">
+                  <InflationTab />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>

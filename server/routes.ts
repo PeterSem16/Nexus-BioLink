@@ -175,6 +175,113 @@ async function logActivity(
   }
 }
 
+// NBS Exchange Rate Fetcher
+interface NBSRate {
+  currencyCode: string;
+  currencyName: string;
+  rate: string;
+}
+
+async function fetchNBSExchangeRates(): Promise<{ currencyCode: string; currencyName: string; rate: string; rateDate: string }[]> {
+  try {
+    const response = await fetch("https://nbs.sk/export/sk/exchange-rate/latest/csv");
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch NBS rates: ${response.status}`);
+    }
+    
+    const csvText = await response.text();
+    const lines = csvText.split("\n").filter(line => line.trim());
+    
+    // Skip header line and parse rates
+    const rates: { currencyCode: string; currencyName: string; rate: string; rateDate: string }[] = [];
+    let rateDate = new Date().toISOString().split("T")[0]; // Default to today
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // CSV format: code;name;quantity;rate (semicolon separated)
+      const parts = line.split(";");
+      
+      if (parts.length >= 4) {
+        const currencyCode = parts[0].trim();
+        const currencyName = parts[1].trim();
+        const quantity = parseFloat(parts[2].trim()) || 1;
+        const rateValue = parts[3].trim().replace(",", "."); // Replace comma with dot for decimal
+        
+        // Skip empty or invalid lines
+        if (currencyCode && currencyName && rateValue) {
+          // Adjust rate by quantity (e.g., JPY is often quoted per 100 units)
+          const adjustedRate = (parseFloat(rateValue) / quantity).toFixed(6);
+          
+          rates.push({
+            currencyCode,
+            currencyName,
+            rate: adjustedRate,
+            rateDate
+          });
+        }
+      }
+    }
+    
+    console.log(`[ExchangeRates] Fetched ${rates.length} rates from NBS`);
+    return rates;
+  } catch (error) {
+    console.error("[ExchangeRates] Failed to fetch NBS rates:", error);
+    return [];
+  }
+}
+
+// Schedule automatic exchange rate update at midnight
+let exchangeRateInterval: NodeJS.Timeout | null = null;
+
+function scheduleExchangeRateUpdate() {
+  // Calculate milliseconds until next midnight
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setDate(midnight.getDate() + 1);
+  midnight.setHours(0, 0, 0, 0);
+  
+  const msUntilMidnight = midnight.getTime() - now.getTime();
+  
+  console.log(`[ExchangeRates] Scheduled update in ${Math.round(msUntilMidnight / 1000 / 60)} minutes (at midnight)`);
+  
+  // Initial fetch if database is empty
+  (async () => {
+    const existingRates = await storage.getLatestExchangeRates();
+    if (existingRates.length === 0) {
+      console.log("[ExchangeRates] No rates in database, fetching initial rates...");
+      const rates = await fetchNBSExchangeRates();
+      if (rates.length > 0) {
+        await storage.upsertExchangeRates(rates);
+        console.log(`[ExchangeRates] Saved ${rates.length} initial rates`);
+      }
+    }
+  })();
+  
+  // Set timeout for first midnight, then interval every 24 hours
+  setTimeout(async () => {
+    await performExchangeRateUpdate();
+    
+    // Then set up daily interval
+    exchangeRateInterval = setInterval(async () => {
+      await performExchangeRateUpdate();
+    }, 24 * 60 * 60 * 1000); // Every 24 hours
+  }, msUntilMidnight);
+}
+
+async function performExchangeRateUpdate() {
+  console.log("[ExchangeRates] Performing scheduled update...");
+  try {
+    const rates = await fetchNBSExchangeRates();
+    if (rates.length > 0) {
+      await storage.upsertExchangeRates(rates);
+      console.log(`[ExchangeRates] Updated ${rates.length} rates`);
+    }
+  } catch (error) {
+    console.error("[ExchangeRates] Scheduled update failed:", error);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -5639,6 +5746,68 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch online users" });
     }
   });
+
+  // ============= Exchange Rates Routes =============
+
+  // Get all current exchange rates
+  app.get("/api/exchange-rates", requireAuth, async (req, res) => {
+    try {
+      const rates = await storage.getLatestExchangeRates();
+      const lastUpdate = await storage.getExchangeRatesLastUpdate();
+      res.json({ rates, lastUpdate });
+    } catch (error) {
+      console.error("Failed to fetch exchange rates:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rates" });
+    }
+  });
+
+  // Manually refresh exchange rates from NBS
+  app.post("/api/exchange-rates/refresh", requireAuth, async (req, res) => {
+    try {
+      const rates = await fetchNBSExchangeRates();
+      
+      if (rates.length === 0) {
+        return res.status(500).json({ error: "No rates received from NBS" });
+      }
+      
+      const savedRates = await storage.upsertExchangeRates(rates);
+      
+      await logActivity(
+        req.session.user!.id,
+        "updated",
+        "exchangeRates",
+        "bulk",
+        `Refreshed ${savedRates.length} exchange rates`,
+        { ratesCount: savedRates.length },
+        req.ip
+      );
+      
+      res.json({ success: true, ratesCount: savedRates.length, rates: savedRates });
+    } catch (error) {
+      console.error("Failed to refresh exchange rates:", error);
+      res.status(500).json({ error: "Failed to refresh exchange rates from NBS" });
+    }
+  });
+
+  // Get specific exchange rate by currency code
+  app.get("/api/exchange-rates/:code", requireAuth, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const rate = await storage.getExchangeRateByCode(code.toUpperCase());
+      
+      if (!rate) {
+        return res.status(404).json({ error: "Exchange rate not found" });
+      }
+      
+      res.json(rate);
+    } catch (error) {
+      console.error("Failed to fetch exchange rate:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rate" });
+    }
+  });
+
+  // Set up automatic daily refresh at midnight (server timezone)
+  scheduleExchangeRateUpdate();
 
   return httpServer;
 }

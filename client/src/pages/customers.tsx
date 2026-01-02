@@ -86,24 +86,24 @@ interface CustomerConsent {
   updatedAt: string | null;
 }
 
-const CONSENT_TYPES = [
-  { value: "marketing_email", label: "Marketing Email" },
-  { value: "marketing_sms", label: "Marketing SMS" },
-  { value: "data_processing", label: "Data Processing" },
-  { value: "newsletter", label: "Newsletter" },
-  { value: "third_party_sharing", label: "Third Party Sharing" },
-  { value: "profiling", label: "Profiling" },
-  { value: "automated_decisions", label: "Automated Decisions" },
-];
+const CONSENT_TYPE_VALUES = [
+  "marketing_email",
+  "marketing_sms",
+  "data_processing",
+  "newsletter",
+  "third_party_sharing",
+  "profiling",
+  "automated_decisions",
+] as const;
 
-const LEGAL_BASES = [
-  { value: "consent", label: "Consent" },
-  { value: "contract", label: "Contract" },
-  { value: "legal_obligation", label: "Legal Obligation" },
-  { value: "vital_interests", label: "Vital Interests" },
-  { value: "public_task", label: "Public Task" },
-  { value: "legitimate_interests", label: "Legitimate Interests" },
-];
+const LEGAL_BASIS_VALUES = [
+  "consent",
+  "contract",
+  "legal_obligation",
+  "vital_interests",
+  "public_task",
+  "legitimate_interests",
+] as const;
 
 function GdprTab({ customerId }: { customerId: string }) {
   const { t } = useI18n();
@@ -184,11 +184,13 @@ function GdprTab({ customerId }: { customerId: string }) {
   });
 
   const getConsentTypeLabel = (value: string) => {
-    return CONSENT_TYPES.find((ct) => ct.value === value)?.label || value;
+    const key = value as keyof typeof t.customers.gdpr.consentTypes;
+    return t.customers.gdpr.consentTypes?.[key] || value;
   };
 
   const getLegalBasisLabel = (value: string) => {
-    return LEGAL_BASES.find((lb) => lb.value === value)?.label || value;
+    const key = value as keyof typeof t.customers.gdpr.legalBases;
+    return t.customers.gdpr.legalBases?.[key] || value;
   };
 
   return (
@@ -230,9 +232,9 @@ function GdprTab({ customerId }: { customerId: string }) {
                       <SelectValue placeholder="Select consent type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CONSENT_TYPES.map((ct) => (
-                        <SelectItem key={ct.value} value={ct.value}>
-                          {ct.label}
+                      {CONSENT_TYPE_VALUES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {getConsentTypeLabel(value)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -248,9 +250,9 @@ function GdprTab({ customerId }: { customerId: string }) {
                       <SelectValue placeholder="Select legal basis" />
                     </SelectTrigger>
                     <SelectContent>
-                      {LEGAL_BASES.map((lb) => (
-                        <SelectItem key={lb.value} value={lb.value}>
-                          {lb.label}
+                      {LEGAL_BASIS_VALUES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {getLegalBasisLabel(value)}
                         </SelectItem>
                       ))}
                     </SelectContent>

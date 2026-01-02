@@ -153,6 +153,7 @@ export const users = pgTable("users", {
   roleId: varchar("role_id"), // FK to roles table - new role system
   isActive: boolean("is_active").notNull().default(true),
   assignedCountries: text("assigned_countries").array().notNull().default(sql`ARRAY[]::text[]`),
+  avatarUrl: text("avatar_url"),
   sipEnabled: boolean("sip_enabled").notNull().default(false),
   sipExtension: text("sip_extension").default(""),
   sipPassword: text("sip_password").default(""),

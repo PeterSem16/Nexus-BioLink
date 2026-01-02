@@ -52,6 +52,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -734,11 +735,12 @@ export function QuickCreate() {
                 data-testid={`button-chat-user-${onlineUser.id}`}
               >
                 <div className="relative">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-sm font-medium">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={onlineUser.avatarUrl || undefined} className="object-cover" />
+                    <AvatarFallback className="bg-muted">
                       {onlineUser.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                    </span>
-                  </div>
+                    </AvatarFallback>
+                  </Avatar>
                   <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-green-500 text-green-500" />
                 </div>
                 <div className="flex-1 min-w-0">

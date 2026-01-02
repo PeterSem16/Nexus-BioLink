@@ -84,7 +84,7 @@ export default function TasksPage() {
   });
 
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks", selectedCountries],
+    queryKey: ["/api/tasks"],
   });
 
   const { data: users = [] } = useQuery<User[]>({

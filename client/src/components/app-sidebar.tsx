@@ -46,7 +46,6 @@ export function AppSidebar() {
     { title: t.nav.collaborators, url: "/collaborators", icon: Handshake, testId: "collaborators", moduleKey: "collaborators" },
     { title: t.nav.invoices, url: "/invoices", icon: FileText, testId: "invoices", moduleKey: "invoices" },
     { title: t.nav.campaigns, url: "/campaigns", icon: Megaphone, testId: "campaigns", moduleKey: "campaigns" },
-    { title: t.nav.tasks, url: "/tasks", icon: CheckSquare, testId: "tasks", moduleKey: "tasks" },
   ];
   
   const adminNavItems = [
@@ -55,8 +54,13 @@ export function AppSidebar() {
     { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator", moduleKey: "configurator" },
   ];
 
+  const toolsNavItems = [
+    { title: t.nav.tasks, url: "/tasks", icon: CheckSquare, testId: "tasks", moduleKey: "tasks" },
+  ];
+
   const visibleMainItems = mainNavItems.filter(item => canAccessModule(item.moduleKey));
   const visibleAdminItems = adminNavItems.filter(item => canAccessModule(item.moduleKey));
+  const visibleToolsItems = toolsNavItems.filter(item => canAccessModule(item.moduleKey));
 
   const handleLogout = async () => {
     await logout();
@@ -116,6 +120,31 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {visibleAdminItems.map((item) => (
+                    <SidebarMenuItem key={item.testId}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={location === item.url}
+                      >
+                        <Link href={item.url} data-testid={`nav-${item.testId}`}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+
+        {visibleToolsItems.length > 0 && (
+          <>
+            <SidebarSeparator className="my-2" />
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {visibleToolsItems.map((item) => (
                     <SidebarMenuItem key={item.testId}>
                       <SidebarMenuButton 
                         asChild 

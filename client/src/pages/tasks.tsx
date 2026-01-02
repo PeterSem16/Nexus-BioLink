@@ -47,8 +47,11 @@ import {
   Calendar,
   Loader2,
   XCircle,
-  Edit
+  Edit,
+  BarChart3,
+  TrendingUp
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const priorityConfig = {
   low: { color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", icon: Clock },
@@ -282,6 +285,84 @@ export default function TasksPage() {
   const inProgressCount = filteredTasks.filter(t => t.status === "in_progress").length;
   const completedCount = filteredTasks.filter(t => t.status === "completed").length;
 
+  const userStatistics = users.map(u => {
+    const userTasks = filteredTasks.filter(t => t.assignedUserId === u.id);
+    const total = userTasks.length;
+    const completed = userTasks.filter(t => t.status === "completed").length;
+    const inProgress = userTasks.filter(t => t.status === "in_progress").length;
+    const pending = userTasks.filter(t => t.status === "pending").length;
+    const cancelled = userTasks.filter(t => t.status === "cancelled").length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return {
+      user: u,
+      total,
+      completed,
+      inProgress,
+      pending,
+      cancelled,
+      completionRate,
+    };
+  }).filter(stat => stat.total > 0).sort((a, b) => b.total - a.total);
+
+  const UserReportingCard = ({ stat }: { stat: typeof userStatistics[number] }) => (
+    <Card data-testid={`user-stats-${stat.user.id}`}>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <UserIcon className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-base">{stat.user.fullName || stat.user.username}</CardTitle>
+            <p className="text-sm text-muted-foreground">{stat.user.email}</p>
+          </div>
+        </div>
+        <Badge variant="secondary" className="text-lg font-semibold">
+          {stat.total}
+        </Badge>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">{t.tasks.completionRate}</span>
+            <span className="text-sm font-bold text-green-600 dark:text-green-400">{stat.completionRate}%</span>
+          </div>
+          <Progress value={stat.completionRate} className="h-2" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center justify-between p-2 rounded-md bg-green-50 dark:bg-green-900/20">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span>{t.tasks.statuses.completed}</span>
+            </div>
+            <span className="font-semibold">{stat.completed}</span>
+          </div>
+          <div className="flex items-center justify-between p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
+            <div className="flex items-center gap-2">
+              <Play className="h-4 w-4 text-blue-600" />
+              <span>{t.tasks.statuses.in_progress}</span>
+            </div>
+            <span className="font-semibold">{stat.inProgress}</span>
+          </div>
+          <div className="flex items-center justify-between p-2 rounded-md bg-slate-50 dark:bg-slate-800/50">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-600" />
+              <span>{t.tasks.statuses.pending}</span>
+            </div>
+            <span className="font-semibold">{stat.pending}</span>
+          </div>
+          <div className="flex items-center justify-between p-2 rounded-md bg-gray-50 dark:bg-gray-800/50">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-gray-500" />
+              <span>{t.tasks.statuses.cancelled}</span>
+            </div>
+            <span className="font-semibold">{stat.cancelled}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -371,12 +452,36 @@ export default function TasksPage() {
             <TabsTrigger value="all" data-testid="tab-all-tasks">
               {t.tasks.allTasks} ({allTasks.length})
             </TabsTrigger>
+            <TabsTrigger value="reporting" data-testid="tab-reporting">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              {t.tasks.reporting}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="my" className="mt-4">
             <TaskList tasks={myTasks} />
           </TabsContent>
           <TabsContent value="all" className="mt-4">
             <TaskList tasks={allTasks} />
+          </TabsContent>
+          <TabsContent value="reporting" className="mt-4">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-lg font-semibold">{t.tasks.userStatistics}</h2>
+              </div>
+              {userStatistics.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>{t.tasks.noUsersWithTasks}</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {userStatistics.map((stat) => (
+                    <UserReportingCard key={stat.user.id} stat={stat} />
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       )}

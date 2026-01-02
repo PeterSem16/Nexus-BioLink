@@ -155,6 +155,14 @@ export interface Translations {
       completed: string;
       cancelled: string;
     };
+    reporting: string;
+    userStatistics: string;
+    totalAssigned: string;
+    completionRate: string;
+    statusBreakdown: string;
+    noUsersWithTasks: string;
+    tasksCount: string;
+    user: string;
   };
   dashboard: {
     title: string;
@@ -1515,6 +1523,14 @@ export const translations: Record<Locale, Translations> = {
         completed: 'Completed',
         cancelled: 'Cancelled',
       },
+      reporting: 'Reporting',
+      userStatistics: 'User Statistics',
+      totalAssigned: 'Total Assigned',
+      completionRate: 'Completion Rate',
+      statusBreakdown: 'Status Breakdown',
+      noUsersWithTasks: 'No users with tasks',
+      tasksCount: 'Tasks Count',
+      user: 'User',
     },
     dashboard: {
       title: 'Dashboard',
@@ -2891,6 +2907,14 @@ export const translations: Record<Locale, Translations> = {
         completed: 'Dokončená',
         cancelled: 'Zrušená',
       },
+      reporting: 'Reporting',
+      userStatistics: 'Štatistiky používateľov',
+      totalAssigned: 'Pridelených úloh',
+      completionRate: 'Úspešnosť',
+      statusBreakdown: 'Rozdelenie stavov',
+      noUsersWithTasks: 'Žiadni používatelia s úlohami',
+      tasksCount: 'Počet úloh',
+      user: 'Používateľ',
     },
     dashboard: {
       title: 'Prehľad',

@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/I18nProvider";
 import { EmbeddedPotentialCaseForm } from "./potential-case-form";
 import { useModuleFieldPermissions } from "@/components/ui/permission-field";
+import { PhoneNumberField } from "@/components/phone-number-field";
 
 // Validation helpers
 function validateSlovakNationalId(id: string): boolean {
@@ -460,11 +461,12 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                       <FormLabel>{t.customers.phone}</FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <PhoneNumberField 
+                            value={field.value}
+                            onChange={field.onChange}
+                            defaultCountryCode={form.watch("country") || "SK"}
                             data-testid="input-phone"
                             disabled={isReadonly("phone")}
-                            className={isReadonly("phone") ? "bg-muted" : ""}
                           />
                         </FormControl>
                         {initialData?.id && field.value && (
@@ -490,11 +492,12 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                       <FormLabel>{t.customers.fields.mobile}</FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <PhoneNumberField 
+                            value={field.value}
+                            onChange={field.onChange}
+                            defaultCountryCode={form.watch("country") || "SK"}
                             data-testid="input-mobile"
                             disabled={isReadonly("mobile")}
-                            className={isReadonly("mobile") ? "bg-muted" : ""}
                           />
                         </FormControl>
                         {initialData?.id && field.value && (
@@ -520,11 +523,12 @@ export function CustomerForm({ initialData, onSubmit, isLoading, onCancel }: Cus
                       <FormLabel>{t.customers.fields.mobile2}</FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <PhoneNumberField 
+                            value={field.value}
+                            onChange={field.onChange}
+                            defaultCountryCode={form.watch("country") || "SK"}
                             data-testid="input-mobile2"
                             disabled={isReadonly("mobile_2")}
-                            className={isReadonly("mobile_2") ? "bg-muted" : ""}
                           />
                         </FormControl>
                         {initialData?.id && field.value && (

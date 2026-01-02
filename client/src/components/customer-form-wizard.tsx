@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneNumberField } from "@/components/phone-number-field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -478,7 +479,12 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.phone}</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-phone" />
+                      <PhoneNumberField 
+                        value={field.value} 
+                        onChange={field.onChange}
+                        defaultCountryCode={form.watch("country") || "SK"}
+                        data-testid="wizard-input-phone" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -491,7 +497,12 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.fields.mobile}</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-mobile" />
+                      <PhoneNumberField 
+                        value={field.value} 
+                        onChange={field.onChange}
+                        defaultCountryCode={form.watch("country") || "SK"}
+                        data-testid="wizard-input-mobile" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -507,7 +518,12 @@ export function CustomerFormWizard({ initialData, onSubmit, isLoading, onCancel 
                   <FormItem>
                     <FormLabel>{t.customers.fields.mobile2}</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="+421..." {...field} data-testid="wizard-input-mobile2" />
+                      <PhoneNumberField 
+                        value={field.value} 
+                        onChange={field.onChange}
+                        defaultCountryCode={form.watch("country") || "SK"}
+                        data-testid="wizard-input-mobile2" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

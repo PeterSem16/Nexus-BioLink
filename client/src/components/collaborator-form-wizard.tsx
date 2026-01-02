@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { PhoneNumberField } from "@/components/phone-number-field";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -552,28 +553,24 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
               {!isHidden("phone") && (
                 <div className="space-y-2">
                   <Label>{t.collaborators.fields.phone}</Label>
-                  <Input
-                    type="tel"
+                  <PhoneNumberField
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+421..."
+                    onChange={(value) => setFormData({ ...formData, phone: value })}
+                    defaultCountryCode={formData.countryCode || "SK"}
                     data-testid="wizard-input-collaborator-phone"
                     disabled={isReadonly("phone")}
-                    className={isReadonly("phone") ? "bg-muted" : ""}
                   />
                 </div>
               )}
               {!isHidden("mobile") && (
                 <div className="space-y-2">
                   <Label>{t.collaborators.fields.mobile}</Label>
-                  <Input
-                    type="tel"
+                  <PhoneNumberField
                     value={formData.mobile}
-                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    placeholder="+421..."
+                    onChange={(value) => setFormData({ ...formData, mobile: value })}
+                    defaultCountryCode={formData.countryCode || "SK"}
                     data-testid="wizard-input-collaborator-mobile"
                     disabled={isReadonly("mobile")}
-                    className={isReadonly("mobile") ? "bg-muted" : ""}
                   />
                 </div>
               )}
@@ -582,11 +579,10 @@ export function CollaboratorFormWizard({ initialData, onSuccess, onCancel }: Col
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t.collaborators.fields.mobile2}</Label>
-                <Input
-                  type="tel"
+                <PhoneNumberField
                   value={formData.mobile2}
-                  onChange={(e) => setFormData({ ...formData, mobile2: e.target.value })}
-                  placeholder="+421..."
+                  onChange={(value) => setFormData({ ...formData, mobile2: value })}
+                  defaultCountryCode={formData.countryCode || "SK"}
                   data-testid="wizard-input-collaborator-mobile2"
                 />
               </div>

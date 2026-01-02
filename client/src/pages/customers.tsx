@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -65,6 +66,310 @@ interface InvoiceLineItem {
   quantity: number;
   unitPrice: string;
   currency: string;
+}
+
+interface CustomerConsent {
+  id: string;
+  customerId: string;
+  consentType: string;
+  granted: boolean;
+  grantedAt: string | null;
+  grantedByUserId: string | null;
+  revokedAt: string | null;
+  revokedByUserId: string | null;
+  revokeReason: string | null;
+  legalBasis: string;
+  purpose: string | null;
+  source: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+const CONSENT_TYPES = [
+  { value: "marketing_email", label: "Marketing Email" },
+  { value: "marketing_sms", label: "Marketing SMS" },
+  { value: "data_processing", label: "Data Processing" },
+  { value: "newsletter", label: "Newsletter" },
+  { value: "third_party_sharing", label: "Third Party Sharing" },
+  { value: "profiling", label: "Profiling" },
+  { value: "automated_decisions", label: "Automated Decisions" },
+];
+
+const LEGAL_BASES = [
+  { value: "consent", label: "Consent" },
+  { value: "contract", label: "Contract" },
+  { value: "legal_obligation", label: "Legal Obligation" },
+  { value: "vital_interests", label: "Vital Interests" },
+  { value: "public_task", label: "Public Task" },
+  { value: "legitimate_interests", label: "Legitimate Interests" },
+];
+
+function GdprTab({ customerId }: { customerId: string }) {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const [isAddConsentOpen, setIsAddConsentOpen] = useState(false);
+  const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false);
+  const [selectedConsentId, setSelectedConsentId] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
+  const [newConsent, setNewConsent] = useState({
+    consentType: "",
+    legalBasis: "consent",
+    purpose: "",
+    source: "crm_system",
+    granted: true,
+  });
+
+  const { data: consents = [], isLoading: consentsLoading } = useQuery<CustomerConsent[]>({
+    queryKey: ["/api/customers", customerId, "consents"],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customerId}/consents`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch consents");
+      return res.json();
+    },
+  });
+
+  const createConsentMutation = useMutation({
+    mutationFn: async (data: typeof newConsent) => {
+      return apiRequest("POST", `/api/customers/${customerId}/consents`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "consents"] });
+      setIsAddConsentOpen(false);
+      setNewConsent({ consentType: "", legalBasis: "consent", purpose: "", source: "crm_system", granted: true });
+      toast({ title: "Consent recorded successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to record consent", variant: "destructive" });
+    },
+  });
+
+  const revokeConsentMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      return apiRequest("POST", `/api/customers/${customerId}/consents/${id}/revoke`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "consents"] });
+      setIsRevokeDialogOpen(false);
+      setSelectedConsentId(null);
+      setRevokeReason("");
+      toast({ title: "Consent revoked successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to revoke consent", variant: "destructive" });
+    },
+  });
+
+  const exportDataMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/customers/${customerId}/gdpr-export`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to export data");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `customer_data_export_${customerId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Data exported successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to export data", variant: "destructive" });
+    },
+  });
+
+  const getConsentTypeLabel = (value: string) => {
+    return CONSENT_TYPES.find((ct) => ct.value === value)?.label || value;
+  };
+
+  const getLegalBasisLabel = (value: string) => {
+    return LEGAL_BASES.find((lb) => lb.value === value)?.label || value;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h4 className="font-semibold flex items-center gap-2">
+          <Shield className="h-4 w-4" />
+          {t.customers.gdpr?.consentsTitle || "Consent Management"}
+        </h4>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportDataMutation.mutate()}
+            disabled={exportDataMutation.isPending}
+            data-testid="button-gdpr-export"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {exportDataMutation.isPending ? "Exporting..." : (t.customers.gdpr?.exportData || "Export Data")}
+          </Button>
+          <Dialog open={isAddConsentOpen} onOpenChange={setIsAddConsentOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-consent">
+                <Plus className="h-4 w-4 mr-2" />
+                {t.customers.gdpr?.addConsent || "Add Consent"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t.customers.gdpr?.addConsentTitle || "Record New Consent"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>{t.customers.gdpr?.consentType || "Consent Type"}</Label>
+                  <Select
+                    value={newConsent.consentType}
+                    onValueChange={(val) => setNewConsent({ ...newConsent, consentType: val })}
+                  >
+                    <SelectTrigger data-testid="select-consent-type">
+                      <SelectValue placeholder="Select consent type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONSENT_TYPES.map((ct) => (
+                        <SelectItem key={ct.value} value={ct.value}>
+                          {ct.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t.customers.gdpr?.legalBasis || "Legal Basis"}</Label>
+                  <Select
+                    value={newConsent.legalBasis}
+                    onValueChange={(val) => setNewConsent({ ...newConsent, legalBasis: val })}
+                  >
+                    <SelectTrigger data-testid="select-legal-basis">
+                      <SelectValue placeholder="Select legal basis" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEGAL_BASES.map((lb) => (
+                        <SelectItem key={lb.value} value={lb.value}>
+                          {lb.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t.customers.gdpr?.purpose || "Purpose"}</Label>
+                  <Input
+                    value={newConsent.purpose}
+                    onChange={(e) => setNewConsent({ ...newConsent, purpose: e.target.value })}
+                    placeholder="Describe the purpose..."
+                    data-testid="input-consent-purpose"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsAddConsentOpen(false)}>
+                    {t.common?.cancel || "Cancel"}
+                  </Button>
+                  <Button
+                    onClick={() => createConsentMutation.mutate(newConsent)}
+                    disabled={!newConsent.consentType || createConsentMutation.isPending}
+                    data-testid="button-save-consent"
+                  >
+                    {createConsentMutation.isPending ? "Saving..." : (t.common?.save || "Save")}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {consentsLoading ? (
+        <p className="text-sm text-muted-foreground">Loading consents...</p>
+      ) : consents.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t.customers.gdpr?.noConsents || "No consents recorded yet."}</p>
+      ) : (
+        <div className="space-y-2">
+          {consents.map((consent) => (
+            <div
+              key={consent.id}
+              className={`flex items-center justify-between p-3 rounded-lg border ${
+                consent.granted ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+              }`}
+              data-testid={`consent-item-${consent.id}`}
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{getConsentTypeLabel(consent.consentType)}</span>
+                  <Badge variant={consent.granted ? "default" : "destructive"}>
+                    {consent.granted ? "Active" : "Revoked"}
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-4 flex-wrap">
+                  <span>Legal Basis: {getLegalBasisLabel(consent.legalBasis)}</span>
+                  {consent.grantedAt && (
+                    <span>Granted: {format(new Date(consent.grantedAt), "MMM dd, yyyy")}</span>
+                  )}
+                  {consent.revokedAt && (
+                    <span>Revoked: {format(new Date(consent.revokedAt), "MMM dd, yyyy")}</span>
+                  )}
+                  {consent.purpose && <span>Purpose: {consent.purpose}</span>}
+                </div>
+              </div>
+              {consent.granted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedConsentId(consent.id);
+                    setIsRevokeDialogOpen(true);
+                  }}
+                  data-testid={`button-revoke-consent-${consent.id}`}
+                >
+                  <XCircle className="h-4 w-4 mr-1 text-destructive" />
+                  Revoke
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isRevokeDialogOpen} onOpenChange={setIsRevokeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.customers.gdpr?.revokeConsentTitle || "Revoke Consent"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t.customers.gdpr?.revokeConsentDesc || "Please provide a reason for revoking this consent."}
+            </p>
+            <div>
+              <Label>{t.customers.gdpr?.revokeReason || "Reason"}</Label>
+              <Input
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                placeholder="Enter reason for revocation..."
+                data-testid="input-revoke-reason"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsRevokeDialogOpen(false)}>
+                {t.common?.cancel || "Cancel"}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => selectedConsentId && revokeConsentMutation.mutate({ id: selectedConsentId, reason: revokeReason })}
+                disabled={revokeConsentMutation.isPending}
+                data-testid="button-confirm-revoke"
+              >
+                {revokeConsentMutation.isPending ? "Revoking..." : (t.customers.gdpr?.confirmRevoke || "Revoke")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 function CustomerDetailsContent({ 
@@ -563,7 +868,7 @@ function CustomerDetailsContent({
       <Separator />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className={`grid w-full ${customer.clientStatus === "acquired" ? "grid-cols-5" : "grid-cols-4"}`}>
+        <TabsList className={`grid w-full ${customer.clientStatus === "acquired" ? "grid-cols-6" : "grid-cols-5"}`}>
           <TabsTrigger value="overview" data-testid="tab-overview">
             <Package className="h-4 w-4 mr-2" />
             {t.customers.tabs.overview}
@@ -581,6 +886,10 @@ function CustomerDetailsContent({
           <TabsTrigger value="notes" data-testid="tab-notes">
             <MessageSquare className="h-4 w-4 mr-2" />
             {t.customers.tabs.notes}
+          </TabsTrigger>
+          <TabsTrigger value="gdpr" data-testid="tab-gdpr">
+            <Shield className="h-4 w-4 mr-2" />
+            {t.customers.tabs?.gdpr || "GDPR"}
           </TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">
             <History className="h-4 w-4 mr-2" />
@@ -933,6 +1242,10 @@ function CustomerDetailsContent({
               ))
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="gdpr" className="space-y-6 mt-4">
+          <GdprTab customerId={customer.id} />
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 mt-4">

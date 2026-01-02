@@ -149,7 +149,22 @@ export interface Translations {
       case: string;
       contact: string;
       notes: string;
+      gdpr: string;
       activity: string;
+    };
+    gdpr?: {
+      consentsTitle: string;
+      exportData: string;
+      addConsent: string;
+      addConsentTitle: string;
+      consentType: string;
+      legalBasis: string;
+      purpose: string;
+      noConsents: string;
+      revokeConsentTitle: string;
+      revokeConsentDesc: string;
+      revokeReason: string;
+      confirmRevoke: string;
     };
     fields: {
       title: string;
@@ -1431,7 +1446,22 @@ export const translations: Record<Locale, Translations> = {
         case: 'Case',
         contact: 'Contact',
         notes: 'Notes',
+        gdpr: 'GDPR',
         activity: 'Activity',
+      },
+      gdpr: {
+        consentsTitle: 'Consent Management',
+        exportData: 'Export Data',
+        addConsent: 'Add Consent',
+        addConsentTitle: 'Record New Consent',
+        consentType: 'Consent Type',
+        legalBasis: 'Legal Basis',
+        purpose: 'Purpose',
+        noConsents: 'No consents recorded yet.',
+        revokeConsentTitle: 'Revoke Consent',
+        revokeConsentDesc: 'Please provide a reason for revoking this consent.',
+        revokeReason: 'Reason',
+        confirmRevoke: 'Revoke',
       },
       fields: {
         title: 'Title',

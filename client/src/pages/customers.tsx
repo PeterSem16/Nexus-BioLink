@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -384,11 +385,10 @@ function CustomerDetailsContent({
   const { t } = useI18n();
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
   const [selectedBillsetId, setSelectedBillsetId] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("1");
-  const [isNoCollectionDialogOpen, setIsNoCollectionDialogOpen] = useState(false);
-  const [isNoBillsetDialogOpen, setIsNoBillsetDialogOpen] = useState(false);
+  const [isInvoiceDetailOpen, setIsInvoiceDetailOpen] = useState(false);
+  const [selectedInvoiceDetailProduct, setSelectedInvoiceDetailProduct] = useState<any>(null);
   const [isManualInvoiceOpen, setIsManualInvoiceOpen] = useState(false);
   const [invoiceLines, setInvoiceLines] = useState<InvoiceLineItem[]>([]);
   const [newLineProductId, setNewLineProductId] = useState<string>("");
@@ -404,28 +404,30 @@ function CustomerDetailsContent({
     queryKey: ["/api/products"],
   });
 
-  // Fetch collections (market product instances) filtered by customer's country
-  const { data: collections = [], isLoading: collectionsLoading } = useQuery<MarketProductInstance[]>({
-    queryKey: ["/api/products", selectedProductId, "collections", customer.countryCode],
+  // Fetch billsets (product_sets) for the selected product, filtered by customer's country
+  const { data: billsets = [], isLoading: billsetsLoading } = useQuery<Array<{ id: string; name: string; currency: string; countryCode: string | null; isActive: boolean; totalGrossAmount: string | null }>>({
+    queryKey: ["/api/products", selectedProductId, "sets", customer.country],
     queryFn: async () => {
-      if (!selectedProductId || !customer.countryCode) return [];
-      const res = await fetch(`/api/products/${selectedProductId}/collections?country=${customer.countryCode}`, { credentials: "include" });
+      if (!selectedProductId) return [];
+      const res = await fetch(`/api/products/${selectedProductId}/sets?country=${customer.country}`, { credentials: "include" });
       if (!res.ok) return [];
-      return res.json();
+      const sets = await res.json();
+      // Only show active billsets
+      return sets.filter((s: any) => s.isActive);
     },
-    enabled: !!selectedProductId && !!customer.countryCode,
+    enabled: !!selectedProductId,
   });
 
-  // Fetch billsets (instance prices) for the selected collection
-  const { data: billsets = [], isLoading: billsetsLoading } = useQuery<Array<{ id: string; name: string; price: string; currency: string; isActive: boolean }>>({
-    queryKey: ["/api/collections", selectedCollectionId, "billsets"],
+  // Fetch invoice preview details for a product set
+  const { data: billsetDetails } = useQuery<any>({
+    queryKey: ["/api/product-sets", selectedInvoiceDetailProduct?.billsetId],
     queryFn: async () => {
-      if (!selectedCollectionId) return [];
-      const res = await fetch(`/api/collections/${selectedCollectionId}/billsets`, { credentials: "include" });
-      if (!res.ok) return [];
+      if (!selectedInvoiceDetailProduct?.billsetId) return null;
+      const res = await fetch(`/api/product-sets/${selectedInvoiceDetailProduct.billsetId}`, { credentials: "include" });
+      if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!selectedCollectionId,
+    enabled: !!selectedInvoiceDetailProduct?.billsetId && isInvoiceDetailOpen,
   });
 
   const { data: customerNotes = [], isLoading: notesLoading } = useQuery<CustomerNote[]>({
@@ -592,13 +594,13 @@ function CustomerDetailsContent({
   });
 
   const addProductMutation = useMutation({
-    mutationFn: (data: { productId: string; instanceId?: string; quantity: number }) =>
+    mutationFn: (data: { productId: string; billsetId: string; quantity: number }) =>
       apiRequest("POST", `/api/customers/${customer.id}/products`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setSelectedProductId("");
-      setSelectedInstanceId("");
+      setSelectedBillsetId("");
       setQuantity("1");
       toast({ title: t.customers.details?.productAdded || "Product added to customer" });
     },
@@ -958,15 +960,31 @@ function CustomerDetailsContent({
                         {cp.quantity} x {parseFloat(cp.priceOverride || cp.product.price).toFixed(2)} {cp.product.currency}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeProductMutation.mutate(cp.id)}
-                      disabled={removeProductMutation.isPending}
-                      data-testid={`button-remove-product-${cp.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {cp.billsetId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedInvoiceDetailProduct(cp);
+                            setIsInvoiceDetailOpen(true);
+                          }}
+                          data-testid={`button-invoice-detail-${cp.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          {t.customers.details?.invoiceDetail || "Detail fakturácie"}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeProductMutation.mutate(cp.id)}
+                        disabled={removeProductMutation.isPending}
+                        data-testid={`button-remove-product-${cp.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -981,7 +999,6 @@ function CustomerDetailsContent({
                       value={selectedProductId} 
                       onValueChange={(value) => {
                         setSelectedProductId(value);
-                        setSelectedCollectionId("");
                         setSelectedBillsetId("");
                       }}
                     >
@@ -1002,42 +1019,6 @@ function CustomerDetailsContent({
                 {selectedProductId && (
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <Label className="text-xs">{t.customers.details?.selectCollection || "Select Collection"}</Label>
-                      <Select 
-                        value={selectedCollectionId} 
-                        onValueChange={(value) => {
-                          setSelectedCollectionId(value);
-                          setSelectedBillsetId("");
-                        }}
-                      >
-                        <SelectTrigger data-testid="select-add-collection">
-                          <SelectValue placeholder={collectionsLoading ? (t.common?.loading || "Loading...") : (t.customers.details?.selectCollection || "Select collection")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {collections.map((coll) => (
-                            <SelectItem key={coll.id} value={coll.id}>
-                              {coll.name}
-                            </SelectItem>
-                          ))}
-                          {collections.length === 0 && !collectionsLoading && (
-                            <SelectItem value="__no_collections" disabled>
-                              {t.customers.details?.noCollections || "No collections available"}
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {selectedProductId && !collectionsLoading && collections.length === 0 && (
-                        <p className="text-xs text-destructive mt-1">
-                          {t.customers.details?.noCollectionsForCountry || "No collections configured for this product and country"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {selectedCollectionId && (
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
                       <Label className="text-xs">{t.customers.details?.selectBillset || "Select Billset"}</Label>
                       <Select value={selectedBillsetId} onValueChange={setSelectedBillsetId}>
                         <SelectTrigger data-testid="select-add-billset">
@@ -1046,7 +1027,7 @@ function CustomerDetailsContent({
                         <SelectContent>
                           {billsets.map((bs) => (
                             <SelectItem key={bs.id} value={bs.id}>
-                              {getCountryFlag(customer.country)} [{customer.country}] {bs.name} - {parseFloat(bs.price).toFixed(2)} {bs.currency}
+                              {bs.countryCode ? `${getCountryFlag(bs.countryCode)} [${bs.countryCode}]` : `[${t.common?.all || "All"}]`} {bs.name} - {bs.totalGrossAmount ? parseFloat(bs.totalGrossAmount).toFixed(2) : "0.00"} {bs.currency}
                             </SelectItem>
                           ))}
                           {billsets.length === 0 && !billsetsLoading && (
@@ -1056,9 +1037,9 @@ function CustomerDetailsContent({
                           )}
                         </SelectContent>
                       </Select>
-                      {selectedCollectionId && !billsetsLoading && billsets.length === 0 && (
+                      {selectedProductId && !billsetsLoading && billsets.length === 0 && (
                         <p className="text-xs text-destructive mt-1">
-                          {t.customers.details?.noBillsetsForCollection || "No billsets configured for this collection"}
+                          {t.customers.details?.noBillsetsForCountry || "No billsets configured for this product and country"}
                         </p>
                       )}
                     </div>
@@ -1076,21 +1057,20 @@ function CustomerDetailsContent({
                       size="icon"
                       onClick={() => {
                         const qty = parseInt(quantity) || 0;
-                        if (selectedProductId && selectedCollectionId && selectedBillsetId && qty > 0) {
+                        if (selectedProductId && selectedBillsetId && qty > 0) {
                           addProductMutation.mutate({ 
                             productId: selectedProductId, 
-                            instanceId: selectedCollectionId,
                             billsetId: selectedBillsetId,
                             quantity: qty 
                           });
                         } else {
                           toast({ 
-                            title: t.customers.details?.productBillsetValidation || "Please select a product, collection, billset and enter a valid quantity", 
+                            title: t.customers.details?.productBillsetValidation || "Please select a product and billset with valid quantity", 
                             variant: "destructive" 
                           });
                         }
                       }}
-                      disabled={!selectedProductId || !selectedCollectionId || !selectedBillsetId || !quantity || parseInt(quantity) < 1 || addProductMutation.isPending}
+                      disabled={!selectedProductId || !selectedBillsetId || !quantity || parseInt(quantity) < 1 || addProductMutation.isPending}
                       data-testid="button-add-product-to-customer"
                     >
                       <Plus className="h-4 w-4" />
@@ -1611,6 +1591,138 @@ function CustomerDetailsContent({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog open={isInvoiceDetailOpen} onOpenChange={setIsInvoiceDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t.customers.details?.invoiceDetail || "Detail fakturácie"}</DialogTitle>
+            <DialogDescription>
+              {selectedInvoiceDetailProduct?.product?.name} - {t.customers.details?.billsetPreview || "Invoice preview from billing set"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {billsetDetails ? (
+            <div className="space-y-6">
+              {/* Billset Header */}
+              <div className="p-4 rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="font-semibold">{billsetDetails.name}</h4>
+                  <Badge variant={billsetDetails.isActive ? "default" : "secondary"}>
+                    {billsetDetails.isActive ? t.konfigurator?.activeLabel || "Active" : t.konfigurator?.inactiveLabel || "Inactive"}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  {billsetDetails.countryCode && (
+                    <Badge variant="outline">{getCountryFlag(billsetDetails.countryCode)} {billsetDetails.countryCode}</Badge>
+                  )}
+                  <Badge variant="outline">{billsetDetails.currency}</Badge>
+                  {billsetDetails.fromDate && (
+                    <span>{t.konfigurator?.validFrom || "From"}: {format(new Date(billsetDetails.fromDate), "dd.MM.yyyy")}</span>
+                  )}
+                  {billsetDetails.toDate && (
+                    <span>{t.konfigurator?.validTo || "To"}: {format(new Date(billsetDetails.toDate), "dd.MM.yyyy")}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Collections Section */}
+              {billsetDetails.collections && billsetDetails.collections.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="font-medium text-sm">{t.konfigurator?.collectionsTitle || "Collections"}</h5>
+                  <div className="border rounded-lg divide-y">
+                    {billsetDetails.collections.map((coll: any) => (
+                      <div key={coll.id} className="p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">{t.konfigurator?.collectionItem || "Collection item"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t.customers.details?.quantity || "Qty"}: {coll.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{coll.lineNetAmount ? parseFloat(coll.lineNetAmount).toFixed(2) : "0.00"} {billsetDetails.currency}</p>
+                          {coll.lineDiscountAmount && parseFloat(coll.lineDiscountAmount) > 0 && (
+                            <p className="text-xs text-green-600">-{parseFloat(coll.lineDiscountAmount).toFixed(2)}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Storage Section */}
+              {billsetDetails.storage && billsetDetails.storage.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="font-medium text-sm">{t.konfigurator?.storageTitle || "Storage Services"}</h5>
+                  <div className="border rounded-lg divide-y">
+                    {billsetDetails.storage.map((stor: any) => (
+                      <div key={stor.id} className="p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">{t.konfigurator?.storageItem || "Storage item"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t.customers.details?.quantity || "Qty"}: {stor.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{stor.lineNetAmount ? parseFloat(stor.lineNetAmount).toFixed(2) : (stor.priceOverride ? parseFloat(stor.priceOverride).toFixed(2) : "0.00")} {billsetDetails.currency}</p>
+                          {stor.lineDiscountAmount && parseFloat(stor.lineDiscountAmount) > 0 && (
+                            <p className="text-xs text-green-600">-{parseFloat(stor.lineDiscountAmount).toFixed(2)}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Totals */}
+              <div className="border-t pt-4 space-y-2">
+                {billsetDetails.totalNetAmount && (
+                  <div className="flex justify-between text-sm">
+                    <span>{t.customers.details?.netAmount || "Net amount"}</span>
+                    <span>{parseFloat(billsetDetails.totalNetAmount).toFixed(2)} {billsetDetails.currency}</span>
+                  </div>
+                )}
+                {billsetDetails.totalDiscountAmount && parseFloat(billsetDetails.totalDiscountAmount) > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>{t.customers.details?.discount || "Discount"}</span>
+                    <span>-{parseFloat(billsetDetails.totalDiscountAmount).toFixed(2)} {billsetDetails.currency}</span>
+                  </div>
+                )}
+                {billsetDetails.totalVatAmount && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t.customers.details?.vatLabel || "VAT"}</span>
+                    <span>{parseFloat(billsetDetails.totalVatAmount).toFixed(2)} {billsetDetails.currency}</span>
+                  </div>
+                )}
+                {billsetDetails.totalGrossAmount && (
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>{t.customers.details?.total || "Total"}</span>
+                    <span>{parseFloat(billsetDetails.totalGrossAmount).toFixed(2)} {billsetDetails.currency}</span>
+                  </div>
+                )}
+              </div>
+
+              {billsetDetails.notes && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-sm text-muted-foreground">{billsetDetails.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              {t.common?.loading || "Loading..."}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInvoiceDetailOpen(false)}>
+              {t.common?.close || "Close"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

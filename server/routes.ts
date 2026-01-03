@@ -5550,10 +5550,17 @@ export async function registerRoutes(
 
   // ========== PRODUCT SETS (ZOSTAVY) ==========
 
-  // Get all product sets for a product
+  // Get all product sets for a product (optionally filtered by country)
   app.get("/api/products/:productId/sets", requireAuth, async (req, res) => {
     try {
-      const sets = await storage.getProductSets(req.params.productId);
+      const countryFilter = req.query.country as string | undefined;
+      let sets = await storage.getProductSets(req.params.productId);
+      
+      // Filter by country if provided - show sets that match the country OR have no country (global)
+      if (countryFilter) {
+        sets = sets.filter(s => !s.countryCode || s.countryCode === countryFilter);
+      }
+      
       res.json(sets);
     } catch (error) {
       console.error("Failed to fetch product sets:", error);

@@ -5995,6 +5995,119 @@ export async function registerRoutes(
     }
   });
 
+  // Jira Integration API
+  app.get("/api/jira/projects", requireAuth, async (req, res) => {
+    try {
+      const { getJiraProjects } = await import("./jira");
+      const projects = await getJiraProjects();
+      res.json(projects);
+    } catch (error: any) {
+      console.error("Error fetching Jira projects:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch Jira projects" });
+    }
+  });
+
+  app.get("/api/jira/users", requireAuth, async (req, res) => {
+    try {
+      const { getJiraUsers } = await import("./jira");
+      const users = await getJiraUsers();
+      res.json(users);
+    } catch (error: any) {
+      console.error("Error fetching Jira users:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch Jira users" });
+    }
+  });
+
+  app.get("/api/jira/issues/:projectKey", requireAuth, async (req, res) => {
+    try {
+      const { getJiraIssues } = await import("./jira");
+      const issues = await getJiraIssues(req.params.projectKey);
+      res.json(issues);
+    } catch (error: any) {
+      console.error("Error fetching Jira issues:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch Jira issues" });
+    }
+  });
+
+  app.post("/api/jira/issues", requireAuth, async (req, res) => {
+    try {
+      const { createJiraIssue } = await import("./jira");
+      const issue = await createJiraIssue(req.body);
+      res.status(201).json(issue);
+    } catch (error: any) {
+      console.error("Error creating Jira issue:", error);
+      res.status(500).json({ error: error.message || "Failed to create Jira issue" });
+    }
+  });
+
+  app.post("/api/tasks/:id/sync-jira", requireAuth, async (req, res) => {
+    try {
+      const task = await storage.getTask(req.params.id);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const { projectKey } = req.body;
+      if (!projectKey) {
+        return res.status(400).json({ error: "Project key is required" });
+      }
+
+      const { syncTaskToJira } = await import("./jira");
+      const jiraUser = await storage.getUser(task.assignedUserId);
+      
+      const issue = await syncTaskToJira({
+        title: task.title,
+        description: task.description || undefined,
+        projectKey,
+        assigneeAccountId: jiraUser?.jiraAccountId || undefined
+      });
+
+      await logActivity(
+        req.session.user!.id,
+        "sync",
+        "task",
+        task.id,
+        task.title,
+        { jiraIssueKey: issue.key, projectKey },
+        req.ip
+      );
+
+      res.json({ success: true, issue });
+    } catch (error: any) {
+      console.error("Error syncing task to Jira:", error);
+      res.status(500).json({ error: error.message || "Failed to sync task to Jira" });
+    }
+  });
+
+  app.patch("/api/users/:id/jira", requireAuth, async (req, res) => {
+    try {
+      const { jiraAccountId, jiraDisplayName } = req.body;
+      const user = await storage.updateUser(req.params.id, { 
+        jiraAccountId, 
+        jiraDisplayName 
+      });
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await logActivity(
+        req.session.user!.id,
+        "update",
+        "user",
+        user.id,
+        user.fullName,
+        { jiraAccountId, jiraDisplayName },
+        req.ip
+      );
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user Jira info:", error);
+      res.status(500).json({ error: "Failed to update user Jira info" });
+    }
+  });
+
   return httpServer;
 }
 

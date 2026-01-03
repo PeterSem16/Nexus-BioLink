@@ -158,6 +158,8 @@ export const users = pgTable("users", {
   sipExtension: text("sip_extension").default(""),
   sipPassword: text("sip_password").default(""),
   sipDisplayName: text("sip_display_name").default(""),
+  jiraAccountId: text("jira_account_id"),
+  jiraDisplayName: text("jira_display_name"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

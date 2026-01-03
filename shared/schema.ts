@@ -679,6 +679,9 @@ export const tasks = pgTable("tasks", {
   createdByUserId: varchar("created_by_user_id").notNull(),
   customerId: varchar("customer_id"), // optional - link to customer
   country: text("country"), // optional - for filtering by country
+  resolution: text("resolution"), // solution/response when completing the task
+  resolvedByUserId: varchar("resolved_by_user_id"), // who resolved the task
+  resolvedAt: timestamp("resolved_at"), // when task was resolved
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
@@ -686,6 +689,19 @@ export const tasks = pgTable("tasks", {
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
+
+// Task comments - communication thread on tasks
+export const taskComments = pgTable("task_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({ id: true, createdAt: true });
+export type InsertTaskComment = z.infer<typeof insertTaskCommentSchema>;
+export type TaskComment = typeof taskComments.$inferSelect;
 
 export const TASK_PRIORITIES = [
   { value: "low", label: "Low" },

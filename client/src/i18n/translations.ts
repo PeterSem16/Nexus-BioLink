@@ -190,6 +190,11 @@ export interface Translations {
     reassignFailed: string;
     commentFailed: string;
     createdBy: string;
+    thisMonth: string;
+    lastMonth: string;
+    quarter: string;
+    halfYear: string;
+    year: string;
   };
   dashboard: {
     title: string;
@@ -1609,6 +1614,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Failed to reassign task',
       commentFailed: 'Failed to add comment',
       createdBy: 'Created by',
+      thisMonth: 'This Month',
+      lastMonth: 'Last Month',
+      quarter: 'Quarter',
+      halfYear: 'Half Year',
+      year: 'Year',
     },
     dashboard: {
       title: 'Dashboard',
@@ -3060,6 +3070,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Nepodarilo sa preradiť úlohu',
       commentFailed: 'Nepodarilo sa pridať komentár',
       createdBy: 'Vytvoril',
+      thisMonth: 'Tento mesiac',
+      lastMonth: 'Minulý mesiac',
+      quarter: 'Štvrťrok',
+      halfYear: 'Polrok',
+      year: 'Rok',
     },
     dashboard: {
       title: 'Prehľad',
@@ -4511,6 +4526,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Nepodařilo se přeřadit úkol',
       commentFailed: 'Nepodařilo se přidat komentář',
       createdBy: 'Vytvořil',
+      thisMonth: 'Tento měsíc',
+      lastMonth: 'Minulý měsíc',
+      quarter: 'Čtvrtletí',
+      halfYear: 'Pololetí',
+      year: 'Rok',
     },
     dashboard: {
       title: 'Přehled',
@@ -5925,6 +5945,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Nem sikerült átadni a feladatot',
       commentFailed: 'Nem sikerült hozzáadni a megjegyzést',
       createdBy: 'Létrehozta',
+      thisMonth: 'Ez a hónap',
+      lastMonth: 'Előző hónap',
+      quarter: 'Negyedév',
+      halfYear: 'Félév',
+      year: 'Év',
     },
     dashboard: {
       title: 'Irányítópult',
@@ -7339,6 +7364,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Nu s-a putut reatribui sarcina',
       commentFailed: 'Nu s-a putut adăuga comentariul',
       createdBy: 'Creat de',
+      thisMonth: 'Luna aceasta',
+      lastMonth: 'Luna trecută',
+      quarter: 'Trimestru',
+      halfYear: 'Semestru',
+      year: 'An',
     },
     dashboard: {
       title: 'Panou de control',
@@ -8753,6 +8783,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Impossibile riassegnare l\'attività',
       commentFailed: 'Impossibile aggiungere il commento',
       createdBy: 'Creato da',
+      thisMonth: 'Questo mese',
+      lastMonth: 'Mese scorso',
+      quarter: 'Trimestre',
+      halfYear: 'Semestre',
+      year: 'Anno',
     },
     dashboard: {
       title: 'Dashboard',
@@ -10167,6 +10202,11 @@ export const translations: Record<Locale, Translations> = {
       reassignFailed: 'Aufgabe konnte nicht neu zugewiesen werden',
       commentFailed: 'Kommentar konnte nicht hinzugefügt werden',
       createdBy: 'Erstellt von',
+      thisMonth: 'Dieser Monat',
+      lastMonth: 'Letzter Monat',
+      quarter: 'Quartal',
+      halfYear: 'Halbjahr',
+      year: 'Jahr',
     },
     dashboard: {
       title: 'Dashboard',

@@ -5,7 +5,7 @@ import { useCountryFilter } from "@/contexts/country-filter-context";
 import { useAuth } from "@/contexts/auth-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, subQuarters, startOfYear, endOfYear, subYears } from "date-fns";
 import type { Task, User, Customer, TaskComment } from "@shared/schema";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +83,9 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [reportDateRange, setReportDateRange] = useState<string>("this_month");
+  const [reportStartDate, setReportStartDate] = useState<Date>(startOfMonth(new Date()));
+  const [reportEndDate, setReportEndDate] = useState<Date>(endOfMonth(new Date()));
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
@@ -478,8 +481,42 @@ export default function TasksPage() {
   const inProgressCount = filteredTasks.filter(t => t.status === "in_progress").length;
   const completedCount = filteredTasks.filter(t => t.status === "completed").length;
 
+  const handleReportDateRangeChange = (preset: string) => {
+    setReportDateRange(preset);
+    const now = new Date();
+    switch (preset) {
+      case "this_month":
+        setReportStartDate(startOfMonth(now));
+        setReportEndDate(endOfMonth(now));
+        break;
+      case "last_month":
+        setReportStartDate(startOfMonth(subMonths(now, 1)));
+        setReportEndDate(endOfMonth(subMonths(now, 1)));
+        break;
+      case "quarter":
+        setReportStartDate(startOfQuarter(now));
+        setReportEndDate(endOfQuarter(now));
+        break;
+      case "half_year":
+        setReportStartDate(subMonths(now, 6));
+        setReportEndDate(now);
+        break;
+      case "year":
+        setReportStartDate(startOfYear(now));
+        setReportEndDate(endOfYear(now));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const reportFilteredTasks = filteredTasks.filter(task => {
+    const taskDate = new Date(task.createdAt);
+    return taskDate >= reportStartDate && taskDate <= reportEndDate;
+  });
+
   const userStatistics = users.map(u => {
-    const userTasks = filteredTasks.filter(t => t.assignedUserId === u.id);
+    const userTasks = reportFilteredTasks.filter(t => t.assignedUserId === u.id);
     const total = userTasks.length;
     const completed = userTasks.filter(t => t.status === "completed").length;
     const inProgress = userTasks.filter(t => t.status === "in_progress").length;
@@ -502,9 +539,12 @@ export default function TasksPage() {
     <Card data-testid={`user-stats-${stat.user.id}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <UserIcon className="h-5 w-5 text-primary" />
-          </div>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={stat.user.avatarUrl || undefined} className="object-cover" />
+            <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+              {(stat.user.fullName || stat.user.username).split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div>
             <CardTitle className="text-base">{stat.user.fullName || stat.user.username}</CardTitle>
             <p className="text-sm text-muted-foreground">{stat.user.email}</p>
@@ -658,9 +698,58 @@ export default function TasksPage() {
           </TabsContent>
           <TabsContent value="reporting" className="mt-4">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-lg font-semibold">{t.tasks.userStatistics}</h2>
+              <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold">{t.tasks.userStatistics}</h2>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant={reportDateRange === "this_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReportDateRangeChange("this_month")}
+                    data-testid="report-this-month"
+                  >
+                    {t.tasks.thisMonth}
+                  </Button>
+                  <Button
+                    variant={reportDateRange === "last_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReportDateRangeChange("last_month")}
+                    data-testid="report-last-month"
+                  >
+                    {t.tasks.lastMonth}
+                  </Button>
+                  <Button
+                    variant={reportDateRange === "quarter" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReportDateRangeChange("quarter")}
+                    data-testid="report-quarter"
+                  >
+                    {t.tasks.quarter}
+                  </Button>
+                  <Button
+                    variant={reportDateRange === "half_year" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReportDateRangeChange("half_year")}
+                    data-testid="report-half-year"
+                  >
+                    {t.tasks.halfYear}
+                  </Button>
+                  <Button
+                    variant={reportDateRange === "year" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReportDateRangeChange("year")}
+                    data-testid="report-year"
+                  >
+                    {t.tasks.year}
+                  </Button>
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground mb-4">
+                <Calendar className="h-4 w-4 inline mr-1" />
+                {format(reportStartDate, "dd.MM.yyyy")} - {format(reportEndDate, "dd.MM.yyyy")}
+                <span className="ml-2">({reportFilteredTasks.length} {t.tasks.tasksCount})</span>
               </div>
               {userStatistics.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">

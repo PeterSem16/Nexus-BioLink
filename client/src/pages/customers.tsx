@@ -384,8 +384,11 @@ function CustomerDetailsContent({
   const { t } = useI18n();
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  const [selectedBillsetId, setSelectedBillsetId] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("1");
+  const [isNoCollectionDialogOpen, setIsNoCollectionDialogOpen] = useState(false);
+  const [isNoBillsetDialogOpen, setIsNoBillsetDialogOpen] = useState(false);
   const [isManualInvoiceOpen, setIsManualInvoiceOpen] = useState(false);
   const [invoiceLines, setInvoiceLines] = useState<InvoiceLineItem[]>([]);
   const [newLineProductId, setNewLineProductId] = useState<string>("");
@@ -401,16 +404,28 @@ function CustomerDetailsContent({
     queryKey: ["/api/products"],
   });
 
-  // Fetch instances (billsets) for the selected product
-  const { data: productInstances = [], isLoading: instancesLoading } = useQuery<MarketProductInstance[]>({
-    queryKey: ["/api/products", selectedProductId, "instances"],
+  // Fetch collections (market product instances) filtered by customer's country
+  const { data: collections = [], isLoading: collectionsLoading } = useQuery<MarketProductInstance[]>({
+    queryKey: ["/api/products", selectedProductId, "collections", customer.countryCode],
     queryFn: async () => {
-      if (!selectedProductId) return [];
-      const res = await fetch(`/api/products/${selectedProductId}/instances`, { credentials: "include" });
+      if (!selectedProductId || !customer.countryCode) return [];
+      const res = await fetch(`/api/products/${selectedProductId}/collections?country=${customer.countryCode}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!selectedProductId,
+    enabled: !!selectedProductId && !!customer.countryCode,
+  });
+
+  // Fetch billsets (instance prices) for the selected collection
+  const { data: billsets = [], isLoading: billsetsLoading } = useQuery<Array<{ id: string; name: string; price: string; currency: string; isActive: boolean }>>({
+    queryKey: ["/api/collections", selectedCollectionId, "billsets"],
+    queryFn: async () => {
+      if (!selectedCollectionId) return [];
+      const res = await fetch(`/api/collections/${selectedCollectionId}/billsets`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedCollectionId,
   });
 
   const { data: customerNotes = [], isLoading: notesLoading } = useQuery<CustomerNote[]>({
@@ -962,7 +977,8 @@ function CustomerDetailsContent({
                       value={selectedProductId} 
                       onValueChange={(value) => {
                         setSelectedProductId(value);
-                        setSelectedInstanceId(""); // Reset instance when product changes
+                        setSelectedCollectionId("");
+                        setSelectedBillsetId("");
                       }}
                     >
                       <SelectTrigger data-testid="select-add-product">
@@ -982,24 +998,65 @@ function CustomerDetailsContent({
                 {selectedProductId && (
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <Label className="text-xs">{t.customers.details?.selectBillset || "Select Billset"}</Label>
-                      <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                        <SelectTrigger data-testid="select-add-billset">
-                          <SelectValue placeholder={instancesLoading ? (t.common?.loading || "Loading...") : (t.customers.details?.selectBillset || "Select billset")} />
+                      <Label className="text-xs">{t.customers.details?.selectCollection || "Select Collection"}</Label>
+                      <Select 
+                        value={selectedCollectionId} 
+                        onValueChange={(value) => {
+                          setSelectedCollectionId(value);
+                          setSelectedBillsetId("");
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-add-collection">
+                          <SelectValue placeholder={collectionsLoading ? (t.common?.loading || "Loading...") : (t.customers.details?.selectCollection || "Select collection")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {productInstances.filter(inst => inst.isActive).map((inst) => (
-                            <SelectItem key={inst.id} value={inst.id}>
-                              {inst.name} {inst.countryCode ? `(${inst.countryCode})` : ""}
+                          {collections.map((coll) => (
+                            <SelectItem key={coll.id} value={coll.id}>
+                              {coll.name}
                             </SelectItem>
                           ))}
-                          {productInstances.filter(inst => inst.isActive).length === 0 && !instancesLoading && (
-                            <SelectItem value="__no_instances" disabled>
+                          {collections.length === 0 && !collectionsLoading && (
+                            <SelectItem value="__no_collections" disabled>
+                              {t.customers.details?.noCollections || "No collections available"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {selectedProductId && !collectionsLoading && collections.length === 0 && (
+                        <p className="text-xs text-destructive mt-1">
+                          {t.customers.details?.noCollectionsForCountry || "No collections configured for this product and country"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedCollectionId && (
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs">{t.customers.details?.selectBillset || "Select Billset"}</Label>
+                      <Select value={selectedBillsetId} onValueChange={setSelectedBillsetId}>
+                        <SelectTrigger data-testid="select-add-billset">
+                          <SelectValue placeholder={billsetsLoading ? (t.common?.loading || "Loading...") : (t.customers.details?.selectBillset || "Select billset")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {billsets.map((bs) => (
+                            <SelectItem key={bs.id} value={bs.id}>
+                              {bs.name} - {parseFloat(bs.price).toFixed(2)} {bs.currency}
+                            </SelectItem>
+                          ))}
+                          {billsets.length === 0 && !billsetsLoading && (
+                            <SelectItem value="__no_billsets" disabled>
                               {t.customers.details?.noBillsets || "No billsets available"}
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
+                      {selectedCollectionId && !billsetsLoading && billsets.length === 0 && (
+                        <p className="text-xs text-destructive mt-1">
+                          {t.customers.details?.noBillsetsForCollection || "No billsets configured for this collection"}
+                        </p>
+                      )}
                     </div>
                     <div className="w-20">
                       <Label className="text-xs">{t.customers.details?.quantity || "Qty"}</Label>
@@ -1015,20 +1072,21 @@ function CustomerDetailsContent({
                       size="icon"
                       onClick={() => {
                         const qty = parseInt(quantity) || 0;
-                        if (selectedProductId && selectedInstanceId && qty > 0) {
+                        if (selectedProductId && selectedCollectionId && selectedBillsetId && qty > 0) {
                           addProductMutation.mutate({ 
                             productId: selectedProductId, 
-                            instanceId: selectedInstanceId,
+                            instanceId: selectedCollectionId,
+                            billsetId: selectedBillsetId,
                             quantity: qty 
                           });
                         } else {
                           toast({ 
-                            title: t.customers.details?.productBillsetValidation || "Please select a product, billset and enter a valid quantity", 
+                            title: t.customers.details?.productBillsetValidation || "Please select a product, collection, billset and enter a valid quantity", 
                             variant: "destructive" 
                           });
                         }
                       }}
-                      disabled={!selectedProductId || !selectedInstanceId || !quantity || parseInt(quantity) < 1 || addProductMutation.isPending}
+                      disabled={!selectedProductId || !selectedCollectionId || !selectedBillsetId || !quantity || parseInt(quantity) < 1 || addProductMutation.isPending}
                       data-testid="button-add-product-to-customer"
                     >
                       <Plus className="h-4 w-4" />

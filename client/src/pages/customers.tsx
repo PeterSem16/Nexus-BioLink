@@ -498,6 +498,129 @@ function InvoicePaymentBreakdownItem({
   }
 }
 
+// Simplified Payment breakdown component for email preview (same as InvoicePaymentBreakdownItem)
+function EmailPaymentBreakdownItem({ 
+  instanceId, 
+  paymentOptionId, 
+  amount,
+  storageIncluded = false,
+  storageAmount = 0,
+  collectionAmount = 0,
+  currencySymbol = "€",
+  t
+}: { 
+  instanceId: string; 
+  paymentOptionId: string; 
+  amount: number;
+  storageIncluded?: boolean;
+  storageAmount?: number;
+  collectionAmount?: number;
+  currencySymbol?: string;
+  t: any;
+}) {
+  const { data: paymentOptions = [] } = useQuery<any[]>({
+    queryKey: ["/api/instance-payment-options", instanceId, "market_instance"],
+    queryFn: async () => {
+      const res = await fetch(`/api/instance-payment-options/${instanceId}/market_instance`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: !!instanceId && !!paymentOptionId,
+  });
+
+  const paymentOption = paymentOptions.find((p: any) => p.id === paymentOptionId);
+  
+  if (!paymentOption) {
+    return null;
+  }
+
+  const fee = parseFloat(paymentOption.paymentTypeFee || 0);
+  const totalWithFee = amount + fee;
+
+  if (paymentOption.isMultiPayment && paymentOption.installmentCount > 1) {
+    const installmentAmount = totalWithFee / paymentOption.installmentCount;
+    const frequencyLabel = paymentOption.frequency === 'monthly' ? (t.konfigurator?.monthly || "mesačne") : 
+                          paymentOption.frequency === 'quarterly' ? (t.konfigurator?.quarterly || "štvrťročne") : 
+                          paymentOption.frequency === 'yearly' ? (t.konfigurator?.yearly || "ročne") : paymentOption.frequency;
+    
+    return (
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <CreditCard className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{t.konfigurator?.collectionItem || "Odber"}</span>
+          <Badge variant="secondary" className="text-xs">{t.konfigurator?.installmentsLabel || "Splátky"}</Badge>
+          {storageIncluded && <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-800 border-green-300 dark:border-green-700">{t.konfigurator?.storageAddOn || "+ Uskladnenie"}</Badge>}
+        </div>
+        <div className="text-xs space-y-1">
+          <div className="flex justify-between">
+            <span>{t.konfigurator?.paymentType || "Typ platby"}:</span>
+            <span className="font-medium">{paymentOption.name}</span>
+          </div>
+          {storageIncluded && (
+            <>
+              <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                <span>{t.konfigurator?.collectionItem || "Odber"}:</span>
+                <span>{collectionAmount.toFixed(2)} {currencySymbol}</span>
+              </div>
+              <div className="flex justify-between text-green-600 dark:text-green-400">
+                <span>{t.konfigurator?.storageItem || "Uskladnenie"}:</span>
+                <span>+{storageAmount.toFixed(2)} {currencySymbol}</span>
+              </div>
+            </>
+          )}
+          {fee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>{t.konfigurator?.feeLabel || "Poplatok"}:</span>
+              <span>+{fee.toFixed(2)} {currencySymbol}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span>{t.konfigurator?.totalLabel || "Celkom"}:</span>
+            <span className="font-medium">{totalWithFee.toFixed(2)} {currencySymbol}</span>
+          </div>
+          <Separator className="my-1" />
+          <div className="flex justify-between font-medium text-blue-700 dark:text-blue-400">
+            <span>{paymentOption.installmentCount}x {frequencyLabel}:</span>
+            <span>{installmentAmount.toFixed(2)} {currencySymbol}</span>
+          </div>
+          <div className="pt-1 border-t border-blue-200 dark:border-blue-800 mt-1 space-y-0.5">
+            {Array.from({ length: Math.min(paymentOption.installmentCount, 6) }, (_, i) => (
+              <div key={i} className="flex justify-between text-muted-foreground">
+                <span>{t.konfigurator?.installmentLabel || "Splátka"} {i + 1}:</span>
+                <span>{installmentAmount.toFixed(2)} {currencySymbol}</span>
+              </div>
+            ))}
+            {paymentOption.installmentCount > 6 && (
+              <div className="text-center text-xs text-muted-foreground pt-1">
+                {(t.konfigurator?.andMoreInstallments || "... a ďalších {count} splátok").replace('{count}', String(paymentOption.installmentCount - 6))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  } else {
+    return (
+      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <CreditCard className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-medium text-green-700 dark:text-green-400">{t.konfigurator?.collectionItem || "Odber"}</span>
+          <Badge variant="outline" className="text-xs">{t.konfigurator?.oneTimePayment || "Jednorázová platba"}</Badge>
+        </div>
+        <div className="text-xs space-y-1">
+          <div className="flex justify-between">
+            <span>{t.konfigurator?.paymentType || "Typ platby"}:</span>
+            <span className="font-medium">{paymentOption.name}</span>
+          </div>
+          <div className="flex justify-between font-medium text-green-700 dark:text-green-400">
+            <span>{t.konfigurator?.amountDue || "K úhrade"}:</span>
+            <span>{amount.toFixed(2)} {currencySymbol}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 function CustomerDetailsContent({ 
   customer, 
   onEdit 
@@ -2049,58 +2172,230 @@ function CustomerDetailsContent({
             
             <Separator />
             
-            {/* Email Preview */}
+            {/* Email Preview - Complete version matching invoice detail */}
             <div className="space-y-2">
               <Label>{t.customers?.details?.emailPreviewLabel || "Náhľad obsahu"}</Label>
               {billsetDetails && (
                 <div className="border rounded-lg p-4 bg-white dark:bg-gray-900 text-sm space-y-4">
-                  {/* Billing Company Header */}
+                  {/* Header */}
                   <div className="border-b pb-4">
                     <h3 className="font-bold text-lg">{t.customers?.details?.invoiceCalculation || "Kalkulácia faktúry"}</h3>
                     <p className="text-muted-foreground text-xs">{t.customers?.details?.billingSet || "Zostava"}: {billsetDetails.name}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant="outline">{billsetDetails.currency}</Badge>
+                      {billsetDetails.countryCode && (
+                        <Badge variant="outline">{getCountryFlag(billsetDetails.countryCode)} {billsetDetails.countryCode}</Badge>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Line Items */}
-                  <div className="space-y-3">
-                    {(() => {
-                      const currencySymbol = billsetDetails.currency === "EUR" ? "€" : 
-                                             billsetDetails.currency === "CZK" ? "Kč" : 
-                                             billsetDetails.currency === "USD" ? "$" : billsetDetails.currency;
-                      
-                      let totalGross = 0;
-                      
-                      return (
-                        <>
+                  {/* Complete Line Items with all details */}
+                  {(() => {
+                    const currencySymbol = billsetDetails.currency === "EUR" ? "€" : 
+                                           billsetDetails.currency === "CZK" ? "Kč" : 
+                                           billsetDetails.currency === "USD" ? "$" : billsetDetails.currency;
+                    
+                    let totalNet = 0;
+                    let totalDiscount = 0;
+                    let totalVat = 0;
+                    let totalGross = 0;
+                    
+                    (billsetDetails.collections || []).forEach((col: any) => {
+                      const lineNetAfterDiscount = parseFloat(col.lineNetAmount || 0);
+                      const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
+                      const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
+                      const lineVat = parseFloat(col.lineVatAmount || 0);
+                      const lineGross = parseFloat(col.lineGrossAmount || 0);
+                      totalNet += lineNetBeforeDiscount;
+                      totalDiscount += lineDiscount;
+                      totalVat += lineVat;
+                      totalGross += lineGross;
+                    });
+                    
+                    (billsetDetails.storage || []).forEach((stor: any) => {
+                      const lineNetAfterDiscount = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
+                      const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
+                      const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
+                      const lineVat = parseFloat(stor.lineVatAmount || 0);
+                      const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
+                      totalNet += lineNetBeforeDiscount;
+                      totalDiscount += lineDiscount;
+                      totalVat += lineVat;
+                      totalGross += lineGross;
+                    });
+                    
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">{t.konfigurator?.lineItemsLabel || "Položky"}</Label>
+                          
+                          {/* Collection Items - Blue */}
                           {(billsetDetails.collections || []).map((col: any, idx: number) => {
+                            const lineNetAfterDiscount = parseFloat(col.lineNetAmount || 0);
+                            const lineDiscount = parseFloat(col.lineDiscountAmount || 0);
+                            const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
+                            const lineVat = parseFloat(col.lineVatAmount || 0);
                             const lineGross = parseFloat(col.lineGrossAmount || 0);
-                            totalGross += lineGross;
                             return (
-                              <div key={col.id} className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-                                <div className="font-medium">{idx + 1}. {t.konfigurator?.collectionItem || "Odber"}</div>
-                                {col.instanceName && <div className="text-xs text-muted-foreground">{col.instanceName}</div>}
-                                <div className="text-right font-mono">{lineGross.toFixed(2)} {currencySymbol}</div>
+                              <div key={col.id} className="py-1.5 px-2 rounded bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-400 mb-1">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    {idx + 1}. {t.konfigurator?.collectionItem || "Odber"} {col.quantity > 1 && `(${col.quantity}x)`}
+                                  </span>
+                                  {col.instanceName && (
+                                    <span className="text-xs text-blue-700 dark:text-blue-300 font-normal">{col.instanceName}</span>
+                                  )}
+                                </div>
+                                <div className="mt-1 space-y-0.5 text-xs text-blue-700 dark:text-blue-300">
+                                  <div className="flex justify-between">
+                                    <span>{t.konfigurator?.priceWithoutVat || "Cena bez DPH"}:</span>
+                                    <span className="font-mono">{lineNetBeforeDiscount.toFixed(2)} {currencySymbol}</span>
+                                  </div>
+                                  {lineDiscount > 0 && (
+                                    <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                                      <span>{t.konfigurator?.discountText || "Zľava"}:</span>
+                                      <span className="font-mono">-{lineDiscount.toFixed(2)} {currencySymbol}</span>
+                                    </div>
+                                  )}
+                                  {lineVat > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>{t.konfigurator?.vatValue || "DPH"}:</span>
+                                      <span className="font-mono">+{lineVat.toFixed(2)} {currencySymbol}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-medium pt-0.5 border-t border-blue-200 dark:border-blue-700">
+                                    <span>{t.konfigurator?.totalLabel || "Celkom"}:</span>
+                                    <span className="font-mono">{lineGross.toFixed(2)} {currencySymbol}</span>
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
+                          
+                          {/* Storage Items - Green */}
                           {(billsetDetails.storage || []).map((stor: any, idx: number) => {
+                            const lineNetAfterDiscount = parseFloat(stor.lineNetAmount || stor.priceOverride || 0);
+                            const lineDiscount = parseFloat(stor.lineDiscountAmount || 0);
+                            const lineNetBeforeDiscount = lineNetAfterDiscount + lineDiscount;
+                            const lineVat = parseFloat(stor.lineVatAmount || 0);
                             const lineGross = parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
-                            totalGross += lineGross;
                             return (
-                              <div key={stor.id} className="p-2 bg-green-50 dark:bg-green-900/20 rounded">
-                                <div className="font-medium">{(billsetDetails.collections?.length || 0) + idx + 1}. {t.konfigurator?.storageItem || "Uskladnenie"}</div>
-                                {stor.serviceName && <div className="text-xs text-muted-foreground">{stor.serviceName}</div>}
-                                <div className="text-right font-mono">{lineGross.toFixed(2)} {currencySymbol}</div>
+                              <div key={stor.id} className="py-1.5 px-2 rounded bg-green-50 dark:bg-green-900/20 border-l-2 border-green-400 mb-1">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-sm font-medium text-green-900 dark:text-green-100">
+                                    {(billsetDetails.collections?.length || 0) + idx + 1}. {t.konfigurator?.storageItem || "Uskladnenie"}
+                                  </span>
+                                  {stor.serviceName && (
+                                    <span className="text-xs text-green-700 dark:text-green-300 font-normal">{stor.serviceName}</span>
+                                  )}
+                                </div>
+                                <div className="mt-1 space-y-0.5 text-xs text-green-700 dark:text-green-300">
+                                  <div className="flex justify-between">
+                                    <span>{t.konfigurator?.priceWithoutVat || "Cena bez DPH"}:</span>
+                                    <span className="font-mono">{lineNetBeforeDiscount.toFixed(2)} {currencySymbol}</span>
+                                  </div>
+                                  {lineDiscount > 0 && (
+                                    <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                                      <span>{t.konfigurator?.discountText || "Zľava"}:</span>
+                                      <span className="font-mono">-{lineDiscount.toFixed(2)} {currencySymbol}</span>
+                                    </div>
+                                  )}
+                                  {lineVat > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>{t.konfigurator?.vatValue || "DPH"}:</span>
+                                      <span className="font-mono">+{lineVat.toFixed(2)} {currencySymbol}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-medium pt-0.5 border-t border-green-200 dark:border-green-700">
+                                    <span>{t.konfigurator?.totalLabel || "Celkom"}:</span>
+                                    <span className="font-mono">{lineGross.toFixed(2)} {currencySymbol}</span>
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
-                          <div className="pt-2 border-t flex justify-between font-bold">
-                            <span>{t.konfigurator?.totalLabel || "Celkom"}:</span>
-                            <span className="font-mono">{totalGross.toFixed(2)} {currencySymbol}</span>
+                        </div>
+                        
+                        <Separator />
+                        
+                        {/* Totals Summary */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>{t.konfigurator?.netWithoutVat || "Cena bez DPH"}:</span>
+                            <span className="font-mono">{totalNet.toFixed(2)} {currencySymbol}</span>
                           </div>
-                        </>
-                      );
-                    })()}
-                  </div>
+                          {totalDiscount > 0 && (
+                            <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400">
+                              <span>{t.konfigurator?.discountText || "Zľava"}:</span>
+                              <span className="font-mono">-{totalDiscount.toFixed(2)} {currencySymbol}</span>
+                            </div>
+                          )}
+                          {totalDiscount > 0 && (
+                            <div className="flex justify-between text-sm font-medium">
+                              <span>{t.konfigurator?.subtotalAfterDiscount || "Medzisúčet po zľave"}:</span>
+                              <span className="font-mono">{(totalNet - totalDiscount).toFixed(2)} {currencySymbol}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm text-muted-foreground">
+                            <span>{t.konfigurator?.vatText || "DPH"}:</span>
+                            <span className="font-mono">+{totalVat.toFixed(2)} {currencySymbol}</span>
+                          </div>
+                          <Separator />
+                          <div className="flex justify-between font-medium">
+                            <span>{t.konfigurator?.totalLabel || "Celkom"}:</span>
+                            <span className="font-mono text-lg">{totalGross.toFixed(2)} {currencySymbol}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Payment Installments Breakdown */}
+                        {(billsetDetails.collections || []).some((col: any) => col.paymentOptionId) && (
+                          <>
+                            <Separator />
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">{t.konfigurator?.paymentBreakdown || "Rozpis splátok"}</Label>
+                              {(() => {
+                                const storageTotal = (billsetDetails.storage || []).reduce((sum: number, stor: any) => {
+                                  return sum + parseFloat(stor.lineGrossAmount || stor.priceOverride || 0);
+                                }, 0);
+                                
+                                const collectionsWithPayment = (billsetDetails.collections || []).filter((col: any) => col.paymentOptionId);
+                                let storageAlreadyAdded = false;
+                                
+                                return collectionsWithPayment.map((col: any, idx: number) => {
+                                  const lineGross = parseFloat(col.lineGrossAmount || 0);
+                                  const includeStorage = storageTotal > 0 && !storageAlreadyAdded;
+                                  if (includeStorage) {
+                                    storageAlreadyAdded = true;
+                                  }
+                                  const combinedAmount = includeStorage ? lineGross + storageTotal : lineGross;
+                                  
+                                  return (
+                                    <EmailPaymentBreakdownItem
+                                      key={col.id}
+                                      instanceId={col.instanceId}
+                                      paymentOptionId={col.paymentOptionId}
+                                      amount={combinedAmount}
+                                      storageIncluded={includeStorage}
+                                      storageAmount={includeStorage ? storageTotal : 0}
+                                      collectionAmount={lineGross}
+                                      currencySymbol={currencySymbol}
+                                      t={t}
+                                    />
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+                  
+                  {billsetDetails.notes && (
+                    <div className="p-2 rounded bg-muted/30 mt-2">
+                      <p className="text-xs text-muted-foreground">{billsetDetails.notes}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

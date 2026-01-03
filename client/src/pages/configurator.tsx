@@ -3357,9 +3357,16 @@ function ProductDetailDialog({
                           </div>
                         </Card>
                       )}
-                      {instancePrices.map(price => (
+                      {instancePrices.map(price => {
+                        const countryInfo = COUNTRIES.find(c => c.code === selectedInstance?.countryCode);
+                        return (
                         <div key={price.id} className="flex items-center justify-between p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                           <div className="flex items-center gap-2 flex-wrap">
+                            {selectedInstance?.countryCode && (
+                              <Badge variant="secondary" className="text-xs">
+                                {countryInfo?.flag} {selectedInstance.countryCode}
+                              </Badge>
+                            )}
                             <span className="font-medium">{price.name}</span>
                             <Badge variant="outline">{price.price} {price.currency}</Badge>
                             {price.accountingCode && <span className="text-xs text-muted-foreground">Účt: {price.accountingCode}</span>}
@@ -3389,10 +3396,21 @@ function ProductDetailDialog({
                             <Button variant="ghost" size="icon" onClick={() => deletePriceMutation.mutate(price.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                           </div>
                         </div>
-                      ))}
-                      {editingPriceId && editingPriceData && (
+                      );
+                      })}
+                      {editingPriceId && editingPriceData && (() => {
+                        const editCountryInfo = COUNTRIES.find(c => c.code === selectedInstance?.countryCode);
+                        return (
                         <Card className="p-4 border-primary">
                           <div className="space-y-4">
+                            {selectedInstance?.countryCode && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">
+                                  {editCountryInfo?.flag} {selectedInstance.countryCode}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">{t.konfigurator.country || "Country"}</span>
+                              </div>
+                            )}
                             <div className="grid grid-cols-3 gap-3">
                               <div className="col-span-2">
                                 <Label>{t.konfigurator.priceName}</Label>
@@ -3475,7 +3493,8 @@ function ProductDetailDialog({
                             }}>{t.common.save}</Button>
                           </div>
                         </Card>
-                      )}
+                      );
+                      })()}
                     </TabsContent>
 
                     <TabsContent value="payments" className="space-y-3 mt-3">

@@ -11,6 +11,7 @@ import type { Task, User, Customer, TaskComment } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -334,14 +335,25 @@ export default function TasksPage() {
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
                 {assignedUser && (
-                  <div className="flex items-center gap-1">
-                    <UserIcon className="h-3 w-3" />
+                  <div className="flex items-center gap-1.5">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={assignedUser.avatarUrl || undefined} className="object-cover" />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-[8px] font-medium">
+                        {(assignedUser.fullName || assignedUser.username).split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                     <span>{assignedUser.fullName || assignedUser.username}</span>
                   </div>
                 )}
                 {createdByUser && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">{t.tasks.createdBy}:</span>
+                    <Avatar className="h-4 w-4">
+                      <AvatarImage src={createdByUser.avatarUrl || undefined} className="object-cover" />
+                      <AvatarFallback className="bg-muted text-muted-foreground text-[6px] font-medium">
+                        {(createdByUser.fullName || createdByUser.username).split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                     <span>{createdByUser.fullName || createdByUser.username}</span>
                   </div>
                 )}

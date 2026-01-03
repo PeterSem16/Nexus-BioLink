@@ -92,7 +92,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     avatarUrls?: { "48x48"?: string };
   }
   
-  const { data: jiraUsers = [], isLoading: jiraUsersLoading } = useQuery<JiraUser[]>({
+  const { data: jiraUsers = [], isLoading: jiraUsersLoading, refetch: refetchJiraUsers } = useQuery<JiraUser[]>({
     queryKey: ["/api/jira/users"],
   });
   
@@ -656,11 +656,11 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={() => refetchJiraUsers()}
             data-testid="button-refresh-jira"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Obnoviť pripojenie
+            Skúsiť znova
           </Button>
         </div>
       ) : (

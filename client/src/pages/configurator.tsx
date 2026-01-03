@@ -9275,10 +9275,10 @@ function InflationTab() {
             <label className="text-sm font-medium">{t.konfigurator.inflationRate || "Inflácia (%)"}:</label>
             <Input
               type="number"
-              step="0.1"
+              step="0.01"
               value={newRate}
               onChange={(e) => setNewRate(e.target.value)}
-              placeholder="5.5"
+              placeholder="5.50"
               className="w-24"
               data-testid="input-new-rate"
             />
@@ -9318,14 +9318,14 @@ function InflationTab() {
                     {editingYear === rate.year ? (
                       <Input
                         type="number"
-                        step="0.1"
+                        step="0.01"
                         value={editingRate}
                         onChange={(e) => setEditingRate(e.target.value)}
                         className="w-24 ml-auto"
                         data-testid={`input-edit-rate-${rate.year}`}
                       />
                     ) : (
-                      <span className="font-mono">{parseFloat(rate.rate).toFixed(1)} %</span>
+                      <span className="font-mono">{parseFloat(rate.rate).toFixed(2)} %</span>
                     )}
                   </td>
                   <td className="py-2 px-4 text-muted-foreground">{rate.source || "-"}</td>

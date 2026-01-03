@@ -57,8 +57,25 @@ export async function getJiraProjects() {
 
 export async function getJiraUsers() {
   const client = await getJiraClient();
-  const users = await client.users.getAllUsersDefault({ maxResults: 100 });
-  return users;
+  try {
+    const users = await client.userSearch.findAssignableUsers({
+      project: '',
+      maxResults: 100,
+      query: ''
+    });
+    return users;
+  } catch (e1) {
+    try {
+      const users = await client.userSearch.findUsers({
+        maxResults: 100,
+        query: ''
+      });
+      return users;
+    } catch (e2) {
+      const myself = await client.myself.getCurrentUser();
+      return [myself];
+    }
+  }
 }
 
 export async function getJiraIssues(projectKey: string) {

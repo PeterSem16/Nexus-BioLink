@@ -59,7 +59,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 
-type CustomerProductWithProduct = CustomerProduct & { product: Product };
+type CustomerProductWithProduct = CustomerProduct & { product: Product; billsetName?: string };
 
 interface InvoiceLineItem {
   productId: string;
@@ -1080,7 +1080,7 @@ function CustomerDetailsContent({
                         <Badge variant="outline" className="text-xs">{customer.country}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {cp.quantity} x {parseFloat(cp.priceOverride || cp.product.price).toFixed(2)} {cp.product.currency}
+                        {cp.billsetName || (t.customers.details?.noBillset || "Bez zostavy")}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">

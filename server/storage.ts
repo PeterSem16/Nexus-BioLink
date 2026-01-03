@@ -148,7 +148,7 @@ export interface IStorage {
   deleteMarketProductService(id: string): Promise<boolean>;
 
   // Customer Products
-  getCustomerProducts(customerId: string): Promise<(CustomerProduct & { product: Product })[]>;
+  getCustomerProducts(customerId: string): Promise<(CustomerProduct & { product: Product; billsetName?: string })[]>;
   addProductToCustomer(data: InsertCustomerProduct): Promise<CustomerProduct>;
   updateCustomerProduct(id: string, data: Partial<InsertCustomerProduct>): Promise<CustomerProduct | undefined>;
   removeProductFromCustomer(id: string): Promise<boolean>;
@@ -817,14 +817,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Customer Products
-  async getCustomerProducts(customerId: string): Promise<(CustomerProduct & { product: Product })[]> {
+  async getCustomerProducts(customerId: string): Promise<(CustomerProduct & { product: Product; billsetName?: string })[]> {
     const cps = await db.select().from(customerProducts).where(eq(customerProducts.customerId, customerId));
-    const result: (CustomerProduct & { product: Product })[] = [];
+    const result: (CustomerProduct & { product: Product; billsetName?: string })[] = [];
     
     for (const cp of cps) {
       const product = await this.getProduct(cp.productId);
       if (product) {
-        result.push({ ...cp, product });
+        let billsetName: string | undefined;
+        if (cp.billsetId) {
+          const billset = await this.getProductSet(cp.billsetId);
+          billsetName = billset?.name;
+        }
+        result.push({ ...cp, product, billsetName });
       }
     }
     

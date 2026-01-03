@@ -2466,6 +2466,7 @@ export type CallLog = typeof callLogs.$inferSelect;
 export const productSets = pgTable("product_sets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   productId: varchar("product_id").notNull(),
+  countryCode: text("country_code"),
   name: text("name").notNull(),
   fromDate: timestamp("from_date"),
   toDate: timestamp("to_date"),

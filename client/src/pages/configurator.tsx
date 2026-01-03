@@ -1470,6 +1470,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
   const [editedSetName, setEditedSetName] = useState("");
   const [newSetData, setNewSetData] = useState({
     name: "",
+    countryCode: null as string | null,
     fromDay: 0, fromMonth: 0, fromYear: 0,
     toDay: 0, toMonth: 0, toYear: 0,
     currency: "EUR",
@@ -1526,6 +1527,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
       const toDate = componentsToISOString(data.toDay, data.toMonth, data.toYear);
       return apiRequest("POST", `/api/products/${productId}/sets`, {
         name: data.name,
+        countryCode: data.countryCode,
         fromDate,
         toDate,
         currency: data.currency,
@@ -1538,7 +1540,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
       toast({ title: t.success.created });
       refetchSets();
       setIsAddingSet(false);
-      setNewSetData({ name: "", fromDay: 0, fromMonth: 0, fromYear: 0, toDay: 0, toMonth: 0, toYear: 0, currency: "EUR", notes: "", isActive: true, emailAlertEnabled: false });
+      setNewSetData({ name: "", countryCode: null, fromDay: 0, fromMonth: 0, fromYear: 0, toDay: 0, toMonth: 0, toYear: 0, currency: "EUR", notes: "", isActive: true, emailAlertEnabled: false });
     },
     onError: () => toast({ title: t.errors.saveFailed, variant: "destructive" }),
   });
@@ -1687,6 +1689,16 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 onChange={(e) => setEditSetDetails({ ...editSetDetails, name: e.target.value })}
               />
             </div>
+            <div>
+              <Label>{t.common.country}</Label>
+              <Select value={editSetDetails.countryCode || "ALL"} onValueChange={(v) => setEditSetDetails({ ...editSetDetails, countryCode: v === "ALL" ? null : v })}>
+                <SelectTrigger><SelectValue placeholder={t.common.select} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">-- {t.common.all} --</SelectItem>
+                  {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.code}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">{t.konfigurator.validFrom}</Label>
@@ -1780,6 +1792,7 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                 id: editSetDetails.id,
                 data: {
                   name: editSetDetails.name,
+                  countryCode: editSetDetails.countryCode,
                   fromDate,
                   toDate,
                   isActive: editSetDetails.isActive,
@@ -1818,6 +1831,16 @@ function ZostavyTab({ productId, instances, t }: { productId: string; instances:
                   value={newSetData.name}
                   onChange={(e) => setNewSetData({ ...newSetData, name: e.target.value })}
                 />
+              </div>
+              <div>
+                <Label>{t.common.country}</Label>
+                <Select value={newSetData.countryCode || "ALL"} onValueChange={(v) => setNewSetData({ ...newSetData, countryCode: v === "ALL" ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder={t.common.select} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">-- {t.common.all} --</SelectItem>
+                    {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>

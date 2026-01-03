@@ -11105,7 +11105,7 @@ function BillingCompanyDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -11498,7 +11498,7 @@ function BillingAccountFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

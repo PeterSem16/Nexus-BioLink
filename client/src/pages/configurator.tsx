@@ -3285,10 +3285,10 @@ function ProductDetailDialog({
                               </div>
                               <div>
                                 <Label>{t.common.country}</Label>
-                                <Select value={newPriceData.countryCode || ""} onValueChange={(v) => setNewPriceData({...newPriceData, countryCode: v || null})}>
+                                <Select value={newPriceData.countryCode || "ALL"} onValueChange={(v) => setNewPriceData({...newPriceData, countryCode: v === "ALL" ? null : v})}>
                                   <SelectTrigger><SelectValue placeholder={t.common.select} /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">-- {t.common.all} --</SelectItem>
+                                    <SelectItem value="ALL">-- {t.common.all} --</SelectItem>
                                     {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.code}</SelectItem>)}
                                   </SelectContent>
                                 </Select>
@@ -3421,10 +3421,10 @@ function ProductDetailDialog({
                               </div>
                               <div>
                                 <Label>{t.common.country}</Label>
-                                <Select value={editingPriceData.countryCode || ""} onValueChange={(v) => setEditingPriceData({...editingPriceData, countryCode: v || null})}>
+                                <Select value={editingPriceData.countryCode || "ALL"} onValueChange={(v) => setEditingPriceData({...editingPriceData, countryCode: v === "ALL" ? null : v})}>
                                   <SelectTrigger><SelectValue placeholder={t.common.select} /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">-- {t.common.all} --</SelectItem>
+                                    <SelectItem value="ALL">-- {t.common.all} --</SelectItem>
                                     {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.code}</SelectItem>)}
                                   </SelectContent>
                                 </Select>

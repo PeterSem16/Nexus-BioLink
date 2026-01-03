@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Phone, User, Shield, MapPin, Camera, Loader2 } from "lucide-react";
+import { Phone, User, Shield, MapPin, Camera, Loader2, Link2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +85,19 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     queryKey: ["/api/roles"],
   });
   
+  interface JiraUser {
+    accountId: string;
+    displayName: string;
+    emailAddress?: string;
+    avatarUrls?: { "48x48"?: string };
+  }
+  
+  const { data: jiraUsers = [], isLoading: jiraUsersLoading } = useQuery<JiraUser[]>({
+    queryKey: ["/api/jira/users"],
+  });
+  
+  const [selectedJiraUser, setSelectedJiraUser] = useState<string>((initialData as any)?.jiraAccountId || "");
+  
   const activeRoles = roles.filter(r => r.isActive);
   const systemRolesWithLegacy = activeRoles.filter(r => (r as any).legacyRole);
   const hasSystemRoles = systemRolesWithLegacy.length > 0;
@@ -138,6 +151,15 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
       } else {
         submitData.role = "user";
       }
+    }
+    
+    if (selectedJiraUser) {
+      const jiraUser = jiraUsers.find(j => j.accountId === selectedJiraUser);
+      (submitData as any).jiraAccountId = selectedJiraUser;
+      (submitData as any).jiraDisplayName = jiraUser?.displayName || null;
+    } else {
+      (submitData as any).jiraAccountId = null;
+      (submitData as any).jiraDisplayName = null;
     }
     
     onSubmit(submitData);
@@ -608,11 +630,79 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     </div>
   );
 
+  const renderJiraTab = () => (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-muted-foreground mb-4">
+        <Link2 className="h-4 w-4" />
+        <span className="text-sm">Prepojenie Jira účtu umožní synchronizáciu úloh s Jirou</span>
+      </div>
+      
+      {jiraUsersLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Načítavanie Jira používateľov...
+        </div>
+      ) : jiraUsers.length === 0 ? (
+        <div className="p-4 rounded-md bg-muted text-sm text-muted-foreground">
+          Nepodarilo sa načítať Jira používateľov. Skontrolujte, či je Jira integrácia správne nakonfigurovaná.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <FormLabel>Jira účet</FormLabel>
+            <Select 
+              value={selectedJiraUser} 
+              onValueChange={setSelectedJiraUser}
+            >
+              <SelectTrigger data-testid="select-jira-user">
+                <SelectValue placeholder="Vyberte Jira používateľa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Žiadny</SelectItem>
+                {jiraUsers.map((jUser) => (
+                  <SelectItem key={jUser.accountId} value={jUser.accountId}>
+                    <div className="flex items-center gap-2">
+                      {jUser.avatarUrls?.["48x48"] && (
+                        <img 
+                          src={jUser.avatarUrls["48x48"]} 
+                          alt="" 
+                          className="h-5 w-5 rounded-full"
+                        />
+                      )}
+                      <span>{jUser.displayName}</span>
+                      {jUser.emailAddress && (
+                        <span className="text-muted-foreground text-xs">({jUser.emailAddress})</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Po prepojení budú úlohy pridelené tomuto používateľovi automaticky synchronizované s jeho Jira účtom
+            </p>
+          </div>
+          
+          {selectedJiraUser && (
+            <div className="p-3 rounded-md bg-green-50 dark:bg-green-900/20 text-sm">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-green-700 dark:text-green-300">
+                  Prepojené s Jira účtom: {jiraUsers.find(j => j.accountId === selectedJiraUser)?.displayName}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile" className="flex items-center gap-2" data-testid="tab-profile">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profil</span>
@@ -628,6 +718,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             <TabsTrigger value="sip" className="flex items-center gap-2" data-testid="tab-sip">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">SIP</span>
+            </TabsTrigger>
+            <TabsTrigger value="jira" className="flex items-center gap-2" data-testid="tab-jira">
+              <Link2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Jira</span>
             </TabsTrigger>
           </TabsList>
           
@@ -645,6 +739,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
           
           <TabsContent value="sip" className="mt-6">
             {renderSipTab()}
+          </TabsContent>
+          
+          <TabsContent value="jira" className="mt-6">
+            {renderJiraTab()}
           </TabsContent>
         </Tabs>
 

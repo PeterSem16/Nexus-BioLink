@@ -291,6 +291,13 @@ export default function TasksPage() {
     addCommentMutation.mutate({ taskId: selectedTask.id, content: newComment });
   };
 
+  const taskCardColors = {
+    pending: "border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-900/10",
+    in_progress: "border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/10",
+    completed: "border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-900/10",
+    cancelled: "border-l-4 border-l-slate-400 bg-slate-50/30 dark:bg-slate-800/20",
+  };
+
   const TaskCard = ({ task }: { task: Task }) => {
     const assignedUser = getUser(task.assignedUserId);
     const createdByUser = getUser(task.createdByUserId);
@@ -300,9 +307,10 @@ export default function TasksPage() {
     const StatusIcon = statusConfig[task.status as keyof typeof statusConfig]?.icon || Clock;
     const isResolved = task.status === "completed" && task.resolution;
     const isActive = task.status !== "completed" && task.status !== "cancelled";
+    const cardColor = taskCardColors[task.status as keyof typeof taskCardColors] || "";
 
     return (
-      <Card className="hover-elevate" data-testid={`task-card-${task.id}`}>
+      <Card className={`hover-elevate rounded-l-none ${cardColor}`} data-testid={`task-card-${task.id}`}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">

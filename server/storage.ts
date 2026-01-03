@@ -108,8 +108,9 @@ export interface IStorage {
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
 
-  // Market Product Instances
+  // Market Product Instances (Collections)
   getMarketProductInstances(productId: string): Promise<any[]>;
+  getMarketProductInstancesByCountry(productId: string, countryCode: string): Promise<any[]>;
   createMarketProductInstance(data: any): Promise<any>;
   updateMarketProductInstance(id: string, data: any): Promise<any | undefined>;
   deleteMarketProductInstance(id: string): Promise<boolean>;
@@ -642,9 +643,19 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Market Product Instances
+  // Market Product Instances (Collections)
   async getMarketProductInstances(productId: string): Promise<any[]> {
     return await db.select().from(marketProductInstances).where(eq(marketProductInstances.productId, productId));
+  }
+
+  async getMarketProductInstancesByCountry(productId: string, countryCode: string): Promise<any[]> {
+    return await db.select().from(marketProductInstances).where(
+      and(
+        eq(marketProductInstances.productId, productId),
+        eq(marketProductInstances.countryCode, countryCode.toUpperCase()),
+        eq(marketProductInstances.isActive, true)
+      )
+    );
   }
 
   async createMarketProductInstance(data: any): Promise<any> {

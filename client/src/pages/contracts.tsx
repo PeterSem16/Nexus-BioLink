@@ -366,13 +366,30 @@ export default function ContractsPage() {
 
   // Get products that have billsets for customer's country
   const { data: productsWithSets = [] } = useQuery<ProductWithSets[]>({
-    queryKey: ["/api/products-with-sets", { country: customerCountry }],
+    queryKey: ["/api/products-with-sets", customerCountry],
+    queryFn: async () => {
+      const url = customerCountry 
+        ? `/api/products-with-sets?country=${encodeURIComponent(customerCountry)}`
+        : "/api/products-with-sets";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch products");
+      return res.json();
+    },
     enabled: isPreviewOpen && !!selectedContract?.id && !!customerCountry
   });
 
   // Get billsets for selected product and customer's country
   const { data: productSets = [] } = useQuery<ProductSet[]>({
-    queryKey: ["/api/product-sets", { productId: selectedProductId, country: customerCountry }],
+    queryKey: ["/api/product-sets", selectedProductId, customerCountry],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedProductId) params.append("productId", selectedProductId);
+      if (customerCountry) params.append("country", customerCountry);
+      const url = `/api/product-sets?${params.toString()}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch product sets");
+      return res.json();
+    },
     enabled: isPreviewOpen && !!selectedContract?.id && !!selectedProductId && !!customerCountry
   });
 

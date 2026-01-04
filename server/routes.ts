@@ -5794,7 +5794,7 @@ export async function registerRoutes(
   app.get("/api/products-with-sets", requireAuth, async (req, res) => {
     try {
       const countryFilter = req.query.country as string | undefined;
-      const products = await storage.getProducts();
+      const products = await storage.getAllProducts();
       const productsWithSets: any[] = [];
       
       for (const product of products) {
@@ -5841,7 +5841,7 @@ export async function registerRoutes(
       }
       
       // Otherwise get all sets
-      const products = await storage.getProducts();
+      const products = await storage.getAllProducts();
       const allSets: any[] = [];
       
       for (const product of products) {
@@ -6758,6 +6758,29 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error adding contract participant:", error);
       res.status(500).json({ error: "Failed to add contract participant" });
+    }
+  });
+
+  app.patch("/api/contracts/:contractId/participants/:participantId", requireAuth, async (req, res) => {
+    try {
+      const participant = await storage.updateContractParticipant(req.params.participantId, req.body);
+      if (!participant) {
+        return res.status(404).json({ error: "Participant not found" });
+      }
+      res.json(participant);
+    } catch (error) {
+      console.error("Error updating contract participant:", error);
+      res.status(500).json({ error: "Failed to update contract participant" });
+    }
+  });
+
+  app.delete("/api/contracts/:contractId/participants/:participantId", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteContractParticipant(req.params.participantId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contract participant:", error);
+      res.status(500).json({ error: "Failed to delete contract participant" });
     }
   });
 

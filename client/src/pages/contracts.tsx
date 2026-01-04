@@ -22,7 +22,7 @@ import {
   FileText, Plus, Edit2, Trash2, Send, Eye, Check, X, Clock, 
   FileSignature, Download, Copy, RefreshCw, AlertCircle, Filter,
   ChevronRight, Settings, PenTool, Mail, Phone, Shield, 
-  CheckCircle, Loader2, Edit
+  CheckCircle, Loader2, Edit, Pencil
 } from "lucide-react";
 import type { 
   ContractTemplate, ContractInstance, Customer, BillingDetails
@@ -310,11 +310,43 @@ export default function ContractsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContract?.id] });
       setIsAddingParticipant(false);
+      setEditingParticipantId(null);
       setParticipantForm({ fullName: "", email: "", phone: "", role: "signer", participantType: "customer", signatureRequired: true });
       toast({ title: "Účastník pridaný" });
     },
     onError: () => {
       toast({ title: "Chyba", description: "Nepodarilo sa pridať účastníka.", variant: "destructive" });
+    }
+  });
+
+  const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null);
+
+  const updateParticipantMutation = useMutation({
+    mutationFn: async ({ contractId, participantId, data }: { contractId: string; participantId: string; data: typeof participantForm }) => {
+      return apiRequest("PATCH", `/api/contracts/${contractId}/participants/${participantId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContract?.id] });
+      setIsAddingParticipant(false);
+      setEditingParticipantId(null);
+      setParticipantForm({ fullName: "", email: "", phone: "", role: "signer", participantType: "customer", signatureRequired: true });
+      toast({ title: "Účastník upravený" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa upraviť účastníka.", variant: "destructive" });
+    }
+  });
+
+  const deleteParticipantMutation = useMutation({
+    mutationFn: async ({ contractId, participantId }: { contractId: string; participantId: string }) => {
+      return apiRequest("DELETE", `/api/contracts/${contractId}/participants/${participantId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContract?.id] });
+      toast({ title: "Účastník odstránený" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa odstrániť účastníka.", variant: "destructive" });
     }
   });
 
@@ -325,6 +357,7 @@ export default function ContractsPage() {
       email: string | null;
       phone: string | null;
       role: string;
+      participantType: string;
       signatureRequired: boolean;
     }>;
     products?: Array<{
@@ -1077,6 +1110,36 @@ export default function ContractsPage() {
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary">{p.role}</Badge>
                             {p.signatureRequired && <Badge>Podpis</Badge>}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingParticipantId(p.id);
+                                setParticipantForm({
+                                  fullName: p.fullName,
+                                  email: p.email || "",
+                                  phone: p.phone || "",
+                                  role: p.role,
+                                  participantType: p.participantType || "customer",
+                                  signatureRequired: p.signatureRequired
+                                });
+                                setIsAddingParticipant(true);
+                              }}
+                              data-testid={`button-edit-participant-${p.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteParticipantMutation.mutate({
+                                contractId: selectedContract.id,
+                                participantId: p.id
+                              })}
+                              data-testid={`button-delete-participant-${p.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -1169,21 +1232,35 @@ export default function ContractsPage() {
                           <Label htmlFor="signatureRequired" className="text-sm cursor-pointer">Vyžaduje podpis</Label>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setIsAddingParticipant(false)}>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setIsAddingParticipant(false);
+                            setEditingParticipantId(null);
+                            setParticipantForm({ fullName: "", email: "", phone: "", role: "signer", participantType: "customer", signatureRequired: true });
+                          }}>
                             Zrušiť
                           </Button>
                           <Button 
                             size="sm"
-                            disabled={!participantForm.fullName || addParticipantMutation.isPending}
+                            disabled={!participantForm.fullName || addParticipantMutation.isPending || updateParticipantMutation.isPending}
                             onClick={() => {
-                              addParticipantMutation.mutate({
-                                contractId: selectedContract.id,
-                                data: participantForm
-                              });
+                              if (editingParticipantId) {
+                                updateParticipantMutation.mutate({
+                                  contractId: selectedContract.id,
+                                  participantId: editingParticipantId,
+                                  data: participantForm
+                                });
+                              } else {
+                                addParticipantMutation.mutate({
+                                  contractId: selectedContract.id,
+                                  data: participantForm
+                                });
+                              }
                             }}
                             data-testid="button-save-participant"
                           >
-                            {addParticipantMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Uložiť"}
+                            {(addParticipantMutation.isPending || updateParticipantMutation.isPending) 
+                              ? <Loader2 className="h-4 w-4 animate-spin" /> 
+                              : editingParticipantId ? "Upraviť" : "Uložiť"}
                           </Button>
                         </div>
                       </div>

@@ -13,7 +13,8 @@ import {
   Handshake,
   Cog,
   Megaphone,
-  CheckSquare
+  CheckSquare,
+  FileSignature
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { usePermissions } from "@/contexts/permissions-context";
@@ -69,6 +70,7 @@ export function AppSidebar() {
 
   const toolsNavItems = [
     { title: t.nav.tasks, url: "/tasks", icon: CheckSquare, testId: "tasks", moduleKey: "tasks" },
+    { title: t.nav.contracts, url: "/contracts", icon: FileSignature, testId: "contracts", moduleKey: "contracts" },
   ];
 
   const visibleMainItems = mainNavItems.filter(item => canAccessModule(item.moduleKey));

@@ -30,7 +30,7 @@ export const getCurrencySymbol = (currencyCode: string): string => {
 };
 
 export const getCountryCurrency = (countryCode: string): string => {
-  const currency = CURRENCIES.find(c => c.countries.includes(countryCode));
+  const currency = CURRENCIES.find(c => (c.countries as readonly string[]).includes(countryCode));
   return currency?.code || "EUR";
 };
 
@@ -2599,3 +2599,264 @@ export const inflationRates = pgTable("inflation_rates", {
 export const insertInflationRateSchema = createInsertSchema(inflationRates).omit({ id: true, updatedAt: true });
 export type InsertInflationRate = z.infer<typeof insertInflationRateSchema>;
 export type InflationRate = typeof inflationRates.$inferSelect;
+
+// ============================================
+// CONTRACT MANAGEMENT MODULE
+// ============================================
+
+// Contract Templates - reusable contract document templates
+export const contractTemplates = pgTable("contract_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  countryCode: varchar("country_code", { length: 2 }).notNull(), // SK, CZ, HU, RO, IT, DE, US
+  languageCode: varchar("language_code", { length: 5 }).notNull(), // sk, cs, hu, ro, it, de, en
+  category: varchar("category", { length: 50 }).notNull().default("general"), // general, cord_blood, service, storage
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, published, archived
+  placeholders: text("placeholders"), // JSON array of available placeholders with descriptions
+  isDefault: boolean("is_default").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertContractTemplateSchema = createInsertSchema(contractTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertContractTemplate = z.infer<typeof insertContractTemplateSchema>;
+export type ContractTemplate = typeof contractTemplates.$inferSelect;
+
+// Contract Template Versions - version history for templates
+export const contractTemplateVersions = pgTable("contract_template_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull(),
+  version: integer("version").notNull().default(1),
+  contentHtml: text("content_html").notNull(), // HTML content with Handlebars placeholders
+  variablesSchema: text("variables_schema"), // JSON schema for validating variables
+  changeNotes: text("change_notes"),
+  isPublished: boolean("is_published").notNull().default(false),
+  publishedAt: timestamp("published_at"),
+  publishedBy: varchar("published_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertContractTemplateVersionSchema = createInsertSchema(contractTemplateVersions).omit({ id: true, createdAt: true });
+export type InsertContractTemplateVersion = z.infer<typeof insertContractTemplateVersionSchema>;
+export type ContractTemplateVersion = typeof contractTemplateVersions.$inferSelect;
+
+// Contract Instances - actual contracts generated from templates
+export const contractInstances = pgTable("contract_instances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractNumber: varchar("contract_number", { length: 50 }).notNull(), // e.g., ZML-2025-00001
+  templateId: varchar("template_id").notNull(),
+  templateVersionId: varchar("template_version_id").notNull(),
+  customerId: varchar("customer_id").notNull(),
+  billingDetailsId: varchar("billing_details_id").notNull(),
+  // Initiation source
+  initiatedFrom: varchar("initiated_from", { length: 20 }), // potential_case, quick_contact, direct
+  potentialCaseId: varchar("potential_case_id"),
+  quickContactId: varchar("quick_contact_id"),
+  // Status workflow
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, sent, pending_signature, signed, completed, cancelled, expired
+  // Validity
+  validFrom: date("valid_from"),
+  validTo: date("valid_to"),
+  // Financial totals
+  totalNetAmount: decimal("total_net_amount", { precision: 12, scale: 2 }),
+  totalVatAmount: decimal("total_vat_amount", { precision: 12, scale: 2 }),
+  totalGrossAmount: decimal("total_gross_amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
+  // Rendered content
+  renderedHtml: text("rendered_html"), // Final rendered HTML with all variables filled
+  pdfPath: text("pdf_path"), // Path to generated PDF
+  // Signature settings
+  signatureMode: varchar("signature_mode", { length: 20 }).notNull().default("simple"), // simple, advanced, qualified
+  // Denormalized snapshots for legal immutability
+  customerSnapshot: text("customer_snapshot"), // JSON snapshot of customer data at contract time
+  billingSnapshot: text("billing_snapshot"), // JSON snapshot of billing company data
+  // Notes
+  internalNotes: text("internal_notes"),
+  // Audit
+  createdBy: varchar("created_by"),
+  sentAt: timestamp("sent_at"),
+  sentBy: varchar("sent_by"),
+  signedAt: timestamp("signed_at"),
+  completedAt: timestamp("completed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelledBy: varchar("cancelled_by"),
+  cancellationReason: text("cancellation_reason"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertContractInstanceSchema = createInsertSchema(contractInstances).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertContractInstance = z.infer<typeof insertContractInstanceSchema>;
+export type ContractInstance = typeof contractInstances.$inferSelect;
+
+// Contract Instance Products - products/billsets linked to a contract
+export const contractInstanceProducts = pgTable("contract_instance_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  productSetId: varchar("product_set_id"), // FK to product_sets (billset)
+  productId: varchar("product_id"), // FK to market_products (individual product if not billset)
+  // Pricing snapshot (for legal immutability)
+  productSnapshot: text("product_snapshot"), // JSON with product name, description, etc.
+  priceSnapshot: text("price_snapshot"), // JSON with pricing details
+  installmentSnapshot: text("installment_snapshot"), // JSON with installment schedule if applicable
+  // Line amounts
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+  discountAmount: decimal("discount_amount", { precision: 12, scale: 2 }),
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }),
+  lineNetAmount: decimal("line_net_amount", { precision: 12, scale: 2 }),
+  lineVatAmount: decimal("line_vat_amount", { precision: 12, scale: 2 }),
+  lineGrossAmount: decimal("line_gross_amount", { precision: 12, scale: 2 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertContractInstanceProductSchema = createInsertSchema(contractInstanceProducts).omit({ id: true, createdAt: true });
+export type InsertContractInstanceProduct = z.infer<typeof insertContractInstanceProductSchema>;
+export type ContractInstanceProduct = typeof contractInstanceProducts.$inferSelect;
+
+// Contract Participants - parties involved in the contract
+export const contractParticipants = pgTable("contract_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  participantType: varchar("participant_type", { length: 20 }).notNull(), // customer, billing_company, internal_witness, guarantor
+  // Contact details (snapshot)
+  fullName: text("full_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  personalId: text("personal_id"), // for natural persons
+  companyId: text("company_id"), // IČO for companies
+  taxId: text("tax_id"), // DIČ
+  vatNumber: text("vat_number"), // IČ DPH
+  // Role and status
+  role: varchar("role", { length: 50 }), // signer, witness, authorized_representative
+  signatureRequired: boolean("signature_required").notNull().default(false),
+  signedAt: timestamp("signed_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertContractParticipantSchema = createInsertSchema(contractParticipants).omit({ id: true, createdAt: true });
+export type InsertContractParticipant = z.infer<typeof insertContractParticipantSchema>;
+export type ContractParticipant = typeof contractParticipants.$inferSelect;
+
+// Contract Signature Requests - signature collection with OTP verification
+export const contractSignatureRequests = pgTable("contract_signature_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  participantId: varchar("participant_id").notNull(), // FK to contract_participants
+  // Signer info
+  signerName: text("signer_name").notNull(),
+  signerEmail: text("signer_email"),
+  signerPhone: text("signer_phone"),
+  // Verification
+  verificationMethod: varchar("verification_method", { length: 20 }).notNull().default("email_otp"), // email_otp, sms_otp, both
+  otpCode: varchar("otp_code", { length: 10 }), // Generated OTP
+  otpExpiresAt: timestamp("otp_expires_at"),
+  otpVerifiedAt: timestamp("otp_verified_at"),
+  otpAttempts: integer("otp_attempts").notNull().default(0),
+  // Signature data
+  signatureType: varchar("signature_type", { length: 20 }).notNull().default("drawn"), // drawn, uploaded, typed
+  signatureData: text("signature_data"), // Base64 signature image or typed name
+  signatureHash: text("signature_hash"), // SHA-256 hash of signature
+  // Audit trail
+  requestSentAt: timestamp("request_sent_at"),
+  signedAt: timestamp("signed_at"),
+  signerIpAddress: text("signer_ip_address"),
+  signerUserAgent: text("signer_user_agent"),
+  // Status
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, sent, otp_verified, signed, expired, cancelled
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertContractSignatureRequestSchema = createInsertSchema(contractSignatureRequests).omit({ id: true, createdAt: true });
+export type InsertContractSignatureRequest = z.infer<typeof insertContractSignatureRequestSchema>;
+export type ContractSignatureRequest = typeof contractSignatureRequests.$inferSelect;
+
+// Contract Audit Log - complete audit trail for contracts
+export const contractAuditLog = pgTable("contract_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // created, updated, sent, viewed, otp_sent, otp_verified, signed, completed, cancelled
+  actorId: varchar("actor_id"), // User ID who performed action (null for system/customer)
+  actorType: varchar("actor_type", { length: 20 }).notNull().default("user"), // user, system, customer
+  actorName: text("actor_name"),
+  actorEmail: text("actor_email"),
+  // Context
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  details: text("details"), // JSON with additional details
+  previousValue: text("previous_value"), // For updates, JSON of previous state
+  newValue: text("new_value"), // For updates, JSON of new state
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertContractAuditLogSchema = createInsertSchema(contractAuditLog).omit({ id: true, createdAt: true });
+export type InsertContractAuditLog = z.infer<typeof insertContractAuditLogSchema>;
+export type ContractAuditLog = typeof contractAuditLog.$inferSelect;
+
+// Contract status enum for frontend use
+export const CONTRACT_STATUSES = [
+  { value: "draft", label: "Draft", color: "gray" },
+  { value: "sent", label: "Sent", color: "blue" },
+  { value: "pending_signature", label: "Pending Signature", color: "yellow" },
+  { value: "signed", label: "Signed", color: "green" },
+  { value: "completed", label: "Completed", color: "emerald" },
+  { value: "cancelled", label: "Cancelled", color: "red" },
+  { value: "expired", label: "Expired", color: "orange" },
+] as const;
+
+// Contract template placeholders reference
+export const CONTRACT_PLACEHOLDERS = {
+  customer: [
+    { key: "customer.fullName", label: "Customer Full Name", example: "Ján Novák" },
+    { key: "customer.firstName", label: "Customer First Name", example: "Ján" },
+    { key: "customer.lastName", label: "Customer Last Name", example: "Novák" },
+    { key: "customer.email", label: "Customer Email", example: "jan.novak@email.com" },
+    { key: "customer.phone", label: "Customer Phone", example: "+421 900 123 456" },
+    { key: "customer.address", label: "Customer Address", example: "Hlavná 1, 811 01 Bratislava" },
+    { key: "customer.birthDate", label: "Customer Birth Date", example: "15.03.1985" },
+    { key: "customer.personalId", label: "Customer Personal ID", example: "850315/1234" },
+  ],
+  billing: [
+    { key: "billing.companyName", label: "Company Name", example: "INDEXUS s.r.o." },
+    { key: "billing.ico", label: "IČO", example: "12345678" },
+    { key: "billing.dic", label: "DIČ", example: "2012345678" },
+    { key: "billing.vatNumber", label: "IČ DPH", example: "SK2012345678" },
+    { key: "billing.address", label: "Company Address", example: "Podnikateľská 5, 821 04 Bratislava" },
+    { key: "billing.iban", label: "IBAN", example: "SK12 1100 0000 0012 3456 7890" },
+    { key: "billing.swift", label: "SWIFT/BIC", example: "TATRSKBX" },
+    { key: "billing.bankName", label: "Bank Name", example: "Tatra banka" },
+    { key: "billing.phone", label: "Company Phone", example: "+421 2 1234 5678" },
+    { key: "billing.email", label: "Company Email", example: "info@indexus.sk" },
+  ],
+  contract: [
+    { key: "contract.number", label: "Contract Number", example: "ZML-2025-00001" },
+    { key: "contract.date", label: "Contract Date", example: "04.01.2025" },
+    { key: "contract.validFrom", label: "Valid From", example: "04.01.2025" },
+    { key: "contract.validTo", label: "Valid To", example: "04.01.2045" },
+    { key: "contract.totalNet", label: "Total Net Amount", example: "1 500,00" },
+    { key: "contract.totalVat", label: "Total VAT Amount", example: "300,00" },
+    { key: "contract.totalGross", label: "Total Gross Amount", example: "1 800,00" },
+    { key: "contract.currency", label: "Currency", example: "EUR" },
+  ],
+  products: [
+    { key: "products", label: "Product List (loop)", example: "{{#each products}}...{{/each}}" },
+    { key: "product.name", label: "Product Name", example: "Cord Blood Collection" },
+    { key: "product.price", label: "Product Price", example: "1 200,00" },
+    { key: "product.vat", label: "Product VAT", example: "240,00" },
+    { key: "product.total", label: "Product Total", example: "1 440,00" },
+    { key: "product.description", label: "Product Description", example: "Full cord blood collection service" },
+  ],
+  installments: [
+    { key: "installments", label: "Installment Schedule (loop)", example: "{{#each installments}}...{{/each}}" },
+    { key: "installment.number", label: "Installment Number", example: "1" },
+    { key: "installment.amount", label: "Installment Amount", example: "600,00" },
+    { key: "installment.dueDate", label: "Installment Due Date", example: "15.02.2025" },
+  ],
+} as const;

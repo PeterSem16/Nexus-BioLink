@@ -16,10 +16,13 @@ import {
   insertCampaignSchema, insertCampaignContactSchema, insertCampaignContactHistorySchema,
   insertSipSettingsSchema, insertCallLogSchema,
   insertInstanceVatRateSchema,
+  insertContractTemplateSchema, insertContractTemplateVersionSchema, insertContractInstanceSchema,
+  insertContractInstanceProductSchema, insertContractParticipantSchema, insertContractSignatureRequestSchema,
   type SafeUser, type Customer, type Product, type BillingDetails, type ActivityLog, type LeadScoringCriteria,
   type ServiceConfiguration, type InvoiceTemplate, type InvoiceLayout, type Role,
-  type Campaign, type CampaignContact
+  type Campaign, type CampaignContact, type ContractInstance
 } from "@shared/schema";
+import Handlebars from "handlebars";
 import { z } from "zod";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -6398,6 +6401,664 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating user Jira info:", error);
       res.status(500).json({ error: "Failed to update user Jira info" });
+    }
+  });
+
+  // ============================================
+  // CONTRACT MANAGEMENT ENDPOINTS
+  // ============================================
+
+  // Contract Templates
+  app.get("/api/contracts/templates", requireAuth, async (req, res) => {
+    try {
+      const { countryCode } = req.query;
+      const templates = countryCode 
+        ? await storage.getContractTemplatesByCountry(countryCode as string)
+        : await storage.getAllContractTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching contract templates:", error);
+      res.status(500).json({ error: "Failed to fetch contract templates" });
+    }
+  });
+
+  app.get("/api/contracts/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getContractTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching contract template:", error);
+      res.status(500).json({ error: "Failed to fetch contract template" });
+    }
+  });
+
+  app.post("/api/contracts/templates", requireAuth, async (req, res) => {
+    try {
+      const data = insertContractTemplateSchema.parse({
+        ...req.body,
+        createdBy: req.session.user!.id
+      });
+      const template = await storage.createContractTemplate(data);
+      
+      await logActivity(req.session.user!.id, "create", "contract_template", template.id, template.name, null, req.ip);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating contract template:", error);
+      res.status(500).json({ error: "Failed to create contract template" });
+    }
+  });
+
+  app.patch("/api/contracts/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.updateContractTemplate(req.params.id, req.body);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      await logActivity(req.session.user!.id, "update", "contract_template", template.id, template.name, null, req.ip);
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating contract template:", error);
+      res.status(500).json({ error: "Failed to update contract template" });
+    }
+  });
+
+  app.delete("/api/contracts/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getContractTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      await storage.deleteContractTemplate(req.params.id);
+      await logActivity(req.session.user!.id, "delete", "contract_template", template.id, template.name, null, req.ip);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contract template:", error);
+      res.status(500).json({ error: "Failed to delete contract template" });
+    }
+  });
+
+  // Contract Template Versions
+  app.get("/api/contracts/templates/:templateId/versions", requireAuth, async (req, res) => {
+    try {
+      const versions = await storage.getContractTemplateVersions(req.params.templateId);
+      res.json(versions);
+    } catch (error) {
+      console.error("Error fetching template versions:", error);
+      res.status(500).json({ error: "Failed to fetch template versions" });
+    }
+  });
+
+  app.post("/api/contracts/templates/:templateId/versions", requireAuth, async (req, res) => {
+    try {
+      const data = insertContractTemplateVersionSchema.parse({
+        ...req.body,
+        templateId: req.params.templateId
+      });
+      const version = await storage.createContractTemplateVersion(data);
+      res.status(201).json(version);
+    } catch (error) {
+      console.error("Error creating template version:", error);
+      res.status(500).json({ error: "Failed to create template version" });
+    }
+  });
+
+  app.post("/api/contracts/templates/:templateId/versions/:versionId/publish", requireAuth, async (req, res) => {
+    try {
+      const version = await storage.publishContractTemplateVersion(req.params.versionId, req.session.user!.id);
+      if (!version) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+      
+      await storage.updateContractTemplate(req.params.templateId, { status: "published" });
+      res.json(version);
+    } catch (error) {
+      console.error("Error publishing template version:", error);
+      res.status(500).json({ error: "Failed to publish template version" });
+    }
+  });
+
+  // Contract Instances
+  app.get("/api/contracts", requireAuth, async (req, res) => {
+    try {
+      const { customerId, status } = req.query;
+      let contracts;
+      if (customerId) {
+        contracts = await storage.getContractInstancesByCustomer(customerId as string);
+      } else if (status) {
+        contracts = await storage.getContractInstancesByStatus(status as string);
+      } else {
+        contracts = await storage.getAllContractInstances();
+      }
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+      res.status(500).json({ error: "Failed to fetch contracts" });
+    }
+  });
+
+  app.get("/api/contracts/next-number", requireAuth, async (req, res) => {
+    try {
+      const prefix = (req.query.prefix as string) || "ZML";
+      const number = await storage.getNextContractNumber(prefix);
+      res.json({ contractNumber: number });
+    } catch (error) {
+      console.error("Error generating contract number:", error);
+      res.status(500).json({ error: "Failed to generate contract number" });
+    }
+  });
+
+  app.get("/api/contracts/:id", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const [products, participants, signatureRequests, auditLog] = await Promise.all([
+        storage.getContractInstanceProducts(contract.id),
+        storage.getContractParticipants(contract.id),
+        storage.getContractSignatureRequests(contract.id),
+        storage.getContractAuditLog(contract.id)
+      ]);
+      
+      res.json({ ...contract, products, participants, signatureRequests, auditLog });
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+      res.status(500).json({ error: "Failed to fetch contract" });
+    }
+  });
+
+  app.post("/api/contracts", requireAuth, async (req, res) => {
+    try {
+      const contractNumber = await storage.getNextContractNumber(req.body.prefix || "ZML");
+      
+      const data = insertContractInstanceSchema.parse({
+        ...req.body,
+        contractNumber,
+        createdBy: req.session.user!.id
+      });
+      
+      const contract = await storage.createContractInstance(data);
+      
+      await storage.createContractAuditLog({
+        contractId: contract.id,
+        action: "created",
+        actorId: req.session.user!.id,
+        actorType: "user",
+        actorName: req.session.user!.fullName,
+        actorEmail: req.session.user!.email,
+        ipAddress: req.ip,
+        details: JSON.stringify({ status: "draft" })
+      });
+      
+      await logActivity(req.session.user!.id, "create", "contract", contract.id, contract.contractNumber, null, req.ip);
+      res.status(201).json(contract);
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      res.status(500).json({ error: "Failed to create contract" });
+    }
+  });
+
+  app.patch("/api/contracts/:id", requireAuth, async (req, res) => {
+    try {
+      const existingContract = await storage.getContractInstance(req.params.id);
+      if (!existingContract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const contract = await storage.updateContractInstance(req.params.id, req.body);
+      
+      await storage.createContractAuditLog({
+        contractId: contract!.id,
+        action: "updated",
+        actorId: req.session.user!.id,
+        actorType: "user",
+        actorName: req.session.user!.fullName,
+        actorEmail: req.session.user!.email,
+        ipAddress: req.ip,
+        previousValue: JSON.stringify(existingContract),
+        newValue: JSON.stringify(contract)
+      });
+      
+      res.json(contract);
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      res.status(500).json({ error: "Failed to update contract" });
+    }
+  });
+
+  app.delete("/api/contracts/:id", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      await storage.deleteContractInstanceProducts(contract.id);
+      await storage.deleteContractInstance(req.params.id);
+      
+      await logActivity(req.session.user!.id, "delete", "contract", contract.id, contract.contractNumber, null, req.ip);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      res.status(500).json({ error: "Failed to delete contract" });
+    }
+  });
+
+  // Contract Instance Products
+  app.post("/api/contracts/:id/products", requireAuth, async (req, res) => {
+    try {
+      const data = insertContractInstanceProductSchema.parse({
+        ...req.body,
+        contractId: req.params.id
+      });
+      const product = await storage.createContractInstanceProduct(data);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error adding contract product:", error);
+      res.status(500).json({ error: "Failed to add contract product" });
+    }
+  });
+
+  app.delete("/api/contracts/:contractId/products/:productId", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteContractInstanceProduct(req.params.productId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing contract product:", error);
+      res.status(500).json({ error: "Failed to remove contract product" });
+    }
+  });
+
+  // Contract Participants
+  app.post("/api/contracts/:id/participants", requireAuth, async (req, res) => {
+    try {
+      const data = insertContractParticipantSchema.parse({
+        ...req.body,
+        contractId: req.params.id
+      });
+      const participant = await storage.createContractParticipant(data);
+      res.status(201).json(participant);
+    } catch (error) {
+      console.error("Error adding contract participant:", error);
+      res.status(500).json({ error: "Failed to add contract participant" });
+    }
+  });
+
+  // Contract Rendering with Handlebars
+  app.post("/api/contracts/:id/render", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const templateVersion = await storage.getContractTemplateVersion(contract.templateVersionId);
+      if (!templateVersion) {
+        return res.status(404).json({ error: "Template version not found" });
+      }
+      
+      const [customer, billingDetails, products] = await Promise.all([
+        storage.getCustomer(contract.customerId),
+        storage.getBillingDetails(contract.billingDetailsId),
+        storage.getContractInstanceProducts(contract.id)
+      ]);
+      
+      const template = Handlebars.compile(templateVersion.contentHtml);
+      
+      const context = {
+        customer: {
+          fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
+          firstName: customer?.firstName || "",
+          lastName: customer?.lastName || "",
+          email: customer?.email || "",
+          phone: customer?.phone || "",
+          address: [customer?.address, customer?.city, customer?.postalCode].filter(Boolean).join(", "),
+          birthDate: customer?.dateOfBirth || "",
+          personalId: customer?.nationalId || ""
+        },
+        billing: {
+          companyName: billingDetails?.companyName || "",
+          ico: billingDetails?.ico || "",
+          dic: billingDetails?.dic || "",
+          vatNumber: billingDetails?.vatNumber || "",
+          address: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
+          iban: billingDetails?.bankIban || "",
+          swift: billingDetails?.bankSwift || "",
+          bankName: billingDetails?.bankName || "",
+          phone: billingDetails?.phone || "",
+          email: billingDetails?.email || ""
+        },
+        contract: {
+          number: contract.contractNumber,
+          date: new Date().toLocaleDateString("sk-SK"),
+          validFrom: contract.validFrom || "",
+          validTo: contract.validTo || "",
+          totalNet: contract.totalNetAmount || "0",
+          totalVat: contract.totalVatAmount || "0",
+          totalGross: contract.totalGrossAmount || "0",
+          currency: contract.currency
+        },
+        products: products.map(p => {
+          const snapshot = p.productSnapshot ? JSON.parse(p.productSnapshot) : {};
+          return {
+            name: snapshot.name || "",
+            price: p.unitPrice || "0",
+            vat: p.lineVatAmount || "0",
+            total: p.lineGrossAmount || "0",
+            description: snapshot.description || ""
+          };
+        })
+      };
+      
+      const renderedHtml = template(context);
+      
+      await storage.updateContractInstance(contract.id, { renderedHtml });
+      
+      res.json({ html: renderedHtml, context });
+    } catch (error) {
+      console.error("Error rendering contract:", error);
+      res.status(500).json({ error: "Failed to render contract" });
+    }
+  });
+
+  // Send contract for signature
+  app.post("/api/contracts/:id/send", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const participants = await storage.getContractParticipants(contract.id);
+      const signers = participants.filter(p => p.signatureRequired);
+      
+      if (signers.length === 0) {
+        return res.status(400).json({ error: "No signers defined for this contract" });
+      }
+      
+      const createdSignatureRequests = [];
+      for (const signer of signers) {
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        
+        const signatureRequest = await storage.createContractSignatureRequest({
+          contractId: contract.id,
+          participantId: signer.id,
+          signerName: signer.fullName,
+          signerEmail: signer.email,
+          signerPhone: signer.phone,
+          verificationMethod: signer.email ? "email_otp" : "sms_otp",
+          otpCode,
+          otpExpiresAt: expiresAt,
+          status: "sent",
+          requestSentAt: new Date(),
+          expiresAt
+        });
+        createdSignatureRequests.push(signatureRequest);
+        
+        if (signer.email) {
+          const { sendEmail } = await import("./email");
+          await sendEmail({
+            to: signer.email,
+            subject: `Zmluva č. ${contract.contractNumber} - Žiadosť o podpis`,
+            html: `
+              <h2>Dobrý deň ${signer.fullName},</h2>
+              <p>Bola Vám odoslaná zmluva č. <strong>${contract.contractNumber}</strong> na podpis.</p>
+              <p>Váš overovací kód je: <strong style="font-size: 24px;">${otpCode}</strong></p>
+              <p>Kód je platný 24 hodín.</p>
+              <p>Pre podpísanie zmluvy prosím použite tento kód v systéme INDEXUS.</p>
+              <br>
+              <p>S pozdravom,<br>INDEXUS CRM</p>
+            `
+          });
+        }
+      }
+      
+      await storage.updateContractInstance(contract.id, {
+        status: "sent",
+        sentAt: new Date(),
+        sentBy: req.session.user!.id
+      });
+      
+      await storage.createContractAuditLog({
+        contractId: contract.id,
+        action: "sent",
+        actorId: req.session.user!.id,
+        actorType: "user",
+        actorName: req.session.user!.fullName,
+        actorEmail: req.session.user!.email,
+        ipAddress: req.ip,
+        details: JSON.stringify({ signersCount: signers.length })
+      });
+      
+      res.json({ 
+        success: true, 
+        signersCount: signers.length,
+        signatureRequests: createdSignatureRequests.map(sr => ({
+          id: sr.id,
+          signerName: sr.signerName,
+          signerEmail: sr.signerEmail,
+          status: sr.status
+        }))
+      });
+    } catch (error) {
+      console.error("Error sending contract:", error);
+      res.status(500).json({ error: "Failed to send contract" });
+    }
+  });
+
+  // Get signature requests for a contract
+  app.get("/api/contracts/:id/signature-requests", requireAuth, async (req, res) => {
+    try {
+      const signatureRequests = await storage.getContractSignatureRequests(req.params.id);
+      res.json(signatureRequests);
+    } catch (error) {
+      console.error("Error fetching signature requests:", error);
+      res.status(500).json({ error: "Failed to fetch signature requests" });
+    }
+  });
+
+  // Verify OTP for signature
+  app.post("/api/contracts/:id/verify-otp", async (req, res) => {
+    try {
+      const { otpCode, signatureRequestId } = req.body;
+      
+      let signatureRequest;
+      if (signatureRequestId) {
+        signatureRequest = await storage.getContractSignatureRequest(signatureRequestId);
+      } else {
+        const requests = await storage.getContractSignatureRequests(req.params.id);
+        signatureRequest = requests.find(r => r.status === "sent");
+      }
+      
+      if (!signatureRequest) {
+        return res.status(404).json({ error: "Signature request not found" });
+      }
+      
+      if (signatureRequest.otpCode !== otpCode) {
+        await storage.updateContractSignatureRequest(signatureRequest.id, {
+          otpAttempts: signatureRequest.otpAttempts + 1
+        });
+        return res.status(400).json({ error: "Invalid OTP code" });
+      }
+      
+      if (signatureRequest.otpExpiresAt && new Date() > signatureRequest.otpExpiresAt) {
+        return res.status(400).json({ error: "OTP code has expired" });
+      }
+      
+      await storage.updateContractSignatureRequest(signatureRequest.id, {
+        status: "otp_verified",
+        otpVerifiedAt: new Date()
+      });
+      
+      await storage.createContractAuditLog({
+        contractId: signatureRequest.contractId,
+        action: "otp_verified",
+        actorType: "customer",
+        actorName: signatureRequest.signerName,
+        actorEmail: signatureRequest.signerEmail,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent")
+      });
+      
+      res.json({ success: true, verified: true, signatureRequestId: signatureRequest.id });
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      res.status(500).json({ error: "Failed to verify OTP" });
+    }
+  });
+
+  // Submit signature
+  app.post("/api/contracts/:id/sign", async (req, res) => {
+    try {
+      const { signatureRequestId, signatureData, signatureType } = req.body;
+      
+      let signatureRequest;
+      if (signatureRequestId) {
+        signatureRequest = await storage.getContractSignatureRequest(signatureRequestId);
+      } else {
+        const requests = await storage.getContractSignatureRequests(req.params.id);
+        signatureRequest = requests.find(r => r.status === "otp_verified");
+      }
+      
+      if (!signatureRequest) {
+        return res.status(404).json({ error: "Signature request not found" });
+      }
+      
+      if (signatureRequest.status !== "otp_verified") {
+        return res.status(400).json({ error: "OTP verification required before signing" });
+      }
+      
+      const crypto = await import("crypto");
+      const signatureHash = crypto.createHash("sha256").update(signatureData).digest("hex");
+      
+      await storage.updateContractSignatureRequest(signatureRequest.id, {
+        status: "signed",
+        signedAt: new Date(),
+        signatureType: signatureType || "drawn",
+        signatureData,
+        signatureHash,
+        signerIpAddress: req.ip,
+        signerUserAgent: req.get("User-Agent")
+      });
+      
+      await storage.updateContractParticipant(signatureRequest.participantId, {
+        signedAt: new Date()
+      });
+      
+      const allRequests = await storage.getContractSignatureRequests(signatureRequest.contractId);
+      const allSigned = allRequests.every(r => r.status === "signed");
+      
+      if (allSigned) {
+        await storage.updateContractInstance(signatureRequest.contractId, {
+          status: "signed",
+          signedAt: new Date()
+        });
+      } else {
+        await storage.updateContractInstance(signatureRequest.contractId, {
+          status: "pending_signature"
+        });
+      }
+      
+      await storage.createContractAuditLog({
+        contractId: signatureRequest.contractId,
+        action: "signed",
+        actorType: "customer",
+        actorName: signatureRequest.signerName,
+        actorEmail: signatureRequest.signerEmail,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+        details: JSON.stringify({ signatureHash, allSigned })
+      });
+      
+      res.json({ success: true, allSigned });
+    } catch (error) {
+      console.error("Error submitting signature:", error);
+      res.status(500).json({ error: "Failed to submit signature" });
+    }
+  });
+
+  // Complete contract
+  app.post("/api/contracts/:id/complete", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      if (contract.status !== "signed") {
+        return res.status(400).json({ error: "Contract must be signed before completing" });
+      }
+      
+      await storage.updateContractInstance(contract.id, {
+        status: "completed",
+        completedAt: new Date()
+      });
+      
+      await storage.createContractAuditLog({
+        contractId: contract.id,
+        action: "completed",
+        actorId: req.session.user!.id,
+        actorType: "user",
+        actorName: req.session.user!.fullName,
+        actorEmail: req.session.user!.email,
+        ipAddress: req.ip
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing contract:", error);
+      res.status(500).json({ error: "Failed to complete contract" });
+    }
+  });
+
+  // Cancel contract
+  app.post("/api/contracts/:id/cancel", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const { reason } = req.body;
+      
+      await storage.updateContractInstance(contract.id, {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: req.session.user!.id,
+        cancellationReason: reason
+      });
+      
+      await storage.createContractAuditLog({
+        contractId: contract.id,
+        action: "cancelled",
+        actorId: req.session.user!.id,
+        actorType: "user",
+        actorName: req.session.user!.fullName,
+        actorEmail: req.session.user!.email,
+        ipAddress: req.ip,
+        details: JSON.stringify({ reason })
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error cancelling contract:", error);
+      res.status(500).json({ error: "Failed to cancel contract" });
+    }
+  });
+
+  // Get contract audit log
+  app.get("/api/contracts/:id/audit-log", requireAuth, async (req, res) => {
+    try {
+      const auditLog = await storage.getContractAuditLog(req.params.id);
+      res.json(auditLog);
+    } catch (error) {
+      console.error("Error fetching contract audit log:", error);
+      res.status(500).json({ error: "Failed to fetch audit log" });
     }
   });
 

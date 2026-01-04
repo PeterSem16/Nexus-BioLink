@@ -59,6 +59,8 @@ import {
   type CampaignMetricsSnapshot, type InsertCampaignMetricsSnapshot,
   sipSettings, callLogs, chatMessages, exchangeRates, inflationRates,
   productSets, productSetCollections, productSetStorage, customerConsents, tasks, taskComments,
+  contractTemplates, contractTemplateVersions, contractInstances, contractInstanceProducts,
+  contractParticipants, contractSignatureRequests, contractAuditLog,
   type SipSettings, type InsertSipSettings,
   type CallLog, type InsertCallLog,
   type ProductSet, type InsertProductSet,
@@ -69,7 +71,14 @@ import {
   type TaskComment, type InsertTaskComment,
   type ChatMessage, type InsertChatMessage,
   type ExchangeRate, type InsertExchangeRate,
-  type InflationRate, type InsertInflationRate
+  type InflationRate, type InsertInflationRate,
+  type ContractTemplate, type InsertContractTemplate,
+  type ContractTemplateVersion, type InsertContractTemplateVersion,
+  type ContractInstance, type InsertContractInstance,
+  type ContractInstanceProduct, type InsertContractInstanceProduct,
+  type ContractParticipant, type InsertContractParticipant,
+  type ContractSignatureRequest, type InsertContractSignatureRequest,
+  type ContractAuditLog, type InsertContractAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
@@ -509,6 +518,58 @@ export interface IStorage {
   getInflationRates(country?: string): Promise<InflationRate[]>;
   upsertInflationRate(data: InsertInflationRate): Promise<InflationRate>;
   getInflationRatesLastUpdate(country?: string): Promise<Date | null>;
+
+  // Contract Templates
+  getAllContractTemplates(): Promise<ContractTemplate[]>;
+  getContractTemplatesByCountry(countryCode: string): Promise<ContractTemplate[]>;
+  getContractTemplate(id: string): Promise<ContractTemplate | undefined>;
+  createContractTemplate(data: InsertContractTemplate): Promise<ContractTemplate>;
+  updateContractTemplate(id: string, data: Partial<InsertContractTemplate>): Promise<ContractTemplate | undefined>;
+  deleteContractTemplate(id: string): Promise<boolean>;
+
+  // Contract Template Versions
+  getContractTemplateVersions(templateId: string): Promise<ContractTemplateVersion[]>;
+  getContractTemplateVersion(id: string): Promise<ContractTemplateVersion | undefined>;
+  getLatestPublishedVersion(templateId: string): Promise<ContractTemplateVersion | undefined>;
+  createContractTemplateVersion(data: InsertContractTemplateVersion): Promise<ContractTemplateVersion>;
+  updateContractTemplateVersion(id: string, data: Partial<InsertContractTemplateVersion>): Promise<ContractTemplateVersion | undefined>;
+  publishContractTemplateVersion(id: string, publishedBy: string): Promise<ContractTemplateVersion | undefined>;
+
+  // Contract Instances
+  getAllContractInstances(): Promise<ContractInstance[]>;
+  getContractInstancesByCustomer(customerId: string): Promise<ContractInstance[]>;
+  getContractInstancesByStatus(status: string): Promise<ContractInstance[]>;
+  getContractInstance(id: string): Promise<ContractInstance | undefined>;
+  getContractInstanceByNumber(contractNumber: string): Promise<ContractInstance | undefined>;
+  createContractInstance(data: InsertContractInstance): Promise<ContractInstance>;
+  updateContractInstance(id: string, data: Partial<InsertContractInstance>): Promise<ContractInstance | undefined>;
+  deleteContractInstance(id: string): Promise<boolean>;
+  getNextContractNumber(prefix?: string): Promise<string>;
+
+  // Contract Instance Products
+  getContractInstanceProducts(contractId: string): Promise<ContractInstanceProduct[]>;
+  createContractInstanceProduct(data: InsertContractInstanceProduct): Promise<ContractInstanceProduct>;
+  updateContractInstanceProduct(id: string, data: Partial<InsertContractInstanceProduct>): Promise<ContractInstanceProduct | undefined>;
+  deleteContractInstanceProduct(id: string): Promise<boolean>;
+  deleteContractInstanceProducts(contractId: string): Promise<boolean>;
+
+  // Contract Participants
+  getContractParticipants(contractId: string): Promise<ContractParticipant[]>;
+  getContractParticipant(id: string): Promise<ContractParticipant | undefined>;
+  createContractParticipant(data: InsertContractParticipant): Promise<ContractParticipant>;
+  updateContractParticipant(id: string, data: Partial<InsertContractParticipant>): Promise<ContractParticipant | undefined>;
+  deleteContractParticipant(id: string): Promise<boolean>;
+
+  // Contract Signature Requests
+  getContractSignatureRequests(contractId: string): Promise<ContractSignatureRequest[]>;
+  getContractSignatureRequest(id: string): Promise<ContractSignatureRequest | undefined>;
+  getSignatureRequestByOtp(contractId: string, otpCode: string): Promise<ContractSignatureRequest | undefined>;
+  createContractSignatureRequest(data: InsertContractSignatureRequest): Promise<ContractSignatureRequest>;
+  updateContractSignatureRequest(id: string, data: Partial<InsertContractSignatureRequest>): Promise<ContractSignatureRequest | undefined>;
+
+  // Contract Audit Log
+  getContractAuditLog(contractId: string): Promise<ContractAuditLog[]>;
+  createContractAuditLog(data: InsertContractAuditLog): Promise<ContractAuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3051,6 +3112,247 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(inflationRates.updatedAt))
       .limit(1);
     return rate?.updatedAt || null;
+  }
+
+  // Contract Templates
+  async getAllContractTemplates(): Promise<ContractTemplate[]> {
+    return db.select().from(contractTemplates).orderBy(contractTemplates.sortOrder);
+  }
+
+  async getContractTemplatesByCountry(countryCode: string): Promise<ContractTemplate[]> {
+    return db.select().from(contractTemplates)
+      .where(eq(contractTemplates.countryCode, countryCode))
+      .orderBy(contractTemplates.sortOrder);
+  }
+
+  async getContractTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.select().from(contractTemplates).where(eq(contractTemplates.id, id));
+    return template || undefined;
+  }
+
+  async createContractTemplate(data: InsertContractTemplate): Promise<ContractTemplate> {
+    const [template] = await db.insert(contractTemplates).values(data).returning();
+    return template;
+  }
+
+  async updateContractTemplate(id: string, data: Partial<InsertContractTemplate>): Promise<ContractTemplate | undefined> {
+    const [template] = await db.update(contractTemplates)
+      .set({ ...data, updatedAt: sql`now()` })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return template || undefined;
+  }
+
+  async deleteContractTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(contractTemplates).where(eq(contractTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Contract Template Versions
+  async getContractTemplateVersions(templateId: string): Promise<ContractTemplateVersion[]> {
+    return db.select().from(contractTemplateVersions)
+      .where(eq(contractTemplateVersions.templateId, templateId))
+      .orderBy(desc(contractTemplateVersions.version));
+  }
+
+  async getContractTemplateVersion(id: string): Promise<ContractTemplateVersion | undefined> {
+    const [version] = await db.select().from(contractTemplateVersions).where(eq(contractTemplateVersions.id, id));
+    return version || undefined;
+  }
+
+  async getLatestPublishedVersion(templateId: string): Promise<ContractTemplateVersion | undefined> {
+    const [version] = await db.select().from(contractTemplateVersions)
+      .where(and(
+        eq(contractTemplateVersions.templateId, templateId),
+        eq(contractTemplateVersions.isPublished, true)
+      ))
+      .orderBy(desc(contractTemplateVersions.version))
+      .limit(1);
+    return version || undefined;
+  }
+
+  async createContractTemplateVersion(data: InsertContractTemplateVersion): Promise<ContractTemplateVersion> {
+    const versions = await this.getContractTemplateVersions(data.templateId);
+    const nextVersion = versions.length > 0 ? Math.max(...versions.map(v => v.version)) + 1 : 1;
+    const [version] = await db.insert(contractTemplateVersions).values({ ...data, version: nextVersion }).returning();
+    return version;
+  }
+
+  async updateContractTemplateVersion(id: string, data: Partial<InsertContractTemplateVersion>): Promise<ContractTemplateVersion | undefined> {
+    const [version] = await db.update(contractTemplateVersions)
+      .set(data)
+      .where(eq(contractTemplateVersions.id, id))
+      .returning();
+    return version || undefined;
+  }
+
+  async publishContractTemplateVersion(id: string, publishedBy: string): Promise<ContractTemplateVersion | undefined> {
+    const [version] = await db.update(contractTemplateVersions)
+      .set({ isPublished: true, publishedAt: sql`now()`, publishedBy })
+      .where(eq(contractTemplateVersions.id, id))
+      .returning();
+    return version || undefined;
+  }
+
+  // Contract Instances
+  async getAllContractInstances(): Promise<ContractInstance[]> {
+    return db.select().from(contractInstances).orderBy(desc(contractInstances.createdAt));
+  }
+
+  async getContractInstancesByCustomer(customerId: string): Promise<ContractInstance[]> {
+    return db.select().from(contractInstances)
+      .where(eq(contractInstances.customerId, customerId))
+      .orderBy(desc(contractInstances.createdAt));
+  }
+
+  async getContractInstancesByStatus(status: string): Promise<ContractInstance[]> {
+    return db.select().from(contractInstances)
+      .where(eq(contractInstances.status, status))
+      .orderBy(desc(contractInstances.createdAt));
+  }
+
+  async getContractInstance(id: string): Promise<ContractInstance | undefined> {
+    const [instance] = await db.select().from(contractInstances).where(eq(contractInstances.id, id));
+    return instance || undefined;
+  }
+
+  async getContractInstanceByNumber(contractNumber: string): Promise<ContractInstance | undefined> {
+    const [instance] = await db.select().from(contractInstances).where(eq(contractInstances.contractNumber, contractNumber));
+    return instance || undefined;
+  }
+
+  async createContractInstance(data: InsertContractInstance): Promise<ContractInstance> {
+    const [instance] = await db.insert(contractInstances).values(data).returning();
+    return instance;
+  }
+
+  async updateContractInstance(id: string, data: Partial<InsertContractInstance>): Promise<ContractInstance | undefined> {
+    const [instance] = await db.update(contractInstances)
+      .set({ ...data, updatedAt: sql`now()` })
+      .where(eq(contractInstances.id, id))
+      .returning();
+    return instance || undefined;
+  }
+
+  async deleteContractInstance(id: string): Promise<boolean> {
+    const result = await db.delete(contractInstances).where(eq(contractInstances.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getNextContractNumber(prefix: string = "ZML"): Promise<string> {
+    const year = new Date().getFullYear();
+    const contracts = await db.select().from(contractInstances)
+      .where(sql`${contractInstances.contractNumber} LIKE ${`${prefix}-${year}-%`}`)
+      .orderBy(desc(contractInstances.createdAt));
+    
+    let nextNum = 1;
+    if (contracts.length > 0) {
+      const lastNumber = contracts[0].contractNumber.split('-').pop();
+      nextNum = parseInt(lastNumber || '0', 10) + 1;
+    }
+    return `${prefix}-${year}-${String(nextNum).padStart(5, '0')}`;
+  }
+
+  // Contract Instance Products
+  async getContractInstanceProducts(contractId: string): Promise<ContractInstanceProduct[]> {
+    return db.select().from(contractInstanceProducts)
+      .where(eq(contractInstanceProducts.contractId, contractId))
+      .orderBy(contractInstanceProducts.sortOrder);
+  }
+
+  async createContractInstanceProduct(data: InsertContractInstanceProduct): Promise<ContractInstanceProduct> {
+    const [product] = await db.insert(contractInstanceProducts).values(data).returning();
+    return product;
+  }
+
+  async updateContractInstanceProduct(id: string, data: Partial<InsertContractInstanceProduct>): Promise<ContractInstanceProduct | undefined> {
+    const [product] = await db.update(contractInstanceProducts)
+      .set(data)
+      .where(eq(contractInstanceProducts.id, id))
+      .returning();
+    return product || undefined;
+  }
+
+  async deleteContractInstanceProduct(id: string): Promise<boolean> {
+    const result = await db.delete(contractInstanceProducts).where(eq(contractInstanceProducts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deleteContractInstanceProducts(contractId: string): Promise<boolean> {
+    await db.delete(contractInstanceProducts).where(eq(contractInstanceProducts.contractId, contractId));
+    return true;
+  }
+
+  // Contract Participants
+  async getContractParticipants(contractId: string): Promise<ContractParticipant[]> {
+    return db.select().from(contractParticipants).where(eq(contractParticipants.contractId, contractId));
+  }
+
+  async getContractParticipant(id: string): Promise<ContractParticipant | undefined> {
+    const [participant] = await db.select().from(contractParticipants).where(eq(contractParticipants.id, id));
+    return participant || undefined;
+  }
+
+  async createContractParticipant(data: InsertContractParticipant): Promise<ContractParticipant> {
+    const [participant] = await db.insert(contractParticipants).values(data).returning();
+    return participant;
+  }
+
+  async updateContractParticipant(id: string, data: Partial<InsertContractParticipant>): Promise<ContractParticipant | undefined> {
+    const [participant] = await db.update(contractParticipants)
+      .set(data)
+      .where(eq(contractParticipants.id, id))
+      .returning();
+    return participant || undefined;
+  }
+
+  async deleteContractParticipant(id: string): Promise<boolean> {
+    const result = await db.delete(contractParticipants).where(eq(contractParticipants.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Contract Signature Requests
+  async getContractSignatureRequests(contractId: string): Promise<ContractSignatureRequest[]> {
+    return db.select().from(contractSignatureRequests).where(eq(contractSignatureRequests.contractId, contractId));
+  }
+
+  async getContractSignatureRequest(id: string): Promise<ContractSignatureRequest | undefined> {
+    const [request] = await db.select().from(contractSignatureRequests).where(eq(contractSignatureRequests.id, id));
+    return request || undefined;
+  }
+
+  async getSignatureRequestByOtp(contractId: string, otpCode: string): Promise<ContractSignatureRequest | undefined> {
+    const [request] = await db.select().from(contractSignatureRequests)
+      .where(and(
+        eq(contractSignatureRequests.contractId, contractId),
+        eq(contractSignatureRequests.otpCode, otpCode)
+      ));
+    return request || undefined;
+  }
+
+  async createContractSignatureRequest(data: InsertContractSignatureRequest): Promise<ContractSignatureRequest> {
+    const [request] = await db.insert(contractSignatureRequests).values(data).returning();
+    return request;
+  }
+
+  async updateContractSignatureRequest(id: string, data: Partial<InsertContractSignatureRequest>): Promise<ContractSignatureRequest | undefined> {
+    const [request] = await db.update(contractSignatureRequests)
+      .set(data)
+      .where(eq(contractSignatureRequests.id, id))
+      .returning();
+    return request || undefined;
+  }
+
+  // Contract Audit Log
+  async getContractAuditLog(contractId: string): Promise<ContractAuditLog[]> {
+    return db.select().from(contractAuditLog)
+      .where(eq(contractAuditLog.contractId, contractId))
+      .orderBy(desc(contractAuditLog.createdAt));
+  }
+
+  async createContractAuditLog(data: InsertContractAuditLog): Promise<ContractAuditLog> {
+    const [log] = await db.insert(contractAuditLog).values(data).returning();
+    return log;
   }
 }
 

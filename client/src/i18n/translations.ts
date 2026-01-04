@@ -20,6 +20,7 @@ export interface Translations {
     collaborators: string;
     campaigns: string;
     tasks: string;
+    contracts: string;
     users: string;
     settings: string;
     konfigurator: string;
@@ -1453,6 +1454,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Collaborators',
       campaigns: 'Campaigns',
       tasks: 'Tasks',
+      contracts: 'Contracts',
       users: 'Users',
       settings: 'Settings',
       konfigurator: 'Configurator',
@@ -2918,6 +2920,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Spolupracovníci',
       campaigns: 'Kampane',
       tasks: 'Úlohy',
+      contracts: 'Zmluvy',
       users: 'Používatelia',
       settings: 'Nastavenia',
       konfigurator: 'Konfigurátor',
@@ -4383,6 +4386,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Spolupracovníci',
       campaigns: 'Kampaně',
       tasks: 'Úkoly',
+      contracts: 'Smlouvy',
       users: 'Uživatelé',
       settings: 'Nastavení',
       konfigurator: 'Konfigurátor',
@@ -5811,6 +5815,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Munkatársak',
       campaigns: 'Kampányok',
       tasks: 'Feladatok',
+      contracts: 'Szerződések',
       users: 'Felhasználók',
       settings: 'Beállítások',
       konfigurator: 'Konfigurátor',
@@ -7239,6 +7244,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Colaboratori',
       campaigns: 'Campanii',
       tasks: 'Sarcini',
+      contracts: 'Contracte',
       users: 'Utilizatori',
       settings: 'Setări',
       konfigurator: 'Configurator',
@@ -8667,6 +8673,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Collaboratori',
       campaigns: 'Campagne',
       tasks: 'Attività',
+      contracts: 'Contratti',
       users: 'Utenti',
       settings: 'Impostazioni',
       konfigurator: 'Configuratore',
@@ -10095,6 +10102,7 @@ export const translations: Record<Locale, Translations> = {
       collaborators: 'Mitarbeiter',
       campaigns: 'Kampagnen',
       tasks: 'Aufgaben',
+      contracts: 'Verträge',
       users: 'Benutzer',
       settings: 'Einstellungen',
       konfigurator: 'Konfigurator',

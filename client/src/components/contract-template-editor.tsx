@@ -1,13 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Label } from "@/components/ui/label";
 import {
   Collapsible,
   CollapsibleContent,
@@ -23,8 +20,6 @@ import {
   Building2,
   Package,
   FileText,
-  Plus,
-  Save,
   Eye,
   RotateCcw,
   Copy,
@@ -35,12 +30,14 @@ import {
   Mail,
   Phone,
   MapPin,
-  CreditCard,
   Percent,
   DollarSign,
   Globe,
   Info,
+  Code,
+  Type,
 } from "lucide-react";
+import Editor, { BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough, BtnUndo, BtnRedo, BtnBulletList, BtnNumberedList, BtnLink, Separator as EditorSeparator, Toolbar } from "react-simple-wysiwyg";
 
 const AVAILABLE_FIELDS = {
   customer: {
@@ -295,32 +292,38 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
   });
   const [previewHtml, setPreviewHtml] = useState("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"wysiwyg" | "html">("wysiwyg");
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   const insertField = useCallback((fieldKey: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
     const placeholder = `{{${fieldKey}}}`;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newValue = value.substring(0, start) + placeholder + value.substring(end);
     
-    onChange(newValue);
-    
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
-    }, 0);
+    if (editorMode === "html") {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = value.substring(0, start) + placeholder + value.substring(end);
+      
+      onChange(newValue);
+      
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
+      }, 0);
+    } else {
+      onChange(value + placeholder);
+    }
 
     toast({
       title: "Pole vložené",
       description: `${placeholder}`,
     });
-  }, [value, onChange, toast]);
+  }, [value, onChange, toast, editorMode]);
 
   const copyField = useCallback((fieldKey: string) => {
     const placeholder = `{{${fieldKey}}}`;
@@ -517,7 +520,31 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
       
       <div className="lg:col-span-2 flex flex-col">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <h3 className="text-sm font-semibold">Obsah šablóny (HTML + Handlebars)</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">Obsah šablóny</h3>
+            <div className="flex items-center rounded-md border bg-muted p-0.5">
+              <Button
+                variant={editorMode === "wysiwyg" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setEditorMode("wysiwyg")}
+                data-testid="button-mode-wysiwyg"
+              >
+                <Type className="h-3 w-3 mr-1" />
+                Vizuálny
+              </Button>
+              <Button
+                variant={editorMode === "html" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setEditorMode("html")}
+                data-testid="button-mode-html"
+              >
+                <Code className="h-3 w-3 mr-1" />
+                HTML
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -540,18 +567,49 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
           </div>
         </div>
         
-        <Textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Vložte HTML obsah šablóny zmluvy. Použite {{pole}} pre dynamické hodnoty..."
-          className="flex-1 font-mono text-xs resize-none"
-          style={{ minHeight: "400px" }}
-          data-testid="textarea-template-content"
-        />
+        {editorMode === "wysiwyg" ? (
+          <div className="flex-1 border rounded-md overflow-hidden" style={{ minHeight: "400px" }}>
+            <Editor
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              containerProps={{
+                style: { 
+                  minHeight: "400px",
+                  resize: "vertical",
+                }
+              }}
+              data-testid="wysiwyg-editor"
+            >
+              <Toolbar>
+                <BtnUndo />
+                <BtnRedo />
+                <EditorSeparator />
+                <BtnBold />
+                <BtnItalic />
+                <BtnUnderline />
+                <BtnStrikeThrough />
+                <EditorSeparator />
+                <BtnBulletList />
+                <BtnNumberedList />
+                <EditorSeparator />
+                <BtnLink />
+              </Toolbar>
+            </Editor>
+          </div>
+        ) : (
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Vložte HTML obsah šablóny zmluvy. Použite {{pole}} pre dynamické hodnoty..."
+            className="flex-1 font-mono text-xs resize-none"
+            style={{ minHeight: "400px" }}
+            data-testid="textarea-template-content"
+          />
+        )}
         
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          <span>Tip: Kliknutím na pole ho vložíte na pozíciu kurzora.</span>
+          <span>Tip: Kliknutím na pole ho vložíte do šablóny.</span>
           <span>|</span>
           <span>Syntax: {`{{pole.názov}}`}</span>
           <span>|</span>

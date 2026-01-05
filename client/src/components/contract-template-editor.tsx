@@ -462,68 +462,88 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
       <p style="font-weight: bold; margin-bottom: 6px; font-size: 8pt; text-transform: uppercase;">Pre zmluvné strany je záväzná možnosť označená krížikom:</p>
       <table style="width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 10px;">
         <thead>
-          <tr style="background-color: #f0f0f0;">
-            <th style="border: 1px solid #333; padding: 5px; text-align: left;">Typ produktu</th>
-            <th style="border: 1px solid #333; padding: 5px; text-align: right;">Celková suma</th>
-            <th style="border: 1px solid #333; padding: 5px; text-align: center;">Počet platieb</th>
-            <th style="border: 1px solid #333; padding: 5px; text-align: right;">Zálohová platba</th>
-            <th style="border: 1px solid #333; padding: 5px; text-align: right;">Výška zostávajúcej platby*</th>
+          <tr style="background-color: #2c3e50; color: white;">
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: left;">Typ produktu</th>
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: right;">Celková suma</th>
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: center;">Počet platieb</th>
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: right;">Zálohová platba</th>
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: right; background-color: #f39c12;">Výška zostávajúcej platby*</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Štandard</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">590 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">2</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">150 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">440 EUR</td>
+          <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Štandard</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">590 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">150 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">440 EUR</td>
           </tr>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Štandard + tkanivo pupočníka</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">790 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">2</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">150 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">640 EUR</td>
+          <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Štandard + tkanivo pupočníka</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">790 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">150 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">640 EUR</td>
           </tr>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Prémium</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">790 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">2</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">150 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">640 EUR</td>
+          <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">790 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">150 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">640 EUR</td>
           </tr>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Prémium + tkanivo pupočníka</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">990 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">2</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">150 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">840 EUR</td>
+          <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium + tkanivo pupočníka</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">990 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">150 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">840 EUR</td>
           </tr>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Tkanivo pupočníka**</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">300 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">1</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">0 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">300 EUR</td>
+          <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Tkanivo pupočníka**</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">300 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">1</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">0 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">300 EUR</td>
           </tr>
-          <tr>
-            <td style="border: 1px solid #333; padding: 5px;">Prémium + tkanivo pupočníka + tkanivo placenty</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">1 490 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center;">2</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">150 EUR</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right;">1 340 EUR</td>
-          </tr>
-          <tr style="background-color: #fffde7;">
-            <td style="border: 1px solid #333; padding: 5px; font-weight: bold;">{{product.name}}</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right; font-weight: bold;">{{billset.totalGrossAmount}} {{billset.currency}}</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">{{payment.installments}}</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right; font-weight: bold;">{{payment.depositAmount}} {{billset.currency}}</td>
-            <td style="border: 1px solid #333; padding: 5px; text-align: right; font-weight: bold;">{{payment.remainingAmount}} {{billset.currency}}</td>
+          <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium + tkanivo pupočníka + tkanivo placenty</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">1 490 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">150 EUR</td>
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">1 340 EUR</td>
           </tr>
         </tbody>
       </table>
       <p style="font-size: 7pt; color: #666; margin-bottom: 3px;">* Po odbere a obdržaní Výsledkov spracovania.</p>
       <p style="font-size: 7pt; color: #666;">** Odplata CBC AG za zabezpečenie odberu Tkaniva pupočníka pri kontaminácii časti odberu, pokiaľ sa zmluvné strany nedohodli inak.</p>
+      
+      <!-- Súhrn vybraného produktu - žltý box -->
+      <div style="background-color: #fff9c4; border: 3px solid #f9a825; border-radius: 8px; padding: 15px; margin-top: 15px;">
+        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 10pt; border-bottom: 2px solid #f9a825; padding-bottom: 8px; text-transform: uppercase;">VYBRANÝ PRODUKT</h4>
+        <table style="width: 100%; font-size: 9pt;">
+          <tr>
+            <td style="padding: 5px 0; width: 50%;"><strong>Názov produktu:</strong></td>
+            <td style="padding: 5px 0; text-align: right; font-weight: bold; font-size: 10pt;">{{product.name}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Celková suma:</strong></td>
+            <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #c62828; font-size: 10pt;">{{billset.totalGrossAmount}} {{billset.currency}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Počet platieb:</strong></td>
+            <td style="padding: 5px 0; text-align: right;">{{payment.installments}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Zálohová platba:</strong></td>
+            <td style="padding: 5px 0; text-align: right;">{{payment.depositAmount}} {{billset.currency}}</td>
+          </tr>
+          <tr style="background-color: #ffeb3b;">
+            <td style="padding: 10px 6px; font-size: 10pt;"><strong>VÝŠKA ZOSTÁVAJÚCEJ PLATBY:</strong></td>
+            <td style="padding: 10px 6px; text-align: right; font-weight: bold; font-size: 12pt; color: #1a237e;">{{payment.remainingAmount}} {{billset.currency}}</td>
+          </tr>
+        </table>
+      </div>
     </div>
 
     <p style="margin-bottom: 6px; text-align: justify;"><input type="checkbox" style="margin-right: 5px;" /> Mám záujem o postupné mesačné platby formou splátok bez navýšenia.</p>

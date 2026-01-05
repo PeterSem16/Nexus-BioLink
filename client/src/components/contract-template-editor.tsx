@@ -463,6 +463,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
       <table style="width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 10px;">
         <thead>
           <tr style="background-color: #2c3e50; color: white;">
+            <th style="border: 1px solid #34495e; padding: 8px; text-align: center; width: 30px;">X</th>
             <th style="border: 1px solid #34495e; padding: 8px; text-align: left;">Typ produktu</th>
             <th style="border: 1px solid #34495e; padding: 8px; text-align: right;">Celková suma</th>
             <th style="border: 1px solid #34495e; padding: 8px; text-align: center;">Počet platieb</th>
@@ -472,6 +473,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
         </thead>
         <tbody>
           <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Štandard</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">590 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
@@ -479,6 +481,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">440 EUR</td>
           </tr>
           <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Štandard + tkanivo pupočníka</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">790 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
@@ -486,6 +489,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">640 EUR</td>
           </tr>
           <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">790 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
@@ -493,6 +497,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">640 EUR</td>
           </tr>
           <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium + tkanivo pupočníka</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">990 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
@@ -500,6 +505,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">840 EUR</td>
           </tr>
           <tr style="background-color: #ecf0f1;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Tkanivo pupočníka**</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">300 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">1</td>
@@ -507,6 +513,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<div style="font-family: 'Times New Roman', s
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right; background-color: #fff9c4; font-weight: bold;">300 EUR</td>
           </tr>
           <tr style="background-color: #ffffff;">
+            <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;"><span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span></td>
             <td style="border: 1px solid #bdc3c7; padding: 8px;">Prémium + tkanivo pupočníka + tkanivo placenty</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: right;">1 490 EUR</td>
             <td style="border: 1px solid #bdc3c7; padding: 8px; text-align: center;">2</td>
@@ -626,6 +633,15 @@ interface ContractTemplateEditorProps {
   onLoadDefault?: () => void;
 }
 
+const PRODUCT_OPTIONS = [
+  { id: "standard", name: "Štandard", total: 590, payments: 2, deposit: 150, remaining: 440 },
+  { id: "standard_tissue", name: "Štandard + tkanivo pupočníka", total: 790, payments: 2, deposit: 150, remaining: 640 },
+  { id: "premium", name: "Prémium", total: 790, payments: 2, deposit: 150, remaining: 640 },
+  { id: "premium_tissue", name: "Prémium + tkanivo pupočníka", total: 990, payments: 2, deposit: 150, remaining: 840 },
+  { id: "tissue_only", name: "Tkanivo pupočníka", total: 300, payments: 1, deposit: 0, remaining: 300 },
+  { id: "premium_all", name: "Prémium + tkanivo pupočníka + tkanivo placenty", total: 1490, payments: 2, deposit: 150, remaining: 1340 },
+];
+
 export function ContractTemplateEditor({ value, onChange, onLoadDefault }: ContractTemplateEditorProps) {
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -643,6 +659,7 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
   const [previewHtml, setPreviewHtml] = useState("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"wysiwyg" | "html">("wysiwyg");
+  const [selectedProduct, setSelectedProduct] = useState(PRODUCT_OPTIONS[0]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -772,20 +789,20 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
       "father.birthNumber": "830520/1234",
       "father.email": "peter.novak@email.sk",
       "father.phone": "+421 900 987 654",
-      "product.name": "Premium Plus - Uchovávanie kmeňových buniek",
+      "product.name": selectedProduct.name,
       "product.code": "PP-25",
-      "product.description": "Kompletné spracovanie a uchovávanie kmeňových buniek z pupočníkovej krvi na 25 rokov",
+      "product.description": "Kompletné spracovanie a uchovávanie kmeňových buniek z pupočníkovej krvi",
       "product.category": "Uchovávanie",
-      "product.basePrice": "2 500,00",
+      "product.basePrice": selectedProduct.total.toLocaleString("sk-SK"),
       "product.currency": "EUR",
       "product.vatRate": "20",
-      "product.priceWithVat": "3 000,00",
+      "product.priceWithVat": selectedProduct.total.toLocaleString("sk-SK"),
       "product.storageYears": "25",
-      "product.installments": "24",
-      "product.monthlyPayment": "125,00",
-      "product.totalPrice": "3 000,00",
-      "product.totalPriceWords": "tritisíc eur",
-      "product.vatAmount": "500,00",
+      "product.installments": selectedProduct.payments.toString(),
+      "product.monthlyPayment": (selectedProduct.remaining / (selectedProduct.payments > 1 ? 10 : 1)).toLocaleString("sk-SK"),
+      "product.totalPrice": selectedProduct.total.toLocaleString("sk-SK"),
+      "product.totalPriceWords": "",
+      "product.vatAmount": Math.round(selectedProduct.total * 0.2).toLocaleString("sk-SK"),
       "contract.number": "ZML-2024-00123",
       "contract.date": "04.01.2026",
       "contract.validFrom": "04.01.2026",
@@ -797,24 +814,24 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
       "currentDate": new Date().toLocaleDateString("sk-SK"),
       "currentYear": new Date().getFullYear().toString(),
       // Billset fields
-      "billset.name": "Premium Plus 25 rokov",
-      "billset.productName": "Uchovávanie kmeňových buniek",
+      "billset.name": selectedProduct.name,
+      "billset.productName": selectedProduct.name,
       "billset.currency": "EUR",
       "billset.validFrom": "01.01.2024",
       "billset.validTo": "31.12.2026",
       "billset.notes": "",
-      "billset.totalNetAmount": "2 500,00",
-      "billset.totalDiscountAmount": "250,00",
-      "billset.totalVatAmount": "450,00",
-      "billset.totalGrossAmount": "2 700,00",
+      "billset.totalNetAmount": selectedProduct.total.toLocaleString("sk-SK"),
+      "billset.totalDiscountAmount": "0,00",
+      "billset.totalVatAmount": Math.round(selectedProduct.total * 0.2).toLocaleString("sk-SK"),
+      "billset.totalGrossAmount": selectedProduct.total.toLocaleString("sk-SK"),
       // Payment conditions
-      "payment.method": "Splátky",
-      "payment.installments": "24",
-      "payment.installmentAmount": "112,50",
+      "payment.method": selectedProduct.payments > 1 ? "Splátky" : "Jednorazová platba",
+      "payment.installments": selectedProduct.payments.toString(),
+      "payment.installmentAmount": (selectedProduct.remaining / (selectedProduct.payments > 1 ? 10 : 1)).toLocaleString("sk-SK"),
       "payment.firstPaymentDue": "15.02.2026",
       "payment.frequency": "mesačne",
-      "payment.depositAmount": "500,00",
-      "payment.remainingAmount": "2 200,00",
+      "payment.depositAmount": selectedProduct.deposit.toLocaleString("sk-SK"),
+      "payment.remainingAmount": selectedProduct.remaining.toLocaleString("sk-SK"),
       // Discounts
       "discount.name": "Včasná registrácia",
       "discount.type": "percentuálna",
@@ -837,7 +854,7 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
     
     setPreviewHtml(preview);
     setIsPreviewOpen(true);
-  }, [value]);
+  }, [value, selectedProduct]);
 
   const getFieldIcon = (type: string) => {
     switch (type) {
@@ -939,6 +956,48 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
               );
             })}
             
+            {/* Product Selection Panel */}
+            <div className="mt-4 pt-4 border-t">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Výber produktu pre náhľad</h4>
+              <div className="space-y-1 bg-muted/50 rounded-md p-2">
+                {PRODUCT_OPTIONS.map((product) => (
+                  <div
+                    key={product.id}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                      selectedProduct.id === product.id 
+                        ? "bg-primary/10 border border-primary/30" 
+                        : "hover-elevate"
+                    }`}
+                    onClick={() => setSelectedProduct(product)}
+                    data-testid={`product-select-${product.id}`}
+                  >
+                    <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center ${
+                      selectedProduct.id === product.id 
+                        ? "border-primary bg-primary" 
+                        : "border-muted-foreground"
+                    }`}>
+                      {selectedProduct.id === product.id && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{product.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{product.total} EUR</p>
+                    </div>
+                  </div>
+                ))}
+                {selectedProduct && (
+                  <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-md text-xs space-y-1">
+                    <p className="font-semibold text-yellow-800 dark:text-yellow-200">Vybraný produkt:</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">{selectedProduct.name}</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">Celkom: {selectedProduct.total} EUR</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">Záloha: {selectedProduct.deposit} EUR</p>
+                    <p className="text-yellow-700 dark:text-yellow-300 font-bold">Zostáva: {selectedProduct.remaining} EUR</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Special Elements Section */}
             <div className="mt-4 pt-4 border-t">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Špeciálne elementy</h4>

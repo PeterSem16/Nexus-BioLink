@@ -6858,11 +6858,27 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Template has no content. Please edit the template first." });
       }
       
-      const [customer, billingDetails, products] = await Promise.all([
+      const [customer, products] = await Promise.all([
         storage.getCustomer(contract.customerId),
-        storage.getBillingDetails(contract.billingDetailsId),
         storage.getContractInstanceProducts(contract.id)
       ]);
+      
+      // Get billing details - first try by ID, then fallback to customer's country
+      let billingDetails = contract.billingDetailsId 
+        ? await storage.getBillingDetails(contract.billingDetailsId)
+        : null;
+      
+      // If no billing details by ID, try to find by customer's country
+      if (!billingDetails && customer?.country) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails.find(bd => bd.countryCode === customer.country) || allBillingDetails[0] || null;
+      }
+      
+      // If still no billing details, try to get the first available one
+      if (!billingDetails) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails[0] || null;
+      }
       
       const template = Handlebars.compile(contractTemplate.contentHtml);
       
@@ -6878,16 +6894,22 @@ export async function registerRoutes(
           personalId: customer?.nationalId || ""
         },
         billing: {
-          companyName: billingDetails?.companyName || "",
+          companyName: billingDetails?.companyName || "Cord Blood Center AG",
           ico: billingDetails?.ico || "",
+          taxId: billingDetails?.ico || "",
           dic: billingDetails?.dic || "",
+          vatId: billingDetails?.vatNumber || "",
           vatNumber: billingDetails?.vatNumber || "",
-          address: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
+          address: billingDetails?.address || "",
+          city: billingDetails?.city || "",
+          postalCode: billingDetails?.postalCode || "",
+          fullAddress: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
           iban: billingDetails?.bankIban || "",
           swift: billingDetails?.bankSwift || "",
           bankName: billingDetails?.bankName || "",
           phone: billingDetails?.phone || "",
-          email: billingDetails?.email || ""
+          email: billingDetails?.email || "",
+          representative: "Ján Šidlík, MBA"
         },
         contract: {
           number: contract.contractNumber,
@@ -6939,12 +6961,26 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Template has no content. Please edit the template first." });
       }
       
-      const [customer, billingDetails, products, participants] = await Promise.all([
+      const [customer, products, participants] = await Promise.all([
         storage.getCustomer(contract.customerId),
-        storage.getBillingDetails(contract.billingDetailsId),
         storage.getContractInstanceProducts(contract.id),
         storage.getContractParticipants(contract.id)
       ]);
+      
+      // Get billing details - first try by ID, then fallback to customer's country
+      let billingDetails = contract.billingDetailsId 
+        ? await storage.getBillingDetails(contract.billingDetailsId)
+        : null;
+      
+      if (!billingDetails && customer?.countryCode) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails.find(bd => bd.countryCode === customer.countryCode) || allBillingDetails[0] || null;
+      }
+      
+      if (!billingDetails) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails[0] || null;
+      }
       
       // Find father participant
       const fatherParticipant = participants.find(p => p.participantType === "guarantor" || p.role === "father");
@@ -7008,7 +7044,7 @@ export async function registerRoutes(
           bankName: billingDetails?.bankName || "",
           phone: billingDetails?.phone || "",
           email: billingDetails?.email || "",
-          representative: billingDetails?.legalRepresentative || "Ján Šidlík, MBA"
+          representative: "Ján Šidlík, MBA"
         },
         contract: {
           number: contract.contractNumber,
@@ -7179,12 +7215,26 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Template has no content" });
       }
       
-      const [customer, billingDetails, products, participants] = await Promise.all([
+      const [customer, products, participants] = await Promise.all([
         storage.getCustomer(contract.customerId),
-        storage.getBillingDetails(contract.billingDetailsId),
         storage.getContractInstanceProducts(contract.id),
         storage.getContractParticipants(contract.id)
       ]);
+      
+      // Get billing details - first try by ID, then fallback to customer's country
+      let billingDetails = contract.billingDetailsId 
+        ? await storage.getBillingDetails(contract.billingDetailsId)
+        : null;
+      
+      if (!billingDetails && customer?.countryCode) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails.find(bd => bd.countryCode === customer.countryCode) || allBillingDetails[0] || null;
+      }
+      
+      if (!billingDetails) {
+        const allBillingDetails = await storage.getAllBillingDetails();
+        billingDetails = allBillingDetails[0] || null;
+      }
       
       const fatherParticipant = participants.find(p => p.participantType === "guarantor" || p.role === "father");
       
@@ -7223,16 +7273,22 @@ export async function registerRoutes(
         },
         billing: {
           companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          ico: billingDetails?.ico || "",
           taxId: billingDetails?.ico || "",
           dic: billingDetails?.dic || "",
           vatId: billingDetails?.vatNumber || "",
+          vatNumber: billingDetails?.vatNumber || "",
           address: billingDetails?.address || "",
           city: billingDetails?.city || "",
           postalCode: billingDetails?.postalCode || "",
           country: billingDetails?.countryCode || "",
+          fullAddress: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
           iban: billingDetails?.bankIban || "",
           swift: billingDetails?.bankSwift || "",
-          representative: billingDetails?.legalRepresentative || "Ján Šidlík, MBA"
+          bankName: billingDetails?.bankName || "",
+          phone: billingDetails?.phone || "",
+          email: billingDetails?.email || "",
+          representative: "Ján Šidlík, MBA"
         },
         contract: {
           number: contract.contractNumber,

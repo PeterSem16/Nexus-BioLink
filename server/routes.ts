@@ -6863,6 +6863,9 @@ export async function registerRoutes(
         storage.getContractInstanceProducts(contract.id)
       ]);
       
+      // Get customer's potential case for father data
+      const potentialCase = customer ? await storage.getCustomerPotentialCase(customer.id) : null;
+      
       // Get billing details - first try by ID, then fallback to customer's country
       let billingDetails = contract.billingDetailsId 
         ? await storage.getBillingDetailsById(contract.billingDetailsId)
@@ -6881,6 +6884,19 @@ export async function registerRoutes(
       
       const template = Handlebars.compile(contractTemplate.contentHtml);
       
+      // Format date helper
+      const formatDate = (date: Date | string | null | undefined): string => {
+        if (!date) return "";
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("sk-SK");
+      };
+      
+      // Build father name from potential case
+      const fatherFullName = potentialCase?.fatherFirstName && potentialCase?.fatherLastName
+        ? `${potentialCase.fatherFirstName} ${potentialCase.fatherLastName}`.trim()
+        : "";
+      
       const context = {
         customer: {
           fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
@@ -6888,21 +6904,37 @@ export async function registerRoutes(
           lastName: customer?.lastName || "",
           email: customer?.email || "",
           phone: customer?.phone || "",
-          address: [customer?.address, customer?.city, customer?.postalCode].filter(Boolean).join(", "),
-          birthDate: customer?.dateOfBirth || "",
-          personalId: customer?.nationalId || ""
+          address: customer?.address || "",
+          city: customer?.city || "",
+          postalCode: customer?.postalCode || "",
+          fullAddress: [customer?.address, customer?.city, customer?.postalCode].filter(Boolean).join(", "),
+          dateOfBirth: formatDate(customer?.dateOfBirth),
+          birthDate: formatDate(customer?.dateOfBirth),
+          personalId: customer?.nationalId || "",
+          birthNumber: customer?.nationalId || ""
+        },
+        father: {
+          fullName: fatherFullName,
+          firstName: potentialCase?.fatherFirstName || "",
+          lastName: potentialCase?.fatherLastName || "",
+          email: potentialCase?.fatherEmail || "",
+          phone: potentialCase?.fatherPhone || potentialCase?.fatherMobile || "",
+          address: potentialCase?.fatherStreet || "",
+          city: potentialCase?.fatherCity || "",
+          postalCode: potentialCase?.fatherPostalCode || ""
         },
         billing: {
           companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          fullName: billingDetails?.fullName || billingDetails?.companyName || "",
           ico: billingDetails?.ico || "",
-          taxId: billingDetails?.ico || "",
+          taxId: billingDetails?.taxId || billingDetails?.ico || "",
           dic: billingDetails?.dic || "",
           vatId: billingDetails?.vatNumber || "",
           vatNumber: billingDetails?.vatNumber || "",
-          address: billingDetails?.address || "",
-          city: billingDetails?.city || "",
-          postalCode: billingDetails?.postalCode || "",
-          fullAddress: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
+          address: billingDetails?.address || billingDetails?.residencyStreet || "",
+          city: billingDetails?.city || billingDetails?.residencyCity || "",
+          postalCode: billingDetails?.postalCode || billingDetails?.residencyPostalCode || "",
+          fullAddress: [billingDetails?.address || billingDetails?.residencyStreet, billingDetails?.city || billingDetails?.residencyCity, billingDetails?.postalCode || billingDetails?.residencyPostalCode].filter(Boolean).join(", "),
           iban: billingDetails?.bankIban || "",
           swift: billingDetails?.bankSwift || "",
           bankName: billingDetails?.bankName || "",
@@ -6966,6 +6998,9 @@ export async function registerRoutes(
         storage.getContractParticipants(contract.id)
       ]);
       
+      // Get customer's potential case for father data
+      const potentialCase = customer ? await storage.getCustomerPotentialCase(customer.id) : null;
+      
       // Get billing details - first try by ID, then fallback to customer's country
       let billingDetails = contract.billingDetailsId 
         ? await storage.getBillingDetailsById(contract.billingDetailsId)
@@ -6980,7 +7015,7 @@ export async function registerRoutes(
         billingDetails = allBillingDetails[0] || null;
       }
       
-      // Find father participant
+      // Find father participant or use data from potential case
       const fatherParticipant = participants.find(p => p.participantType === "guarantor" || p.role === "father");
       
       // Calculate totals from products
@@ -7001,6 +7036,19 @@ export async function registerRoutes(
       // Build context for template rendering
       const template = Handlebars.compile(contractTemplate.contentHtml || "");
       
+      // Format date of birth properly
+      const formatDate = (date: Date | string | null | undefined): string => {
+        if (!date) return "";
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("sk-SK");
+      };
+      
+      // Build father name from potential case
+      const fatherFullName = potentialCase?.fatherFirstName && potentialCase?.fatherLastName
+        ? `${potentialCase.fatherFirstName} ${potentialCase.fatherLastName}`.trim()
+        : fatherParticipant?.fullName || "";
+      
       const context = {
         customer: {
           fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
@@ -7011,31 +7059,32 @@ export async function registerRoutes(
           address: customer?.address || "",
           city: customer?.city || "",
           postalCode: customer?.postalCode || "",
-          dateOfBirth: customer?.dateOfBirth || "",
+          dateOfBirth: formatDate(customer?.dateOfBirth),
           birthNumber: customer?.nationalId || ""
         },
         father: {
-          fullName: fatherParticipant?.fullName || "",
-          firstName: fatherParticipant?.fullName?.split(" ")[0] || "",
-          lastName: fatherParticipant?.fullName?.split(" ").slice(1).join(" ") || "",
-          email: fatherParticipant?.email || "",
-          phone: fatherParticipant?.phone || "",
-          address: "",
-          city: "",
-          postalCode: "",
+          fullName: fatherFullName,
+          firstName: potentialCase?.fatherFirstName || fatherParticipant?.fullName?.split(" ")[0] || "",
+          lastName: potentialCase?.fatherLastName || fatherParticipant?.fullName?.split(" ").slice(1).join(" ") || "",
+          email: potentialCase?.fatherEmail || fatherParticipant?.email || "",
+          phone: potentialCase?.fatherPhone || potentialCase?.fatherMobile || fatherParticipant?.phone || "",
+          address: potentialCase?.fatherStreet || "",
+          city: potentialCase?.fatherCity || "",
+          postalCode: potentialCase?.fatherPostalCode || "",
           dateOfBirth: "",
           birthNumber: ""
         },
         billing: {
           companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          fullName: billingDetails?.fullName || billingDetails?.companyName || "",
           ico: billingDetails?.ico || "",
-          taxId: billingDetails?.ico || "",
+          taxId: billingDetails?.taxId || billingDetails?.ico || "",
           dic: billingDetails?.dic || "",
           vatId: billingDetails?.vatNumber || "",
           vatNumber: billingDetails?.vatNumber || "",
-          address: billingDetails?.address || "",
-          city: billingDetails?.city || "",
-          postalCode: billingDetails?.postalCode || "",
+          address: billingDetails?.address || billingDetails?.residencyStreet || "",
+          city: billingDetails?.city || billingDetails?.residencyCity || "",
+          postalCode: billingDetails?.postalCode || billingDetails?.residencyPostalCode || "",
           country: billingDetails?.countryCode || "",
           iban: billingDetails?.bankIban || "",
           swift: billingDetails?.bankSwift || "",
@@ -7237,6 +7286,9 @@ export async function registerRoutes(
         storage.getContractParticipants(contract.id)
       ]);
       
+      // Get customer's potential case for father data
+      const potentialCase = customer ? await storage.getCustomerPotentialCase(customer.id) : null;
+      
       // Get billing details - first try by ID, then fallback to customer's country
       let billingDetails = contract.billingDetailsId 
         ? await storage.getBillingDetailsById(contract.billingDetailsId)
@@ -7267,6 +7319,19 @@ export async function registerRoutes(
       
       const template = Handlebars.compile(contractTemplate.contentHtml);
       
+      // Format date helper
+      const formatDate = (date: Date | string | null | undefined): string => {
+        if (!date) return "";
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("sk-SK");
+      };
+      
+      // Build father name from potential case
+      const fatherFullName = potentialCase?.fatherFirstName && potentialCase?.fatherLastName
+        ? `${potentialCase.fatherFirstName} ${potentialCase.fatherLastName}`.trim()
+        : fatherParticipant?.fullName || "";
+      
       const context = {
         customer: {
           fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
@@ -7277,27 +7342,34 @@ export async function registerRoutes(
           address: customer?.address || "",
           city: customer?.city || "",
           postalCode: customer?.postalCode || "",
-          dateOfBirth: customer?.dateOfBirth || "",
+          dateOfBirth: formatDate(customer?.dateOfBirth),
           birthNumber: customer?.nationalId || ""
         },
         father: {
-          fullName: fatherParticipant?.fullName || "",
-          email: fatherParticipant?.email || "",
-          phone: fatherParticipant?.phone || "",
-          address: "", city: "", postalCode: "", dateOfBirth: "", birthNumber: ""
+          fullName: fatherFullName,
+          firstName: potentialCase?.fatherFirstName || fatherParticipant?.fullName?.split(" ")[0] || "",
+          lastName: potentialCase?.fatherLastName || fatherParticipant?.fullName?.split(" ").slice(1).join(" ") || "",
+          email: potentialCase?.fatherEmail || fatherParticipant?.email || "",
+          phone: potentialCase?.fatherPhone || potentialCase?.fatherMobile || fatherParticipant?.phone || "",
+          address: potentialCase?.fatherStreet || "",
+          city: potentialCase?.fatherCity || "",
+          postalCode: potentialCase?.fatherPostalCode || "",
+          dateOfBirth: "",
+          birthNumber: ""
         },
         billing: {
           companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          fullName: billingDetails?.fullName || billingDetails?.companyName || "",
           ico: billingDetails?.ico || "",
-          taxId: billingDetails?.ico || "",
+          taxId: billingDetails?.taxId || billingDetails?.ico || "",
           dic: billingDetails?.dic || "",
           vatId: billingDetails?.vatNumber || "",
           vatNumber: billingDetails?.vatNumber || "",
-          address: billingDetails?.address || "",
-          city: billingDetails?.city || "",
-          postalCode: billingDetails?.postalCode || "",
+          address: billingDetails?.address || billingDetails?.residencyStreet || "",
+          city: billingDetails?.city || billingDetails?.residencyCity || "",
+          postalCode: billingDetails?.postalCode || billingDetails?.residencyPostalCode || "",
           country: billingDetails?.countryCode || "",
-          fullAddress: [billingDetails?.address, billingDetails?.city, billingDetails?.postalCode].filter(Boolean).join(", "),
+          fullAddress: [billingDetails?.address || billingDetails?.residencyStreet, billingDetails?.city || billingDetails?.residencyCity, billingDetails?.postalCode || billingDetails?.residencyPostalCode].filter(Boolean).join(", "),
           iban: billingDetails?.bankIban || "",
           swift: billingDetails?.bankSwift || "",
           bankName: billingDetails?.bankName || "",

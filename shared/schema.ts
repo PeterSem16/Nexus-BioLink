@@ -2674,6 +2674,8 @@ export const contractInstances = pgTable("contract_instances", {
   // Denormalized snapshots for legal immutability
   customerSnapshot: text("customer_snapshot"), // JSON snapshot of customer data at contract time
   billingSnapshot: text("billing_snapshot"), // JSON snapshot of billing company data
+  // Product selection
+  selectedProductId: varchar("selected_product_id", { length: 50 }), // e.g., standard, premium, premium_tissue
   // Notes
   internalNotes: text("internal_notes"),
   // Audit

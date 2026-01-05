@@ -588,7 +588,8 @@ export default function ContractsPage() {
       customerId: "",
       billingDetailsId: "",
       currency: "EUR",
-      notes: ""
+      notes: "",
+      selectedProductId: ""
     });
   };
 

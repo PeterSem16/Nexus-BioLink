@@ -6964,7 +6964,33 @@ export async function registerRoutes(
         })
       };
       
-      const renderedHtml = template(context);
+      let renderedHtml = template(context);
+      
+      // Mark selected product in the pricing table
+      if (contract.selectedProductId) {
+        const productMap: Record<string, string> = {
+          "standard": "Štandard",
+          "standard_tissue": "Štandard + tkanivo pupočníka",
+          "premium": "Prémium",
+          "premium_tissue": "Prémium + tkanivo pupočníka",
+          "tissue_only": "Tkanivo pupočníka",
+          "premium_all": "Prémium + tkanivo pupočníka + tkanivo placenty"
+        };
+        
+        const selectedName = productMap[contract.selectedProductId];
+        if (selectedName) {
+          // Find the row with the selected product and mark the radio button
+          const emptyRadio = `<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span>`;
+          const filledRadio = `<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%; background-color: #2c3e50; position: relative;"><span style="position: absolute; top: 2px; left: 2px; width: 6px; height: 6px; border-radius: 50%; background-color: white;"></span></span>`;
+          
+          // Replace the empty radio in the row containing the selected product
+          const regex = new RegExp(
+            `(<tr[^>]*>\\s*<td[^>]*>)${emptyRadio.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(</td>\\s*<td[^>]*>${selectedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</td>)`,
+            'g'
+          );
+          renderedHtml = renderedHtml.replace(regex, `$1${filledRadio}$2`);
+        }
+      }
       
       await storage.updateContractInstance(contract.id, { renderedHtml });
       
@@ -7117,7 +7143,31 @@ export async function registerRoutes(
         }
       };
       
-      const renderedHtml = template(context);
+      let renderedHtml = template(context);
+      
+      // Mark selected product in the pricing table
+      if (contract.selectedProductId) {
+        const productMap: Record<string, string> = {
+          "standard": "Štandard",
+          "standard_tissue": "Štandard + tkanivo pupočníka",
+          "premium": "Prémium",
+          "premium_tissue": "Prémium + tkanivo pupočníka",
+          "tissue_only": "Tkanivo pupočníka",
+          "premium_all": "Prémium + tkanivo pupočníka + tkanivo placenty"
+        };
+        
+        const selectedName = productMap[contract.selectedProductId];
+        if (selectedName) {
+          const emptyRadio = `<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%;"></span>`;
+          const filledRadio = `<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #2c3e50; border-radius: 50%; background-color: #2c3e50; position: relative;"><span style="position: absolute; top: 2px; left: 2px; width: 6px; height: 6px; border-radius: 50%; background-color: white;"></span></span>`;
+          
+          const regex = new RegExp(
+            `(<tr[^>]*>\\s*<td[^>]*>)${emptyRadio.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(</td>\\s*<td[^>]*>${selectedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</td>)`,
+            'g'
+          );
+          renderedHtml = renderedHtml.replace(regex, `$1${filledRadio}$2`);
+        }
+      }
       
       // Update rendered HTML in the database before streaming PDF
       try {

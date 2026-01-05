@@ -36,6 +36,21 @@ import {
   Info,
   Code,
   Type,
+  Image,
+  SeparatorHorizontal,
+  Table,
+  Heading1,
+  Heading2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  ListOrdered,
+  Receipt,
+  CreditCard,
+  Tags,
+  Calculator,
+  Layers,
 } from "lucide-react";
 import Editor, { BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough, BtnUndo, BtnRedo, BtnBulletList, BtnNumberedList, BtnLink, Separator as EditorSeparator, Toolbar } from "react-simple-wysiwyg";
 
@@ -135,6 +150,197 @@ const AVAILABLE_FIELDS = {
       { key: "currentDate", label: "Dnešný dátum", type: "date" },
       { key: "currentYear", label: "Aktuálny rok", type: "number" },
     ],
+  },
+  billset: {
+    label: "Cenová sada (Billset)",
+    icon: Receipt,
+    fields: [
+      { key: "billset.name", label: "Názov cenovej sady", type: "text" },
+      { key: "billset.productName", label: "Názov produktu", type: "text" },
+      { key: "billset.currency", label: "Mena", type: "text" },
+      { key: "billset.validFrom", label: "Platnosť od", type: "date" },
+      { key: "billset.validTo", label: "Platnosť do", type: "date" },
+      { key: "billset.notes", label: "Poznámky", type: "text" },
+      { key: "billset.totalNetAmount", label: "Celkom bez DPH", type: "currency" },
+      { key: "billset.totalDiscountAmount", label: "Celková zľava", type: "currency" },
+      { key: "billset.totalVatAmount", label: "Celková DPH", type: "currency" },
+      { key: "billset.totalGrossAmount", label: "Celkom s DPH", type: "currency" },
+    ],
+  },
+  billsetItems: {
+    label: "Položky cenovej sady",
+    icon: Layers,
+    fields: [
+      { key: "billset.items", label: "Všetky položky (loop)", type: "loop" },
+      { key: "item.name", label: "Názov položky", type: "text" },
+      { key: "item.type", label: "Typ (odber/služba)", type: "text" },
+      { key: "item.quantity", label: "Množstvo", type: "number" },
+      { key: "item.unitPrice", label: "Jednotková cena", type: "currency" },
+      { key: "item.discountPercent", label: "Zľava %", type: "percent" },
+      { key: "item.discountAmount", label: "Suma zľavy", type: "currency" },
+      { key: "item.vatRate", label: "Sadzba DPH %", type: "percent" },
+      { key: "item.vatAmount", label: "Suma DPH", type: "currency" },
+      { key: "item.netAmount", label: "Suma bez DPH", type: "currency" },
+      { key: "item.grossAmount", label: "Suma s DPH", type: "currency" },
+    ],
+  },
+  paymentConditions: {
+    label: "Platobné podmienky",
+    icon: CreditCard,
+    fields: [
+      { key: "payment.method", label: "Spôsob platby", type: "text" },
+      { key: "payment.installments", label: "Počet splátok", type: "number" },
+      { key: "payment.installmentAmount", label: "Výška splátky", type: "currency" },
+      { key: "payment.firstPaymentDue", label: "Prvá splátka do", type: "date" },
+      { key: "payment.frequency", label: "Frekvencia", type: "text" },
+      { key: "payment.depositAmount", label: "Záloha", type: "currency" },
+      { key: "payment.remainingAmount", label: "Zostatok", type: "currency" },
+    ],
+  },
+  discounts: {
+    label: "Zľavy",
+    icon: Tags,
+    fields: [
+      { key: "discount.name", label: "Názov zľavy", type: "text" },
+      { key: "discount.type", label: "Typ (% / suma)", type: "text" },
+      { key: "discount.value", label: "Hodnota", type: "text" },
+      { key: "discount.amount", label: "Suma zľavy", type: "currency" },
+      { key: "discount.validFrom", label: "Platnosť od", type: "date" },
+      { key: "discount.validTo", label: "Platnosť do", type: "date" },
+      { key: "discount.reason", label: "Dôvod", type: "text" },
+    ],
+  },
+  vatInfo: {
+    label: "DPH informácie",
+    icon: Calculator,
+    fields: [
+      { key: "vat.rate", label: "Sadzba DPH %", type: "percent" },
+      { key: "vat.baseAmount", label: "Základ dane", type: "currency" },
+      { key: "vat.amount", label: "Suma DPH", type: "currency" },
+      { key: "vat.exemptReason", label: "Dôvod oslobodenia", type: "text" },
+    ],
+  },
+};
+
+// Special elements that can be inserted into the template
+const SPECIAL_ELEMENTS = {
+  pageBreak: {
+    label: "Zalomenie strany",
+    icon: SeparatorHorizontal,
+    html: '<div style="page-break-after: always; border-bottom: 1px dashed #ccc; margin: 20px 0; padding: 5px; text-align: center; color: #999; font-size: 10px;">[ZALOMENIE STRANY]</div>',
+  },
+  invoiceTable: {
+    label: "Tabuľka položiek (Invoice)",
+    icon: Table,
+    html: `<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+  <thead>
+    <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+      <th style="padding: 10px; text-align: left; font-weight: bold;">Položka</th>
+      <th style="padding: 10px; text-align: center; font-weight: bold;">Množstvo</th>
+      <th style="padding: 10px; text-align: right; font-weight: bold;">Cena/ks</th>
+      <th style="padding: 10px; text-align: right; font-weight: bold;">Zľava</th>
+      <th style="padding: 10px; text-align: right; font-weight: bold;">DPH</th>
+      <th style="padding: 10px; text-align: right; font-weight: bold;">Celkom</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each billset.items}}
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px;">{{this.name}}</td>
+      <td style="padding: 8px; text-align: center;">{{this.quantity}}</td>
+      <td style="padding: 8px; text-align: right;">{{this.unitPrice}} {{../billset.currency}}</td>
+      <td style="padding: 8px; text-align: right;">{{this.discountAmount}} {{../billset.currency}}</td>
+      <td style="padding: 8px; text-align: right;">{{this.vatAmount}} {{../billset.currency}}</td>
+      <td style="padding: 8px; text-align: right; font-weight: bold;">{{this.grossAmount}} {{../billset.currency}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+  <tfoot>
+    <tr style="border-top: 2px solid #ddd;">
+      <td colspan="5" style="padding: 10px; text-align: right; font-weight: bold;">Medzisúčet:</td>
+      <td style="padding: 10px; text-align: right;">{{billset.totalNetAmount}} {{billset.currency}}</td>
+    </tr>
+    <tr>
+      <td colspan="5" style="padding: 5px; text-align: right;">Zľava:</td>
+      <td style="padding: 5px; text-align: right; color: green;">-{{billset.totalDiscountAmount}} {{billset.currency}}</td>
+    </tr>
+    <tr>
+      <td colspan="5" style="padding: 5px; text-align: right;">DPH:</td>
+      <td style="padding: 5px; text-align: right;">{{billset.totalVatAmount}} {{billset.currency}}</td>
+    </tr>
+    <tr style="background: #f5f5f5; font-weight: bold; font-size: 1.1em;">
+      <td colspan="5" style="padding: 10px; text-align: right;">CELKOM:</td>
+      <td style="padding: 10px; text-align: right;">{{billset.totalGrossAmount}} {{billset.currency}}</td>
+    </tr>
+  </tfoot>
+</table>`,
+  },
+  priceBreakdown: {
+    label: "Rozpis ceny (kompaktný)",
+    icon: Receipt,
+    html: `<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin: 15px 0;">
+  <h4 style="margin: 0 0 10px 0; font-size: 12pt; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Cenová kalkulácia</h4>
+  <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+    <span>Základ:</span>
+    <span>{{billset.totalNetAmount}} {{billset.currency}}</span>
+  </div>
+  {{#if billset.totalDiscountAmount}}
+  <div style="display: flex; justify-content: space-between; padding: 5px 0; color: green;">
+    <span>Zľava:</span>
+    <span>-{{billset.totalDiscountAmount}} {{billset.currency}}</span>
+  </div>
+  {{/if}}
+  <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+    <span>DPH ({{vat.rate}}%):</span>
+    <span>{{billset.totalVatAmount}} {{billset.currency}}</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; padding: 10px 0; border-top: 2px solid #333; font-weight: bold; font-size: 1.1em;">
+    <span>CELKOM:</span>
+    <span>{{billset.totalGrossAmount}} {{billset.currency}}</span>
+  </div>
+</div>`,
+  },
+  paymentSchedule: {
+    label: "Splátkový kalendár",
+    icon: CreditCard,
+    html: `<div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+  <h4 style="margin: 0 0 10px 0; font-size: 12pt;">Platobné podmienky</h4>
+  <p><strong>Spôsob platby:</strong> {{payment.method}}</p>
+  {{#if payment.installments}}
+  <p><strong>Počet splátok:</strong> {{payment.installments}}</p>
+  <p><strong>Výška splátky:</strong> {{payment.installmentAmount}} {{billset.currency}}</p>
+  <p><strong>Frekvencia:</strong> {{payment.frequency}}</p>
+  {{#if payment.depositAmount}}
+  <p><strong>Záloha:</strong> {{payment.depositAmount}} {{billset.currency}}</p>
+  {{/if}}
+  {{else}}
+  <p><strong>Platba:</strong> Jednorazová</p>
+  {{/if}}
+  <p><strong>Splatnosť:</strong> {{billing.paymentTermsDays}} dní od vystavenia faktúry</p>
+</div>`,
+  },
+  signaturePlaceholder: {
+    label: "Podpisové pole",
+    icon: FileText,
+    html: `<div style="margin-top: 50px; display: flex; justify-content: space-between;">
+  <div style="width: 45%; text-align: center;">
+    <div style="border-top: 1px solid #333; padding-top: 5px; margin-top: 60px;">
+      <p style="margin: 5px 0; font-size: 10pt;">{{billing.companyName}}</p>
+      <p style="margin: 0; font-size: 9pt; color: #666;">Poskytovateľ</p>
+    </div>
+  </div>
+  <div style="width: 45%; text-align: center;">
+    <div style="border-top: 1px solid #333; padding-top: 5px; margin-top: 60px;">
+      <p style="margin: 5px 0; font-size: 10pt;">{{customer.fullName}}</p>
+      <p style="margin: 0; font-size: 9pt; color: #666;">Objednávateľ</p>
+    </div>
+  </div>
+</div>`,
+  },
+  imagePlaceholder: {
+    label: "Obrázok / Logo",
+    icon: Image,
+    html: '<div style="text-align: center; padding: 20px; border: 1px dashed #ccc; margin: 10px 0;"><img src="{{company.logoUrl}}" alt="Logo" style="max-width: 200px; max-height: 100px;" /><p style="font-size: 9pt; color: #999; margin-top: 5px;">[Logo spoločnosti]</p></div>',
   },
 };
 
@@ -334,6 +540,38 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
     });
   }, [toast]);
 
+  const insertSpecialElement = useCallback((elementKey: string) => {
+    const element = SPECIAL_ELEMENTS[elementKey as keyof typeof SPECIAL_ELEMENTS];
+    if (!element) return;
+
+    if (editorMode === "html") {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = value.substring(0, start) + "\n" + element.html + "\n" + value.substring(end);
+      
+      onChange(newValue);
+      
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + element.html.length + 2, start + element.html.length + 2);
+      }, 0);
+    } else {
+      onChange(value + "\n" + element.html);
+    }
+
+    toast({
+      title: "Element vložený",
+      description: element.label,
+    });
+  }, [value, onChange, toast, editorMode]);
+
+  const execCommand = useCallback((command: string, value?: string) => {
+    document.execCommand(command, false, value);
+  }, []);
+
   const loadDefaultTemplate = useCallback(() => {
     onChange(DEFAULT_CONTRACT_TEMPLATE);
     toast({
@@ -402,6 +640,35 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
       "contract.currency": "EUR",
       "currentDate": new Date().toLocaleDateString("sk-SK"),
       "currentYear": new Date().getFullYear().toString(),
+      // Billset fields
+      "billset.name": "Premium Plus 25 rokov",
+      "billset.productName": "Uchovávanie kmeňových buniek",
+      "billset.currency": "EUR",
+      "billset.validFrom": "01.01.2024",
+      "billset.validTo": "31.12.2026",
+      "billset.notes": "",
+      "billset.totalNetAmount": "2 500,00",
+      "billset.totalDiscountAmount": "250,00",
+      "billset.totalVatAmount": "450,00",
+      "billset.totalGrossAmount": "2 700,00",
+      // Payment conditions
+      "payment.method": "Splátky",
+      "payment.installments": "24",
+      "payment.installmentAmount": "112,50",
+      "payment.firstPaymentDue": "15.02.2026",
+      "payment.frequency": "mesačne",
+      "payment.depositAmount": "500,00",
+      "payment.remainingAmount": "2 200,00",
+      // Discounts
+      "discount.name": "Včasná registrácia",
+      "discount.type": "percentuálna",
+      "discount.value": "10%",
+      "discount.amount": "250,00",
+      "discount.reason": "Zľava za registráciu pred narodením",
+      // VAT info
+      "vat.rate": "20",
+      "vat.baseAmount": "2 250,00",
+      "vat.amount": "450,00",
     };
 
     let preview = value;
@@ -427,6 +694,7 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
       case "percent": return Percent;
       case "number": return Hash;
       case "url": return Globe;
+      case "loop": return List;
       default: return Info;
     }
   };
@@ -514,6 +782,27 @@ export function ContractTemplateEditor({ value, onChange, onLoadDefault }: Contr
                 </Collapsible>
               );
             })}
+            
+            {/* Special Elements Section */}
+            <div className="mt-4 pt-4 border-t">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Špeciálne elementy</h4>
+              <div className="space-y-1">
+                {Object.entries(SPECIAL_ELEMENTS).map(([key, element]) => {
+                  const ElementIcon = element.icon;
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover-elevate cursor-pointer border border-dashed"
+                      onClick={() => insertSpecialElement(key)}
+                      data-testid={`element-${key}`}
+                    >
+                      <ElementIcon className="h-4 w-4 text-primary" />
+                      <span className="text-xs">{element.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </div>

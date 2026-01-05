@@ -49,6 +49,15 @@ const TEMPLATE_CATEGORIES = [
   { value: "gdpr", label: "GDPR súhlas" }
 ];
 
+const PRODUCT_OPTIONS = [
+  { id: "standard", name: "Štandard", total: 590, payments: 2, deposit: 150, remaining: 440 },
+  { id: "standard_tissue", name: "Štandard + tkanivo pupočníka", total: 790, payments: 2, deposit: 150, remaining: 640 },
+  { id: "premium", name: "Prémium", total: 790, payments: 2, deposit: 150, remaining: 640 },
+  { id: "premium_tissue", name: "Prémium + tkanivo pupočníka", total: 990, payments: 2, deposit: 150, remaining: 840 },
+  { id: "tissue_only", name: "Tkanivo pupočníka", total: 300, payments: 1, deposit: 0, remaining: 300 },
+  { id: "premium_all", name: "Prémium + tkanivo pupočníka + tkanivo placenty", total: 1490, payments: 2, deposit: 150, remaining: 1340 }
+];
+
 export default function ContractsPage() {
   const { toast } = useToast();
   const { selectedCountries } = useCountryFilter();
@@ -89,7 +98,8 @@ export default function ContractsPage() {
     customerId: "",
     billingDetailsId: "",
     currency: "EUR",
-    notes: ""
+    notes: "",
+    selectedProductId: ""
   });
   
   const [urlCustomerProcessed, setUrlCustomerProcessed] = useState(false);

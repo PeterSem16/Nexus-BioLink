@@ -1069,6 +1069,78 @@ export default function ContractsPage() {
                     data-testid="textarea-contract-notes"
                   />
                 </div>
+                
+                <Separator className="my-4" />
+                
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Výber produktu</Label>
+                  <p className="text-sm text-muted-foreground">Vyberte produkt, ktorý bude označený v zmluve</p>
+                  
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[#2c3e50] text-white">
+                          <th className="p-2 text-center w-10">X</th>
+                          <th className="p-2 text-left">Typ produktu</th>
+                          <th className="p-2 text-right">Celkom</th>
+                          <th className="p-2 text-center">Platieb</th>
+                          <th className="p-2 text-right">Záloha</th>
+                          <th className="p-2 text-right bg-[#f39c12]">Zostáva</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PRODUCT_OPTIONS.map((product, index) => (
+                          <tr 
+                            key={product.id}
+                            className={`cursor-pointer transition-colors ${
+                              contractForm.selectedProductId === product.id 
+                                ? "bg-primary/10" 
+                                : index % 2 === 0 ? "bg-muted/30" : "bg-background"
+                            }`}
+                            onClick={() => setContractForm({ ...contractForm, selectedProductId: product.id })}
+                            data-testid={`product-row-${product.id}`}
+                          >
+                            <td className="p-2 text-center">
+                              <div 
+                                className={`w-4 h-4 rounded-full border-2 mx-auto flex items-center justify-center ${
+                                  contractForm.selectedProductId === product.id 
+                                    ? "border-primary bg-primary" 
+                                    : "border-muted-foreground"
+                                }`}
+                              >
+                                {contractForm.selectedProductId === product.id && (
+                                  <div className="w-2 h-2 rounded-full bg-white" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2">{product.name}</td>
+                            <td className="p-2 text-right font-medium">{product.total} EUR</td>
+                            <td className="p-2 text-center">{product.payments}</td>
+                            <td className="p-2 text-right">{product.deposit} EUR</td>
+                            <td className="p-2 text-right font-bold bg-yellow-100 dark:bg-yellow-900/30">{product.remaining} EUR</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {contractForm.selectedProductId && (
+                    <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-md border border-yellow-300 dark:border-yellow-700">
+                      <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Vybraný produkt:</p>
+                      {(() => {
+                        const p = PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId);
+                        if (!p) return null;
+                        return (
+                          <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-0.5">
+                            <p>{p.name}</p>
+                            <p>Celková suma: <strong>{p.total} EUR</strong></p>
+                            <p>Záloha: {p.deposit} EUR | Zostávajúca platba: <strong>{p.remaining} EUR</strong></p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
@@ -1095,14 +1167,39 @@ export default function ContractsPage() {
                       <span className="text-muted-foreground">Mena:</span>
                       <span>{contractForm.currency}</span>
                     </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Produkt:</span>
+                      <span className="font-medium">{PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId)?.name || "-"}</span>
+                    </div>
+                    {contractForm.selectedProductId && (() => {
+                      const p = PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId);
+                      if (!p) return null;
+                      return (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Celková suma:</span>
+                            <span className="font-bold">{p.total} EUR</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Záloha:</span>
+                            <span>{p.deposit} EUR</span>
+                          </div>
+                          <div className="flex justify-between text-yellow-700 dark:text-yellow-300">
+                            <span>Zostávajúca platba:</span>
+                            <span className="font-bold">{p.remaining} EUR</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
                 
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
                   <Shield className="h-5 w-5 text-primary" />
                   <p className="text-sm">
-                    Po vytvorení zmluvy bude možné pridať produkty a účastníkov, 
-                    a následne odoslať na podpis.
+                    Zmluva bude vygenerovaná s označeným produktom. 
+                    Následne ju môžete odoslať klientovi na podpis.
                   </p>
                 </div>
               </div>
@@ -1121,7 +1218,7 @@ export default function ContractsPage() {
                 onClick={() => setWizardStep(wizardStep + 1)}
                 disabled={
                   (wizardStep === 1 && (!contractForm.templateId || !contractForm.customerId)) ||
-                  (wizardStep === 2 && !contractForm.billingDetailsId)
+                  (wizardStep === 2 && (!contractForm.billingDetailsId || !contractForm.selectedProductId))
                 }
                 data-testid="button-wizard-next"
               >

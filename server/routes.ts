@@ -6922,6 +6922,349 @@ export async function registerRoutes(
     }
   });
 
+  // Generate PDF for a contract (regenerate from current data)
+  app.get("/api/contracts/:id/pdf", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const contractTemplate = await storage.getContractTemplate(contract.templateId);
+      if (!contractTemplate) {
+        return res.status(404).json({ error: "Contract template not found" });
+      }
+      
+      if (!contractTemplate.contentHtml) {
+        return res.status(400).json({ error: "Template has no content. Please edit the template first." });
+      }
+      
+      const [customer, billingDetails, products, participants] = await Promise.all([
+        storage.getCustomer(contract.customerId),
+        storage.getBillingDetails(contract.billingDetailsId),
+        storage.getContractInstanceProducts(contract.id),
+        storage.getContractParticipants(contract.id)
+      ]);
+      
+      // Find father participant
+      const fatherParticipant = participants.find(p => p.participantType === "guarantor" || p.role === "father");
+      
+      // Calculate totals from products
+      let totalNet = 0;
+      let totalVat = 0;
+      let totalGross = 0;
+      let firstProduct = null;
+      
+      for (const p of products) {
+        totalNet += parseFloat(p.lineNetAmount || "0");
+        totalVat += parseFloat(p.lineVatAmount || "0");
+        totalGross += parseFloat(p.lineGrossAmount || "0");
+        if (!firstProduct && p.productSnapshot) {
+          firstProduct = JSON.parse(p.productSnapshot);
+        }
+      }
+      
+      // Build context for template rendering
+      const template = Handlebars.compile(contractTemplate.contentHtml || "");
+      
+      const context = {
+        customer: {
+          fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
+          firstName: customer?.firstName || "",
+          lastName: customer?.lastName || "",
+          email: customer?.email || "",
+          phone: customer?.phone || "",
+          address: customer?.address || "",
+          city: customer?.city || "",
+          postalCode: customer?.postalCode || "",
+          dateOfBirth: customer?.dateOfBirth || "",
+          birthNumber: customer?.nationalId || ""
+        },
+        father: {
+          fullName: fatherParticipant?.fullName || "",
+          firstName: fatherParticipant?.fullName?.split(" ")[0] || "",
+          lastName: fatherParticipant?.fullName?.split(" ").slice(1).join(" ") || "",
+          email: fatherParticipant?.email || "",
+          phone: fatherParticipant?.phone || "",
+          address: "",
+          city: "",
+          postalCode: "",
+          dateOfBirth: "",
+          birthNumber: ""
+        },
+        billing: {
+          companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          ico: billingDetails?.ico || "",
+          taxId: billingDetails?.ico || "",
+          dic: billingDetails?.dic || "",
+          vatId: billingDetails?.vatNumber || "",
+          vatNumber: billingDetails?.vatNumber || "",
+          address: billingDetails?.address || "",
+          city: billingDetails?.city || "",
+          postalCode: billingDetails?.postalCode || "",
+          country: billingDetails?.countryCode || "",
+          iban: billingDetails?.bankIban || "",
+          swift: billingDetails?.bankSwift || "",
+          bankName: billingDetails?.bankName || "",
+          phone: billingDetails?.phone || "",
+          email: billingDetails?.email || "",
+          representative: billingDetails?.legalRepresentative || "Ján Šidlík, MBA"
+        },
+        contract: {
+          number: contract.contractNumber,
+          date: new Date().toLocaleDateString("sk-SK"),
+          signaturePlace: billingDetails?.city || "Bratislava",
+          validFrom: contract.validFrom || "",
+          validTo: contract.validTo || ""
+        },
+        product: {
+          name: firstProduct?.name || firstProduct?.productName || "Štandard",
+          description: firstProduct?.description || ""
+        },
+        billset: {
+          totalNetAmount: totalNet.toFixed(2),
+          totalVatAmount: totalVat.toFixed(2),
+          totalGrossAmount: totalGross.toFixed(2),
+          currency: contract.currency || "EUR"
+        },
+        payment: {
+          installments: 2,
+          depositAmount: "150",
+          remainingAmount: (totalGross - 150).toFixed(2)
+        }
+      };
+      
+      const renderedHtml = template(context);
+      
+      // Update rendered HTML in the database before streaming PDF
+      try {
+        await storage.updateContractInstance(contract.id, { renderedHtml });
+      } catch (dbError) {
+        console.error("Error updating contract HTML:", dbError);
+        // Continue with PDF generation even if DB update fails
+      }
+      
+      // Create PDF document
+      const doc = new PDFDocument({ 
+        margin: 40,
+        size: "A4"
+      });
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="zmluva-${contract.contractNumber}.pdf"`);
+      
+      doc.pipe(res);
+      
+      // PDF Header
+      doc.fontSize(16).font("Helvetica-Bold").text("Zmluva o odbere", { align: "center" });
+      doc.fontSize(10).font("Helvetica").text(`číslo zmluvy: ${contract.contractNumber}`, { align: "center" });
+      doc.moveDown(0.5);
+      doc.fontSize(8).text(
+        "uzavretá podľa § 262 ods. 1 a § 269 ods. 2 zákona č. 513/1991 Zb. Obchodný zákonník",
+        { align: "center" }
+      );
+      doc.moveDown();
+      
+      // Contracting parties
+      doc.fontSize(10).font("Helvetica-Bold").text("medzi");
+      doc.font("Helvetica").fontSize(9);
+      doc.text(`${context.billing.companyName}`);
+      doc.text(`so sídlom: ${context.billing.address}, ${context.billing.postalCode} ${context.billing.city}`);
+      doc.text(`IČO: ${context.billing.taxId}, DIČ: ${context.billing.dic}`);
+      doc.text(`IBAN: ${context.billing.iban}, SWIFT: ${context.billing.swift}`);
+      doc.text('(ďalej ako spoločnosť „CBC AG")');
+      doc.moveDown(0.5);
+      
+      doc.font("Helvetica-Bold").text("a");
+      doc.font("Helvetica");
+      doc.text(`pani: ${context.customer.fullName} (ďalej len „RODIČKA")`);
+      doc.text(`trvale bytom: ${context.customer.address}, ${context.customer.postalCode} ${context.customer.city}`);
+      doc.text(`dátum narodenia: ${context.customer.dateOfBirth}`);
+      doc.text(`e-mail: ${context.customer.email}, telefón: ${context.customer.phone}`);
+      
+      if (context.father.fullName) {
+        doc.moveDown(0.3);
+        doc.text(`pán: ${context.father.fullName} (ďalej len „Otec")`);
+      }
+      doc.moveDown();
+      
+      // Article I - Preamble
+      doc.font("Helvetica-Bold").fontSize(11).text("Článok I - Preambula", { align: "center" });
+      doc.font("Helvetica").fontSize(9);
+      doc.text("I.1 Zmluvné strany sa dohodli, že túto Zmluvu uzatvárajú podľa § 262 ods. 1 Obchodného zákonníka.", { align: "justify" });
+      doc.moveDown(0.3);
+      doc.text("I.2 Zmluvné strany vyhlasujú, že túto Zmluvu uzatvárajú slobodne, vážne a bez omylu.", { align: "justify" });
+      doc.moveDown();
+      
+      // Article II - Subject
+      doc.font("Helvetica-Bold").fontSize(11).text("Článok II - Predmet Zmluvy", { align: "center" });
+      doc.font("Helvetica").fontSize(9);
+      doc.text("II.1 Predmetom záväzku CBC AG podľa tejto Zmluvy pre RODIČKU je zabezpečenie odberu pupočníkovej a/alebo placentárnej krvi a/alebo tkaniva.", { align: "justify" });
+      doc.moveDown();
+      
+      // Article V - Payment (abbreviated)
+      doc.font("Helvetica-Bold").fontSize(11).text("Článok V - Odplata", { align: "center" });
+      doc.font("Helvetica").fontSize(9);
+      doc.text(`V.1 Zmluvné strany sa dohodli na nasledovnej odplate:`, { align: "justify" });
+      doc.moveDown(0.3);
+      
+      // Price table
+      const tableTop = doc.y;
+      doc.font("Helvetica-Bold").fontSize(8);
+      doc.text("Typ produktu", 40, tableTop, { width: 150 });
+      doc.text("Celková suma", 200, tableTop, { width: 80, align: "right" });
+      doc.text("Záloha", 290, tableTop, { width: 70, align: "right" });
+      doc.text("Zostatok", 370, tableTop, { width: 80, align: "right" });
+      
+      doc.moveTo(40, tableTop + 12).lineTo(500, tableTop + 12).stroke();
+      
+      doc.font("Helvetica").fontSize(8);
+      doc.text(context.product.name, 40, tableTop + 16, { width: 150 });
+      doc.text(`${context.billset.totalGrossAmount} ${context.billset.currency}`, 200, tableTop + 16, { width: 80, align: "right" });
+      doc.text(`${context.payment.depositAmount} ${context.billset.currency}`, 290, tableTop + 16, { width: 70, align: "right" });
+      doc.text(`${context.payment.remainingAmount} ${context.billset.currency}`, 370, tableTop + 16, { width: 80, align: "right" });
+      
+      doc.y = tableTop + 40;
+      doc.moveDown();
+      
+      // Signatures section
+      doc.addPage();
+      doc.font("Helvetica-Bold").fontSize(11).text("Podpisy", { align: "center" });
+      doc.moveDown(2);
+      
+      // CBC AG signature
+      doc.font("Helvetica").fontSize(9);
+      doc.text(`V ${context.contract.signaturePlace} dňa ${context.contract.date}`, 40);
+      doc.moveDown(3);
+      doc.text("_________________________________", 40);
+      doc.text("za CBC AG", 40);
+      doc.text(context.billing.representative, 40);
+      doc.text("(splnomocnenec)", 40);
+      
+      // Customer signature
+      doc.text(`V _________________ dňa ${context.contract.date}`, 300, doc.y - 80);
+      doc.moveDown(3);
+      doc.text("_________________________________", 300);
+      doc.text(context.customer.fullName, 300);
+      doc.text("(RODIČKA)", 300);
+      
+      if (context.father.fullName) {
+        doc.moveDown(2);
+        doc.text("_________________________________", 300);
+        doc.text(context.father.fullName, 300);
+        doc.text("(Otec)", 300);
+      }
+      
+      // Footer
+      doc.fontSize(7).text("CBCAG-ZDLMO-V003", 450, 780);
+      
+      doc.end();
+      
+    } catch (error) {
+      console.error("Error generating contract PDF:", error);
+      res.status(500).json({ error: "Failed to generate contract PDF" });
+    }
+  });
+
+  // Regenerate contract (re-render with current data)
+  app.post("/api/contracts/:id/regenerate", requireAuth, async (req, res) => {
+    try {
+      const contract = await storage.getContractInstance(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+      
+      const contractTemplate = await storage.getContractTemplate(contract.templateId);
+      if (!contractTemplate || !contractTemplate.contentHtml) {
+        return res.status(400).json({ error: "Template has no content" });
+      }
+      
+      const [customer, billingDetails, products, participants] = await Promise.all([
+        storage.getCustomer(contract.customerId),
+        storage.getBillingDetails(contract.billingDetailsId),
+        storage.getContractInstanceProducts(contract.id),
+        storage.getContractParticipants(contract.id)
+      ]);
+      
+      const fatherParticipant = participants.find(p => p.participantType === "guarantor" || p.role === "father");
+      
+      let totalNet = 0, totalVat = 0, totalGross = 0;
+      let firstProduct = null;
+      
+      for (const p of products) {
+        totalNet += parseFloat(p.lineNetAmount || "0");
+        totalVat += parseFloat(p.lineVatAmount || "0");
+        totalGross += parseFloat(p.lineGrossAmount || "0");
+        if (!firstProduct && p.productSnapshot) {
+          firstProduct = JSON.parse(p.productSnapshot);
+        }
+      }
+      
+      const template = Handlebars.compile(contractTemplate.contentHtml);
+      
+      const context = {
+        customer: {
+          fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
+          firstName: customer?.firstName || "",
+          lastName: customer?.lastName || "",
+          email: customer?.email || "",
+          phone: customer?.phone || "",
+          address: customer?.address || "",
+          city: customer?.city || "",
+          postalCode: customer?.postalCode || "",
+          dateOfBirth: customer?.dateOfBirth || "",
+          birthNumber: customer?.nationalId || ""
+        },
+        father: {
+          fullName: fatherParticipant?.fullName || "",
+          email: fatherParticipant?.email || "",
+          phone: fatherParticipant?.phone || "",
+          address: "", city: "", postalCode: "", dateOfBirth: "", birthNumber: ""
+        },
+        billing: {
+          companyName: billingDetails?.companyName || "Cord Blood Center AG",
+          taxId: billingDetails?.ico || "",
+          dic: billingDetails?.dic || "",
+          vatId: billingDetails?.vatNumber || "",
+          address: billingDetails?.address || "",
+          city: billingDetails?.city || "",
+          postalCode: billingDetails?.postalCode || "",
+          country: billingDetails?.countryCode || "",
+          iban: billingDetails?.bankIban || "",
+          swift: billingDetails?.bankSwift || "",
+          representative: billingDetails?.legalRepresentative || "Ján Šidlík, MBA"
+        },
+        contract: {
+          number: contract.contractNumber,
+          date: new Date().toLocaleDateString("sk-SK"),
+          signaturePlace: billingDetails?.city || "Bratislava"
+        },
+        product: {
+          name: firstProduct?.name || firstProduct?.productName || "Štandard"
+        },
+        billset: {
+          totalNetAmount: totalNet.toFixed(2),
+          totalVatAmount: totalVat.toFixed(2),
+          totalGrossAmount: totalGross.toFixed(2),
+          currency: contract.currency || "EUR"
+        },
+        payment: {
+          installments: 2,
+          depositAmount: "150",
+          remainingAmount: (totalGross - 150).toFixed(2)
+        }
+      };
+      
+      const renderedHtml = template(context);
+      await storage.updateContractInstance(contract.id, { renderedHtml });
+      
+      res.json({ success: true, html: renderedHtml });
+    } catch (error) {
+      console.error("Error regenerating contract:", error);
+      res.status(500).json({ error: "Failed to regenerate contract" });
+    }
+  });
+
   // Send contract for signature
   app.post("/api/contracts/:id/send", requireAuth, async (req, res) => {
     try {

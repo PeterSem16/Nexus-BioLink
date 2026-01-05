@@ -304,6 +304,48 @@ export default function ContractsPage() {
     }
   });
 
+  const regenerateContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/contracts/${id}/regenerate`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContract?.id] });
+      toast({ title: "Zmluva regenerovaná", description: "Zmluva bola znovu vygenerovaná s aktuálnymi údajmi." });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa regenerovať zmluvu.", variant: "destructive" });
+    }
+  });
+
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const downloadContractPdf = async (contractId: string, contractNumber: string) => {
+    setIsDownloadingPdf(true);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/pdf`, { credentials: "include" });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Nepodarilo sa stiahnuť PDF");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `zmluva-${contractNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast({ title: "PDF stiahnuté", description: "PDF zmluvy bolo úspešne stiahnuté." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nepodarilo sa stiahnuť PDF";
+      toast({ title: "Chyba", description: message, variant: "destructive" });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const addParticipantMutation = useMutation({
     mutationFn: async ({ contractId, data }: { contractId: string; data: typeof participantForm }) => {
       return apiRequest("POST", `/api/contracts/${contractId}/participants`, data);
@@ -1581,14 +1623,40 @@ export default function ContractsPage() {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
               Zavrieť
             </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Stiahnuť PDF
-            </Button>
+            {selectedContract && (selectedContract.renderedHtml || contractDetail?.renderedHtml) && (
+              <Button 
+                variant="outline"
+                disabled={regenerateContractMutation.isPending}
+                onClick={() => regenerateContractMutation.mutate(selectedContract.id)}
+                data-testid="button-regenerate-contract"
+              >
+                {regenerateContractMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Regenerovať
+              </Button>
+            )}
+            {selectedContract && (
+              <Button 
+                variant="outline"
+                disabled={isDownloadingPdf}
+                onClick={() => downloadContractPdf(selectedContract.id, selectedContract.contractNumber)}
+                data-testid="button-download-pdf"
+              >
+                {isDownloadingPdf ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Stiahnuť PDF
+              </Button>
+            )}
             {selectedContract?.status === "draft" && (
               <Button onClick={() => {
                 if (selectedContract) {

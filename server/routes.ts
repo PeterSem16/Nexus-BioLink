@@ -271,6 +271,123 @@ async function extractPdfPagesAsImages(
   }
 }
 
+// Comprehensive PDF extraction: text with layout + embedded images
+async function extractPdfContentAndImages(
+  pdfPath: string,
+  categoryId: number,
+  countryCode: string
+): Promise<{
+  text: string;
+  htmlContent: string;
+  embeddedImages: { fileName: string; imageUrl: string; sizeKB: number }[];
+  pageImages: { pageNumber: number; imageUrl: string; fileName: string }[];
+}> {
+  const { exec } = await import("child_process");
+  const { promisify } = await import("util");
+  const execAsync = promisify(exec);
+  
+  // Create directories for assets
+  const baseDir = path.join(uploadsDir, "contract-pdfs", `category-${categoryId}`, countryCode);
+  const imagesDir = path.join(baseDir, "images");
+  const pagesDir = path.join(baseDir, "pages");
+  
+  // Clean and create directories
+  for (const dir of [imagesDir, pagesDir]) {
+    if (fs.existsSync(dir)) {
+      const oldFiles = fs.readdirSync(dir);
+      for (const file of oldFiles) {
+        try { fs.unlinkSync(path.join(dir, file)); } catch (e) {}
+      }
+    } else {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+  
+  let text = "";
+  let embeddedImages: { fileName: string; imageUrl: string; sizeKB: number }[] = [];
+  let pageImages: { pageNumber: number; imageUrl: string; fileName: string }[] = [];
+  
+  // 1. Extract text with layout preservation
+  try {
+    const { stdout } = await execAsync(`pdftotext -layout "${pdfPath}" -`);
+    text = stdout || "";
+    console.log(`[PDF Extract] Extracted ${text.length} characters of text with layout`);
+  } catch (error) {
+    console.warn("[PDF Extract] Text extraction failed:", error);
+  }
+  
+  // 2. Extract embedded images using pdfimages
+  try {
+    const imagePrefix = path.join(imagesDir, "img");
+    await execAsync(`pdfimages -png "${pdfPath}" "${imagePrefix}"`);
+    
+    const files = fs.readdirSync(imagesDir);
+    embeddedImages = files
+      .filter(f => f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".ppm"))
+      .map(fileName => {
+        const filePath = path.join(imagesDir, fileName);
+        const stats = fs.statSync(filePath);
+        const sizeKB = Math.round(stats.size / 1024);
+        
+        // Skip very small images (likely artifacts)
+        if (sizeKB < 1) {
+          try { fs.unlinkSync(filePath); } catch (e) {}
+          return null;
+        }
+        
+        return {
+          fileName,
+          imageUrl: `/uploads/contract-pdfs/category-${categoryId}/${countryCode}/images/${fileName}`,
+          sizeKB
+        };
+      })
+      .filter(Boolean) as typeof embeddedImages;
+    
+    console.log(`[PDF Extract] Extracted ${embeddedImages.length} embedded images`);
+  } catch (error) {
+    console.warn("[PDF Extract] Image extraction failed (PDF may have no embedded images):", error);
+  }
+  
+  // 3. Also extract page images as fallback/reference
+  try {
+    const pagePrefix = path.join(pagesDir, "page");
+    await execAsync(`pdftoppm -png -r 150 "${pdfPath}" "${pagePrefix}"`);
+    
+    const files = fs.readdirSync(pagesDir);
+    pageImages = files
+      .filter(f => f.endsWith(".png"))
+      .sort((a, b) => {
+        const numA = parseInt(a.match(/(\d+)/)?.[1] || "0");
+        const numB = parseInt(b.match(/(\d+)/)?.[1] || "0");
+        return numA - numB;
+      })
+      .map((fileName, index) => ({
+        pageNumber: index + 1,
+        imageUrl: `/uploads/contract-pdfs/category-${categoryId}/${countryCode}/pages/${fileName}`,
+        fileName
+      }));
+    
+    console.log(`[PDF Extract] Extracted ${pageImages.length} page images`);
+  } catch (error) {
+    console.warn("[PDF Extract] Page image extraction failed:", error);
+  }
+  
+  // 4. Create HTML content with preserved text layout
+  const escapedText = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  
+  const htmlContent = `<div class="contract-template" style="width:816px;margin:0 auto;font-family:'Courier New',monospace;font-size:11px;line-height:1.4;">
+  <style>
+    .contract-text { white-space: pre-wrap; word-wrap: break-word; }
+  </style>
+  <div class="contract-text">${escapedText}</div>
+</div>`;
+  
+  return { text, htmlContent, embeddedImages, pageImages };
+}
+
 // Read images and convert to base64 for OpenAI Vision
 function imagesToBase64(imagePaths: string[]): { type: "image_url"; image_url: { url: string; detail: "high" } }[] {
   return imagePaths.map(imagePath => {
@@ -6850,34 +6967,26 @@ export async function registerRoutes(
         return res.status(400).json({ error: "PDF file is required" });
       }
 
-      console.log(`[PDF Upload] Extracting pages from PDF: ${req.file.path} for category ${categoryId}, country ${normalizedCountryCode}`);
+      console.log(`[PDF Upload] Extracting content from PDF: ${req.file.path} for category ${categoryId}, country ${normalizedCountryCode}`);
       
-      // Extract PDF pages as high-quality PNG images (no AI conversion)
-      const { pages } = await extractPdfPagesAsImages(req.file.path, categoryId, normalizedCountryCode, 10);
+      // Extract text with layout + embedded images + page images
+      const { text, htmlContent, embeddedImages, pageImages } = await extractPdfContentAndImages(
+        req.file.path, 
+        categoryId, 
+        normalizedCountryCode
+      );
       
-      if (pages.length === 0) {
-        return res.status(500).json({ error: "Failed to extract images from PDF. Make sure the PDF is valid." });
+      if (!text && pageImages.length === 0) {
+        return res.status(500).json({ error: "Failed to extract content from PDF. Make sure the PDF is valid." });
       }
       
-      // Extract text from PDF as supplementary info
-      const pdfText = await extractPdfText(req.file.path);
-      console.log(`[PDF Upload] Extracted ${pdfText.length} characters of text from PDF`);
-      
-      // Create basic HTML template with placeholders for images
-      const htmlContent = `<div class="contract-template" style="width:816px;margin:0 auto;font-family:'Times New Roman',Georgia,serif;font-size:12px;">
-  <p style="color:#666;margin-bottom:20px;">Extrahované stránky z PDF. Vložte obrázky podľa potreby pomocou editora.</p>
-  <div style="background:#f0f0f0;padding:10px;border-radius:4px;">
-    <p style="font-weight:bold;">Dostupné obrázky stránok:</p>
-    <ul>
-${pages.map(p => `      <li>Strana ${p.pageNumber}: <code>${p.imageUrl}</code></li>`).join('\n')}
-    </ul>
-  </div>
-</div>`;
+      console.log(`[PDF Upload] Extracted: ${text.length} chars text, ${embeddedImages.length} embedded images, ${pageImages.length} page images`);
 
-      // Store metadata about extracted pages
+      // Store metadata about extracted content
       const conversionMetadata = JSON.stringify({
-        extractedPages: pages,
-        extractedText: pdfText.substring(0, 5000), // Store first 5000 chars
+        extractedText: text.substring(0, 10000),
+        embeddedImages,
+        pageImages,
         extractedAt: new Date().toISOString()
       });
 
@@ -6906,10 +7015,12 @@ ${pages.map(p => `      <li>Strana ${p.pageNumber}: <code>${p.imageUrl}</code></
         });
       }
       
-      // Return both template and extracted pages info
+      // Return template and all extracted content
       res.json({
         ...result,
-        extractedPages: pages
+        extractedText: text.substring(0, 5000),
+        embeddedImages,
+        pageImages
       });
     } catch (error) {
       console.error("Error uploading PDF:", error);

@@ -207,7 +207,9 @@ export default function ContractsPage() {
     uploading: boolean; 
     uploaded: boolean; 
     error?: string;
-    extractedPages?: { pageNumber: number; imageUrl: string; fileName: string }[];
+    extractedText?: string;
+    embeddedImages?: { fileName: string; imageUrl: string; sizeKB: number }[];
+    pageImages?: { pageNumber: number; imageUrl: string; fileName: string }[];
   }>>({
     SK: { file: null, uploading: false, uploaded: false },
     CZ: { file: null, uploading: false, uploaded: false },
@@ -1873,8 +1875,8 @@ export default function ContractsPage() {
                                 </div>
                               </div>
                               <div className="text-center space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Extrahujem stránky z PDF</p>
-                                <p className="text-xs text-muted-foreground">Konvertujem stránky na obrázky...</p>
+                                <p className="text-sm font-semibold text-foreground">Extrahujem obsah z PDF</p>
+                                <p className="text-xs text-muted-foreground">Text + obrázky...</p>
                               </div>
                               <div className="w-48 space-y-2">
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -1887,9 +1889,6 @@ export default function ContractsPage() {
                                     }} 
                                   />
                                 </div>
-                                <p className="text-[10px] text-center text-muted-foreground">
-                                  200 DPI PNG obrázky
-                                </p>
                               </div>
                             </div>
                           )}
@@ -1929,7 +1928,6 @@ export default function ContractsPage() {
                                       }
                                       
                                       const result = await response.json();
-                                      const extractedPages = result.extractedPages || [];
                                       
                                       setCategoryPdfUploads(prev => ({
                                         ...prev,
@@ -1937,16 +1935,19 @@ export default function ContractsPage() {
                                           ...prev[country.code], 
                                           uploading: false, 
                                           uploaded: true,
-                                          extractedPages 
+                                          extractedText: result.extractedText,
+                                          embeddedImages: result.embeddedImages || [],
+                                          pageImages: result.pageImages || []
                                         }
                                       }));
                                       setCategoryDefaultTemplates(prev => ({
                                         ...prev,
                                         [country.code]: true
                                       }));
+                                      const imgCount = (result.embeddedImages?.length || 0) + (result.pageImages?.length || 0);
                                       toast({ 
                                         title: `PDF extrahované`, 
-                                        description: `${extractedPages.length} stránok pripravených na použitie` 
+                                        description: `Text + ${imgCount} obrázkov pripravených` 
                                       });
                                     } catch (error: any) {
                                       setCategoryPdfUploads(prev => ({
@@ -1968,13 +1969,10 @@ export default function ContractsPage() {
                             </div>
                             
                             <div className="w-auto shrink-0 flex items-center justify-end gap-2">
-                              {uploadState?.uploaded && uploadState?.extractedPages && uploadState.extractedPages.length > 0 && (
+                              {uploadState?.uploaded && (
                                 <Badge variant="default" className="bg-green-600 text-xs">
-                                  {uploadState.extractedPages.length} stránok
+                                  Extrahované
                                 </Badge>
-                              )}
-                              {uploadState?.uploaded && !uploadState?.extractedPages && (
-                                <Badge variant="default" className="bg-green-600 text-xs">OK</Badge>
                               )}
                               {uploadState?.error && (
                                 <Badge variant="destructive" className="text-xs">Chyba</Badge>
@@ -1995,30 +1993,63 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           
-                          {uploadState?.extractedPages && uploadState.extractedPages.length > 0 && (
-                            <div className="mt-2 p-3 bg-muted/30 rounded-md">
-                              <p className="text-xs font-medium mb-2">Extrahované stránky (kliknite pre náhľad):</p>
-                              <div className="flex flex-wrap gap-2">
-                                {uploadState.extractedPages.map((page) => (
-                                  <a 
-                                    key={page.pageNumber}
-                                    href={page.imageUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block w-16 h-20 border rounded overflow-hidden bg-white hover-elevate"
-                                    title={`Strana ${page.pageNumber} - ${page.imageUrl}`}
-                                    data-testid={`link-page-${country.code}-${page.pageNumber}`}
-                                  >
-                                    <img 
-                                      src={page.imageUrl} 
-                                      alt={`Strana ${page.pageNumber}`}
-                                      className="w-full h-full object-cover object-top"
-                                    />
-                                  </a>
-                                ))}
-                              </div>
-                              <p className="text-[10px] text-muted-foreground mt-2">
-                                URL pre použitie v HTML editore: <code className="bg-muted px-1 rounded">/uploads/contract-pdfs/...</code>
+                          {uploadState?.uploaded && (uploadState.embeddedImages?.length || uploadState.pageImages?.length) && (
+                            <div className="mt-2 p-3 bg-muted/30 rounded-md space-y-3">
+                              {uploadState.embeddedImages && uploadState.embeddedImages.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium mb-2">Vložené obrázky z PDF (logá, grafiky):</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {uploadState.embeddedImages.map((img, idx) => (
+                                      <a 
+                                        key={idx}
+                                        href={img.imageUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block w-16 h-16 border rounded overflow-hidden bg-white hover-elevate"
+                                        title={`${img.fileName} (${img.sizeKB}KB)\n${img.imageUrl}`}
+                                        data-testid={`link-embedded-${country.code}-${idx}`}
+                                      >
+                                        <img 
+                                          src={img.imageUrl} 
+                                          alt={img.fileName}
+                                          className="w-full h-full object-contain"
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {uploadState.pageImages && uploadState.pageImages.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium mb-2">Stránky PDF ako obrázky:</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {uploadState.pageImages.map((page) => (
+                                      <a 
+                                        key={page.pageNumber}
+                                        href={page.imageUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block w-14 h-18 border rounded overflow-hidden bg-white hover-elevate"
+                                        title={`Strana ${page.pageNumber}\n${page.imageUrl}`}
+                                        data-testid={`link-page-${country.code}-${page.pageNumber}`}
+                                      >
+                                        <img 
+                                          src={page.imageUrl} 
+                                          alt={`Strana ${page.pageNumber}`}
+                                          className="w-full h-full object-cover object-top"
+                                        />
+                                        <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] text-center">
+                                          {page.pageNumber}
+                                        </span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <p className="text-[10px] text-muted-foreground">
+                                URL pre vloženie do HTML editora: Kliknite na obrázok, skopírujte URL z prehliadača
                               </p>
                             </div>
                           )}

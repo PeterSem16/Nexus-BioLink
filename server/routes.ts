@@ -30,6 +30,14 @@ import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import OpenAI from "openai";
+
+// Global uploads directory
+const uploadsDir = path.join(process.cwd(), "uploads");
+
+// OpenAI client for AI-powered PDF conversion
+// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Configure multer for agreement file uploads
 const agreementStorage = multer.diskStorage({
@@ -271,16 +279,18 @@ async function extractPdfPagesAsImages(
   }
 }
 
-// Comprehensive PDF extraction: text with layout + embedded images
-async function extractPdfContentAndImages(
+// AI-powered PDF to HTML conversion using OpenAI Vision
+async function convertPdfToHtmlWithAI(
   pdfPath: string,
   categoryId: number,
-  countryCode: string
+  countryCode: string,
+  maxPages: number = 10
 ): Promise<{
-  text: string;
   htmlContent: string;
+  extractedText: string;
   embeddedImages: { fileName: string; imageUrl: string; sizeKB: number }[];
   pageImages: { pageNumber: number; imageUrl: string; fileName: string }[];
+  conversionMethod: "ai" | "text-only";
 }> {
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
@@ -303,38 +313,37 @@ async function extractPdfContentAndImages(
     }
   }
   
-  let text = "";
+  let extractedText = "";
   let embeddedImages: { fileName: string; imageUrl: string; sizeKB: number }[] = [];
   let pageImages: { pageNumber: number; imageUrl: string; fileName: string }[] = [];
+  let htmlContent = "";
+  let conversionMethod: "ai" | "text-only" = "ai";
   
-  // 1. Extract text with layout preservation
+  // 1. Extract text with layout preservation (fallback)
   try {
     const { stdout } = await execAsync(`pdftotext -layout "${pdfPath}" -`);
-    text = stdout || "";
-    console.log(`[PDF Extract] Extracted ${text.length} characters of text with layout`);
+    extractedText = stdout || "";
+    console.log(`[PDF AI] Extracted ${extractedText.length} characters of text`);
   } catch (error) {
-    console.warn("[PDF Extract] Text extraction failed:", error);
+    console.warn("[PDF AI] Text extraction failed:", error);
   }
   
-  // 2. Extract embedded images using pdfimages
+  // 2. Extract embedded images (logos, graphics) - skip if fails
   try {
     const imagePrefix = path.join(imagesDir, "img");
     await execAsync(`pdfimages -png "${pdfPath}" "${imagePrefix}"`);
     
     const files = fs.readdirSync(imagesDir);
     embeddedImages = files
-      .filter(f => f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".ppm"))
+      .filter(f => f.endsWith(".png") || f.endsWith(".jpg"))
       .map(fileName => {
         const filePath = path.join(imagesDir, fileName);
         const stats = fs.statSync(filePath);
         const sizeKB = Math.round(stats.size / 1024);
-        
-        // Skip very small images (likely artifacts)
         if (sizeKB < 1) {
           try { fs.unlinkSync(filePath); } catch (e) {}
           return null;
         }
-        
         return {
           fileName,
           imageUrl: `/uploads/contract-pdfs/category-${categoryId}/${countryCode}/images/${fileName}`,
@@ -342,50 +351,133 @@ async function extractPdfContentAndImages(
         };
       })
       .filter(Boolean) as typeof embeddedImages;
-    
-    console.log(`[PDF Extract] Extracted ${embeddedImages.length} embedded images`);
+    console.log(`[PDF AI] Extracted ${embeddedImages.length} embedded images`);
   } catch (error) {
-    console.warn("[PDF Extract] Image extraction failed (PDF may have no embedded images):", error);
+    console.warn("[PDF AI] Embedded image extraction skipped:", error);
   }
   
-  // 3. Also extract page images as fallback/reference
+  // 3. Convert PDF pages to images for AI analysis
+  let pageImagePaths: string[] = [];
   try {
     const pagePrefix = path.join(pagesDir, "page");
-    await execAsync(`pdftoppm -png -r 150 "${pdfPath}" "${pagePrefix}"`);
+    await execAsync(`pdftoppm -png -r 150 -l ${maxPages} "${pdfPath}" "${pagePrefix}"`);
     
     const files = fs.readdirSync(pagesDir);
-    pageImages = files
+    const sortedFiles = files
       .filter(f => f.endsWith(".png"))
       .sort((a, b) => {
         const numA = parseInt(a.match(/(\d+)/)?.[1] || "0");
         const numB = parseInt(b.match(/(\d+)/)?.[1] || "0");
         return numA - numB;
-      })
-      .map((fileName, index) => ({
-        pageNumber: index + 1,
-        imageUrl: `/uploads/contract-pdfs/category-${categoryId}/${countryCode}/pages/${fileName}`,
-        fileName
-      }));
+      });
     
-    console.log(`[PDF Extract] Extracted ${pageImages.length} page images`);
+    pageImages = sortedFiles.map((fileName, index) => ({
+      pageNumber: index + 1,
+      imageUrl: `/uploads/contract-pdfs/category-${categoryId}/${countryCode}/pages/${fileName}`,
+      fileName
+    }));
+    
+    pageImagePaths = sortedFiles.map(f => path.join(pagesDir, f));
+    console.log(`[PDF AI] Created ${pageImages.length} page images for AI analysis`);
   } catch (error) {
-    console.warn("[PDF Extract] Page image extraction failed:", error);
+    console.warn("[PDF AI] Page image creation failed, will use text-only:", error);
   }
   
-  // 4. Create HTML content with preserved text layout
-  const escapedText = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  // 4. Use OpenAI Vision to convert PDF to HTML
+  if (pageImagePaths.length > 0) {
+    try {
+      console.log(`[PDF AI] Sending ${pageImagePaths.length} pages to OpenAI Vision...`);
+      
+      // Prepare images for Vision API
+      const imageMessages: { type: "image_url"; image_url: { url: string } }[] = [];
+      for (const imgPath of pageImagePaths) {
+        try {
+          const imageBuffer = fs.readFileSync(imgPath);
+          const base64 = imageBuffer.toString("base64");
+          const sizeKB = Math.round(imageBuffer.length / 1024);
+          
+          // Skip images larger than 2MB to avoid API issues
+          if (sizeKB > 2000) {
+            console.warn(`[PDF AI] Skipping oversized image: ${sizeKB}KB`);
+            continue;
+          }
+          
+          imageMessages.push({
+            type: "image_url",
+            image_url: { url: `data:image/png;base64,${base64}` }
+          });
+        } catch (imgError) {
+          console.warn(`[PDF AI] Skipping problematic image ${imgPath}:`, imgError);
+          continue;
+        }
+      }
+      
+      if (imageMessages.length === 0) {
+        throw new Error("No valid images to process");
+      }
+      
+      const prompt = `Analyzuj tieto stránky dokumentu a vytvor z nich HTML kód, ktorý presne zachová:
+1. Celý text dokumentu v správnom poradí
+2. Formátovanie (tučné, kurzíva, nadpisy, odsadenia)
+3. Štruktúru (tabuľky, zoznamy, odstavce)
+4. Rozloženie obsahu na stránke
+
+DÔLEŽITÉ: Ak vidíš obrázky alebo logá v dokumente, PRESKUČ ICH. Sústreď sa len na text a jeho formátovanie.
+
+Vytvor čistý HTML kód bez obrázkov. Použij moderné HTML5 a inline štýly.
+Celý dokument má byť na šírku 816px (A4).
+
+Vrať len HTML kód bez vysvetlení.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...imageMessages
+            ],
+          },
+        ],
+        max_completion_tokens: 16000,
+      });
+      
+      htmlContent = response.choices[0].message.content || "";
+      
+      // Clean up response - remove markdown code blocks if present
+      htmlContent = htmlContent
+        .replace(/^```html?\n?/i, "")
+        .replace(/\n?```$/i, "")
+        .trim();
+      
+      console.log(`[PDF AI] AI generated ${htmlContent.length} chars of HTML`);
+      conversionMethod = "ai";
+      
+    } catch (aiError: any) {
+      console.error("[PDF AI] AI conversion failed, falling back to text-only:", aiError.message);
+      conversionMethod = "text-only";
+    }
+  } else {
+    conversionMethod = "text-only";
+  }
   
-  const htmlContent = `<div class="contract-template" style="width:816px;margin:0 auto;font-family:'Courier New',monospace;font-size:11px;line-height:1.4;">
-  <style>
-    .contract-text { white-space: pre-wrap; word-wrap: break-word; }
-  </style>
-  <div class="contract-text">${escapedText}</div>
+  // 5. Fallback to text-only if AI failed
+  if (!htmlContent || htmlContent.length < 100) {
+    console.log("[PDF AI] Using text-only fallback");
+    conversionMethod = "text-only";
+    
+    const escapedText = extractedText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    
+    htmlContent = `<div class="contract-template" style="width:816px;margin:0 auto;font-family:'Times New Roman',Georgia,serif;font-size:12px;line-height:1.5;">
+  <div style="white-space:pre-wrap;word-wrap:break-word;">${escapedText}</div>
 </div>`;
+  }
   
-  return { text, htmlContent, embeddedImages, pageImages };
+  return { htmlContent, extractedText, embeddedImages, pageImages, conversionMethod };
 }
 
 // Read images and convert to base64 for OpenAI Vision
@@ -6967,27 +7059,28 @@ export async function registerRoutes(
         return res.status(400).json({ error: "PDF file is required" });
       }
 
-      console.log(`[PDF Upload] Extracting content from PDF: ${req.file.path} for category ${categoryId}, country ${normalizedCountryCode}`);
+      console.log(`[PDF Upload] Starting AI conversion of PDF: ${req.file.path} for category ${categoryId}, country ${normalizedCountryCode}`);
       
-      // Extract text with layout + embedded images + page images
-      const { text, htmlContent, embeddedImages, pageImages } = await extractPdfContentAndImages(
+      // AI-powered PDF to HTML conversion with robust image handling
+      const { htmlContent, extractedText, embeddedImages, pageImages, conversionMethod } = await convertPdfToHtmlWithAI(
         req.file.path, 
         categoryId, 
         normalizedCountryCode
       );
       
-      if (!text && pageImages.length === 0) {
-        return res.status(500).json({ error: "Failed to extract content from PDF. Make sure the PDF is valid." });
+      if (!extractedText && !htmlContent) {
+        return res.status(500).json({ error: "Failed to convert PDF. Make sure the PDF is valid." });
       }
       
-      console.log(`[PDF Upload] Extracted: ${text.length} chars text, ${embeddedImages.length} embedded images, ${pageImages.length} page images`);
+      console.log(`[PDF Upload] Conversion complete: ${htmlContent.length} chars HTML, method: ${conversionMethod}`);
 
-      // Store metadata about extracted content
+      // Store metadata about conversion
       const conversionMetadata = JSON.stringify({
-        extractedText: text.substring(0, 10000),
+        extractedText: extractedText.substring(0, 10000),
         embeddedImages,
         pageImages,
-        extractedAt: new Date().toISOString()
+        conversionMethod,
+        convertedAt: new Date().toISOString()
       });
 
       // Check if template already exists for this category and country
@@ -7018,9 +7111,10 @@ export async function registerRoutes(
       // Return template and all extracted content
       res.json({
         ...result,
-        extractedText: text.substring(0, 5000),
+        extractedText: extractedText.substring(0, 5000),
         embeddedImages,
-        pageImages
+        pageImages,
+        conversionMethod
       });
     } catch (error) {
       console.error("Error uploading PDF:", error);

@@ -210,6 +210,7 @@ export default function ContractsPage() {
     extractedText?: string;
     embeddedImages?: { fileName: string; imageUrl: string; sizeKB: number }[];
     pageImages?: { pageNumber: number; imageUrl: string; fileName: string }[];
+    conversionMethod?: "ai" | "text-only";
   }>>({
     SK: { file: null, uploading: false, uploaded: false },
     CZ: { file: null, uploading: false, uploaded: false },
@@ -1875,8 +1876,8 @@ export default function ContractsPage() {
                                 </div>
                               </div>
                               <div className="text-center space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Extrahujem obsah z PDF</p>
-                                <p className="text-xs text-muted-foreground">Text + obrázky...</p>
+                                <p className="text-sm font-semibold text-foreground">AI konvertuje PDF do HTML</p>
+                                <p className="text-xs text-muted-foreground">Zachovávam formátovanie dokumentu...</p>
                               </div>
                               <div className="w-48 space-y-2">
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -1937,17 +1938,18 @@ export default function ContractsPage() {
                                           uploaded: true,
                                           extractedText: result.extractedText,
                                           embeddedImages: result.embeddedImages || [],
-                                          pageImages: result.pageImages || []
+                                          pageImages: result.pageImages || [],
+                                          conversionMethod: result.conversionMethod
                                         }
                                       }));
                                       setCategoryDefaultTemplates(prev => ({
                                         ...prev,
                                         [country.code]: true
                                       }));
-                                      const imgCount = (result.embeddedImages?.length || 0) + (result.pageImages?.length || 0);
+                                      const method = result.conversionMethod === "ai" ? "AI konverzia" : "Text";
                                       toast({ 
-                                        title: `PDF extrahované`, 
-                                        description: `Text + ${imgCount} obrázkov pripravených` 
+                                        title: `PDF konvertované`, 
+                                        description: `${method} - HTML šablóna vytvorená` 
                                       });
                                     } catch (error: any) {
                                       setCategoryPdfUploads(prev => ({
@@ -1970,8 +1972,8 @@ export default function ContractsPage() {
                             
                             <div className="w-auto shrink-0 flex items-center justify-end gap-2">
                               {uploadState?.uploaded && (
-                                <Badge variant="default" className="bg-green-600 text-xs">
-                                  Extrahované
+                                <Badge variant="default" className={uploadState.conversionMethod === "ai" ? "bg-green-600 text-xs" : "bg-blue-600 text-xs"}>
+                                  {uploadState.conversionMethod === "ai" ? "AI" : "Text"}
                                 </Badge>
                               )}
                               {uploadState?.error && (

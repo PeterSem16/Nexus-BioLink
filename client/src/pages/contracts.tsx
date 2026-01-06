@@ -22,7 +22,7 @@ import {
   FileText, Plus, Edit2, Trash2, Send, Eye, Check, X, Clock, 
   FileSignature, Download, Copy, RefreshCw, AlertCircle, Filter,
   ChevronRight, Settings, PenTool, Mail, Phone, Shield, 
-  CheckCircle, Loader2, Edit, Pencil, GripVertical
+  CheckCircle, Loader2, Edit, Pencil, GripVertical, Globe
 } from "lucide-react";
 import {
   DndContext,
@@ -1667,46 +1667,84 @@ export default function ContractsPage() {
             )}
             
             {categoryWizardStep === 0 && selectedCategory && (
-              <div className="grid gap-6 py-4">
-                <div className="grid grid-cols-2 gap-4">
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="basic" data-testid="tab-category-basic">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Základné
+                  </TabsTrigger>
+                  <TabsTrigger value="languages" data-testid="tab-category-languages">
+                    <Globe className="h-4 w-4 mr-2" />
+                    Jazyky
+                  </TabsTrigger>
+                  <TabsTrigger value="templates" data-testid="tab-category-templates">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Šablóny
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="basic" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-value">Kód kategórie</Label>
+                      <Input
+                        id="edit-category-value"
+                        value={categoryForm.value}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                        placeholder="cord_blood"
+                        data-testid="input-edit-category-value"
+                      />
+                      <p className="text-xs text-muted-foreground">Interný kód bez diakritiky</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-sort-order">Poradie zobrazovania</Label>
+                      <Input
+                        id="edit-category-sort-order"
+                        type="number"
+                        value={categoryForm.sortOrder}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
+                        data-testid="input-edit-category-sort-order"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="edit-category-value">Kód kategórie</Label>
+                    <Label htmlFor="edit-category-label">Predvolený názov</Label>
                     <Input
-                      id="edit-category-value"
-                      value={categoryForm.value}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
-                      placeholder="cord_blood"
-                      data-testid="input-edit-category-value"
+                      id="edit-category-label"
+                      value={categoryForm.label}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
+                      placeholder="Zmluva o uchovávaní krvotvorných buniek"
+                      data-testid="input-edit-category-label"
+                    />
+                    <p className="text-xs text-muted-foreground">Použije sa ak nie je dostupná jazyková mutácia</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category-description">Popis kategórie</Label>
+                    <Textarea
+                      id="edit-category-description"
+                      value={categoryForm.description}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                      placeholder="Popis kategórie..."
+                      rows={3}
+                      data-testid="input-edit-category-description"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-category-sort-order">Poradie</Label>
-                    <Input
-                      id="edit-category-sort-order"
-                      type="number"
-                      value={categoryForm.sortOrder}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
-                      data-testid="input-edit-category-sort-order"
-                    />
+                </TabsContent>
+                
+                <TabsContent value="languages" className="space-y-4">
+                  <div className="p-3 bg-muted/50 rounded-md mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      Zadajte preklady názvu kategórie pre jednotlivé krajiny
+                    </p>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="edit-category-label">Predvolený názov</Label>
-                  <Input
-                    id="edit-category-label"
-                    value={categoryForm.label}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
-                    placeholder="Zmluva o uchovávaní krvotvorných buniek"
-                    data-testid="input-edit-category-label"
-                  />
-                </div>
-                
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">Jazykové mutácie názvu</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-sk" className="text-xs text-muted-foreground">Slovensko (SK)</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-sk" className="flex items-center gap-2">
+                        <span className="text-lg">SK</span>
+                        <span className="text-muted-foreground">Slovensko</span>
+                      </Label>
                       <Input
                         id="edit-category-label-sk"
                         value={categoryForm.labelSk}
@@ -1715,8 +1753,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-sk"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-cz" className="text-xs text-muted-foreground">Česká republika (CZ)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-cz" className="flex items-center gap-2">
+                        <span className="text-lg">CZ</span>
+                        <span className="text-muted-foreground">Česká republika</span>
+                      </Label>
                       <Input
                         id="edit-category-label-cz"
                         value={categoryForm.labelCz}
@@ -1725,8 +1766,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-cz"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-hu" className="text-xs text-muted-foreground">Maďarsko (HU)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-hu" className="flex items-center gap-2">
+                        <span className="text-lg">HU</span>
+                        <span className="text-muted-foreground">Maďarsko</span>
+                      </Label>
                       <Input
                         id="edit-category-label-hu"
                         value={categoryForm.labelHu}
@@ -1735,8 +1779,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-hu"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-ro" className="text-xs text-muted-foreground">Rumunsko (RO)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-ro" className="flex items-center gap-2">
+                        <span className="text-lg">RO</span>
+                        <span className="text-muted-foreground">Rumunsko</span>
+                      </Label>
                       <Input
                         id="edit-category-label-ro"
                         value={categoryForm.labelRo}
@@ -1745,8 +1792,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-ro"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-it" className="text-xs text-muted-foreground">Taliansko (IT)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-it" className="flex items-center gap-2">
+                        <span className="text-lg">IT</span>
+                        <span className="text-muted-foreground">Taliansko</span>
+                      </Label>
                       <Input
                         id="edit-category-label-it"
                         value={categoryForm.labelIt}
@@ -1755,8 +1805,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-it"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-de" className="text-xs text-muted-foreground">Nemecko (DE)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-de" className="flex items-center gap-2">
+                        <span className="text-lg">DE</span>
+                        <span className="text-muted-foreground">Nemecko</span>
+                      </Label>
                       <Input
                         id="edit-category-label-de"
                         value={categoryForm.labelDe}
@@ -1765,8 +1818,11 @@ export default function ContractsPage() {
                         data-testid="input-edit-category-label-de"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-category-label-us" className="text-xs text-muted-foreground">USA (US)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category-label-us" className="flex items-center gap-2">
+                        <span className="text-lg">US</span>
+                        <span className="text-muted-foreground">USA</span>
+                      </Label>
                       <Input
                         id="edit-category-label-us"
                         value={categoryForm.labelUs}
@@ -1776,26 +1832,14 @@ export default function ContractsPage() {
                       />
                     </div>
                   </div>
-                </div>
+                </TabsContent>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-category-description">Popis</Label>
-                  <Textarea
-                    id="edit-category-description"
-                    value={categoryForm.description}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                    placeholder="Popis kategórie..."
-                    data-testid="input-edit-category-description"
-                  />
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">Šablóny pre krajiny</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Prezrite si šablóny alebo nahrajte nové PDF pre konverziu
-                  </p>
+                <TabsContent value="templates" className="space-y-4">
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <p className="text-sm text-muted-foreground">
+                      Nahrajte PDF šablóny pre jednotlivé krajiny. AI automaticky konvertuje PDF na HTML šablónu.
+                    </p>
+                  </div>
                   
                   <div className="grid grid-cols-1 gap-3">
                     {[
@@ -1809,102 +1853,118 @@ export default function ContractsPage() {
                     ].map(country => {
                       const hasTemplate = categoryDefaultTemplates[country.code];
                       const uploadState = categoryPdfUploads[country.code];
+                      const isConverting = uploadState?.uploading;
+                      
                       return (
-                        <div key={country.code} className="flex items-center gap-4 p-3 border rounded-md">
-                          <div className="w-28 shrink-0">
-                            <span className="text-sm font-medium">{country.name}</span>
-                            <span className="text-xs text-muted-foreground ml-1">({country.code})</span>
-                          </div>
+                        <div key={country.code} className="relative">
+                          {isConverting && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex flex-col items-center justify-center gap-3">
+                              <div className="relative">
+                                <div className="w-12 h-12 border-4 border-primary/30 rounded-full animate-pulse" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <FileText className="w-5 h-5 text-primary animate-bounce" />
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm font-medium text-primary">Konvertujem PDF</p>
+                                <p className="text-xs text-muted-foreground">AI analyzuje dokument...</p>
+                              </div>
+                              <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary rounded-full animate-[pulse_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+                              </div>
+                            </div>
+                          )}
                           
-                          <div className="flex-1">
-                            <Input
-                              type="file"
-                              accept=".pdf"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file && selectedCategory) {
-                                  setCategoryPdfUploads(prev => ({
-                                    ...prev,
-                                    [country.code]: { file, uploading: true, uploaded: false, error: undefined }
-                                  }));
-                                  
-                                  try {
-                                    const formData = new FormData();
-                                    formData.append("pdf", file);
-                                    formData.append("countryCode", country.code);
+                          <div className={`flex items-center gap-4 p-3 border rounded-md ${isConverting ? 'opacity-50' : ''}`}>
+                            <div className="w-28 shrink-0">
+                              <span className="text-sm font-medium">{country.name}</span>
+                              <span className="text-xs text-muted-foreground ml-1">({country.code})</span>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <Input
+                                type="file"
+                                accept=".pdf"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && selectedCategory) {
+                                    setCategoryPdfUploads(prev => ({
+                                      ...prev,
+                                      [country.code]: { file, uploading: true, uploaded: false, error: undefined }
+                                    }));
                                     
-                                    const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/upload`, {
-                                      method: "POST",
-                                      body: formData,
-                                      credentials: "include"
-                                    });
-                                    
-                                    if (!response.ok) {
-                                      const error = await response.json();
-                                      throw new Error(error.error || "Upload failed");
+                                    try {
+                                      const formData = new FormData();
+                                      formData.append("pdf", file);
+                                      formData.append("countryCode", country.code);
+                                      
+                                      const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/upload`, {
+                                        method: "POST",
+                                        body: formData,
+                                        credentials: "include"
+                                      });
+                                      
+                                      if (!response.ok) {
+                                        const error = await response.json();
+                                        throw new Error(error.error || "Upload failed");
+                                      }
+                                      
+                                      setCategoryPdfUploads(prev => ({
+                                        ...prev,
+                                        [country.code]: { ...prev[country.code], uploading: false, uploaded: true }
+                                      }));
+                                      setCategoryDefaultTemplates(prev => ({
+                                        ...prev,
+                                        [country.code]: true
+                                      }));
+                                      toast({ title: `PDF pre ${country.name} úspešne konvertované` });
+                                    } catch (error: any) {
+                                      setCategoryPdfUploads(prev => ({
+                                        ...prev,
+                                        [country.code]: { ...prev[country.code], uploading: false, error: error.message }
+                                      }));
+                                      toast({
+                                        title: "Chyba pri konverzii",
+                                        description: error.message,
+                                        variant: "destructive"
+                                      });
                                     }
-                                    
-                                    setCategoryPdfUploads(prev => ({
-                                      ...prev,
-                                      [country.code]: { ...prev[country.code], uploading: false, uploaded: true }
-                                    }));
-                                    setCategoryDefaultTemplates(prev => ({
-                                      ...prev,
-                                      [country.code]: true
-                                    }));
-                                    toast({ title: `PDF pre ${country.name} úspešne konvertované` });
-                                  } catch (error: any) {
-                                    setCategoryPdfUploads(prev => ({
-                                      ...prev,
-                                      [country.code]: { ...prev[country.code], uploading: false, error: error.message }
-                                    }));
-                                    toast({
-                                      title: "Chyba pri konverzii",
-                                      description: error.message,
-                                      variant: "destructive"
-                                    });
                                   }
-                                }
-                              }}
-                              className="text-sm"
-                              disabled={uploadState?.uploading}
-                              data-testid={`input-reupload-pdf-${country.code}`}
-                            />
-                          </div>
-                          
-                          <div className="w-32 shrink-0 flex items-center justify-end gap-2">
-                            {uploadState?.uploading && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                Konvertujem...
-                              </span>
-                            )}
-                            {uploadState?.uploaded && (
-                              <Badge variant="default" className="bg-green-600 text-xs">OK</Badge>
-                            )}
-                            {uploadState?.error && (
-                              <Badge variant="destructive" className="text-xs">Chyba</Badge>
-                            )}
-                            {hasTemplate && !uploadState?.uploading && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handlePreviewTemplate(selectedCategory.id, country.code)}
-                                data-testid={`button-preview-template-${country.code}`}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {!hasTemplate && !uploadState?.uploading && !uploadState?.uploaded && (
-                              <Badge variant="secondary" className="text-xs">Bez šablóny</Badge>
-                            )}
+                                }}
+                                className="text-sm"
+                                disabled={isConverting}
+                                data-testid={`input-reupload-pdf-${country.code}`}
+                              />
+                            </div>
+                            
+                            <div className="w-32 shrink-0 flex items-center justify-end gap-2">
+                              {uploadState?.uploaded && (
+                                <Badge variant="default" className="bg-green-600 text-xs">OK</Badge>
+                              )}
+                              {uploadState?.error && (
+                                <Badge variant="destructive" className="text-xs">Chyba</Badge>
+                              )}
+                              {hasTemplate && !isConverting && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handlePreviewTemplate(selectedCategory.id, country.code)}
+                                  data-testid={`button-preview-template-${country.code}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {!hasTemplate && !isConverting && !uploadState?.uploaded && (
+                                <Badge variant="secondary" className="text-xs">Bez šablóny</Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             )}
           </div>
           

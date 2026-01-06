@@ -3418,46 +3418,49 @@ export default function ContractsPage() {
                         <div>Údaj zákazníka</div>
                       </div>
                       
-                      {editingTemplateData.extractedFields.map((field, idx) => (
-                        <div key={idx} className="grid grid-cols-2 gap-4 items-center p-2 border rounded-md">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {editingTemplateData.templateType === "docx" ? `{{${field}}}` : field}
-                            </Badge>
-                          </div>
-                          <Select
-                            value={templateMappings[field] || ""}
-                            onValueChange={(value) => setTemplateMappings(prev => {
-                              const newMappings = { ...prev };
-                              if (value && value.trim() !== "") {
-                                newMappings[field] = value;
-                              } else {
-                                delete newMappings[field];
-                              }
-                              return newMappings;
-                            })}
-                          >
-                            <SelectTrigger data-testid={`select-mapping-${idx}`}>
-                              <SelectValue placeholder="Vyberte údaj..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">-- Nevyplnené --</SelectItem>
-                              {CUSTOMER_FIELDS.map(group => (
-                                <div key={group.group}>
-                                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted">
-                                    {group.group}
+                      {editingTemplateData.extractedFields.map((field, idx) => {
+                        const fieldName = typeof field === 'string' ? field : (field as any).name || '';
+                        return (
+                          <div key={idx} className="grid grid-cols-2 gap-4 items-center p-2 border rounded-md">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {editingTemplateData.templateType === "docx" ? `{{${fieldName}}}` : fieldName}
+                              </Badge>
+                            </div>
+                            <Select
+                              value={templateMappings[fieldName] || ""}
+                              onValueChange={(value) => setTemplateMappings(prev => {
+                                const newMappings = { ...prev };
+                                if (value && value.trim() !== "") {
+                                  newMappings[fieldName] = value;
+                                } else {
+                                  delete newMappings[fieldName];
+                                }
+                                return newMappings;
+                              })}
+                            >
+                              <SelectTrigger data-testid={`select-mapping-${idx}`}>
+                                <SelectValue placeholder="Vyberte údaj..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">-- Nevyplnené --</SelectItem>
+                                {CUSTOMER_FIELDS.map(group => (
+                                  <div key={group.group}>
+                                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted">
+                                      {group.group}
+                                    </div>
+                                    {group.fields.map(f => (
+                                      <SelectItem key={f.key} value={f.key}>
+                                        {f.label}
+                                      </SelectItem>
+                                    ))}
                                   </div>
-                                  {group.fields.map(f => (
-                                    <SelectItem key={f.key} value={f.key}>
-                                      {f.label}
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ))}
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -3475,7 +3478,11 @@ export default function ContractsPage() {
                 
                 <TabsContent value="preview" className="space-y-4">
                   {(() => {
-                    const mappedCount = editingTemplateData.extractedFields.filter(f => templateMappings[f] && templateMappings[f].trim() !== "").length;
+                    const getFieldName = (f: any) => typeof f === 'string' ? f : f?.name || '';
+                    const mappedCount = editingTemplateData.extractedFields.filter(f => {
+                      const fn = getFieldName(f);
+                      return fn && templateMappings[fn] && templateMappings[fn].trim() !== "";
+                    }).length;
                     const totalCount = editingTemplateData.extractedFields.length;
                     const mappingProgress = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
                     
@@ -3544,7 +3551,8 @@ export default function ContractsPage() {
                     {editingTemplateData.extractedFields.length > 0 ? (
                       <div className="space-y-2">
                         {editingTemplateData.extractedFields.map((field, idx) => {
-                          const mapping = templateMappings[field];
+                          const fieldName = typeof field === 'string' ? field : (field as any).name || '';
+                          const mapping = templateMappings[fieldName];
                           const sampleValues: Record<string, string> = {
                             firstName: "Jana",
                             lastName: "Nováková",
@@ -3568,7 +3576,7 @@ export default function ContractsPage() {
                           return (
                             <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded">
                               <Badge variant="outline" className="font-mono text-xs shrink-0">
-                                {editingTemplateData.templateType === "docx" ? `{{${field}}}` : field}
+                                {editingTemplateData.templateType === "docx" ? `{{${fieldName}}}` : fieldName}
                               </Badge>
                               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                               <span className={mapping ? "text-foreground" : "text-muted-foreground italic"}>

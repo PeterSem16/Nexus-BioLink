@@ -416,19 +416,22 @@ async function convertPdfToHtmlWithAI(
         throw new Error("No valid images to process");
       }
       
-      const prompt = `Analyzuj tieto stránky dokumentu a vytvor z nich HTML kód, ktorý presne zachová:
-1. Celý text dokumentu v správnom poradí
-2. Formátovanie (tučné, kurzíva, nadpisy, odsadenia)
-3. Štruktúru (tabuľky, zoznamy, odstavce)
-4. Rozloženie obsahu na stránke
+      const numPages = imageMessages.length;
+      const prompt = `Toto je ${numPages}-stranový dokument. MUSÍŠ prepísať KOMPLETNE CELÝ TEXT zo VŠETKÝCH ${numPages} strán. Nesmieš nič vynechať.
 
-DÔLEŽITÉ: Ak vidíš obrázky alebo logá v dokumente, PRESKUČ ICH. Sústreď sa len na text a jeho formátovanie.
+KRITICKÉ PRAVIDLÁ:
+1. Prepíš KAŽDÉ JEDNO SLOVO z dokumentu - žiadny text nevynechaj
+2. Zachovaj presné poradie textu ako v originále
+3. Pre každú stranu vytvor sekciu s komentárom <!-- PAGE X -->
+4. Zachovaj formátovanie: nadpisy, tučné, kurzíva, odsadenia
+5. Zachovaj štruktúru: tabuľky, zoznamy, odstavce, stĺpce
+6. PRESKUČ obrázky a logá - len text
 
-Vytvor čistý HTML kód bez obrázkov. Použij moderné HTML5 a inline štýly.
-Celý dokument má byť na šírku 816px (A4).
+Použi HTML5 s inline štýlmi. Šírka dokumentu: 816px (A4).
+Vrať len HTML kód.`;
 
-Vrať len HTML kód bez vysvetlení.`;
-
+      console.log(`[PDF AI] Sending ${numPages} pages to Vision API with enhanced prompt...`);
+      
       const response = await openai.chat.completions.create({
         model: "gpt-5",
         messages: [
@@ -440,7 +443,7 @@ Vrať len HTML kód bez vysvetlení.`;
             ],
           },
         ],
-        max_completion_tokens: 16000,
+        max_completion_tokens: 64000,
       });
       
       htmlContent = response.choices[0].message.content || "";

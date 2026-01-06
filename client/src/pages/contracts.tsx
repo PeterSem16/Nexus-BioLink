@@ -76,6 +76,52 @@ const PRODUCT_OPTIONS = [
   { id: "premium_all", name: "Prémium + tkanivo pupočníka + tkanivo placenty", total: 1490, payments: 2, deposit: 150, remaining: 1340 }
 ];
 
+const CUSTOMER_FIELDS = [
+  { group: "Osobné údaje", fields: [
+    { key: "firstName", label: "Meno" },
+    { key: "lastName", label: "Priezvisko" },
+    { key: "fullName", label: "Celé meno (meno + priezvisko)" },
+    { key: "titleBefore", label: "Titul pred" },
+    { key: "titleAfter", label: "Titul za" },
+    { key: "maidenName", label: "Rodné priezvisko" },
+    { key: "dateOfBirth", label: "Dátum narodenia" },
+    { key: "nationalId", label: "Rodné číslo" },
+    { key: "idCardNumber", label: "Číslo OP" },
+  ]},
+  { group: "Kontakt", fields: [
+    { key: "email", label: "Email" },
+    { key: "email2", label: "Email 2" },
+    { key: "phone", label: "Telefón" },
+    { key: "mobile", label: "Mobil" },
+    { key: "mobile2", label: "Mobil 2" },
+  ]},
+  { group: "Adresa", fields: [
+    { key: "address", label: "Ulica a číslo" },
+    { key: "city", label: "Mesto" },
+    { key: "postalCode", label: "PSČ" },
+    { key: "region", label: "Oblasť" },
+    { key: "country", label: "Krajina" },
+  ]},
+  { group: "Korešpondenčná adresa", fields: [
+    { key: "corrName", label: "Meno (kor.)" },
+    { key: "corrAddress", label: "Ulica (kor.)" },
+    { key: "corrCity", label: "Mesto (kor.)" },
+    { key: "corrPostalCode", label: "PSČ (kor.)" },
+    { key: "corrCountry", label: "Krajina (kor.)" },
+  ]},
+  { group: "Bankové údaje", fields: [
+    { key: "bankAccount", label: "IBAN" },
+    { key: "bankCode", label: "Kód banky" },
+    { key: "bankName", label: "Názov banky" },
+    { key: "bankSwift", label: "SWIFT" },
+  ]},
+  { group: "Dátum a systém", fields: [
+    { key: "currentDate", label: "Aktuálny dátum" },
+    { key: "contractNumber", label: "Číslo zmluvy" },
+    { key: "internalId", label: "Interné číslo" },
+  ]},
+];
+
 function SortableCategoryRow({ 
   category, 
   onEdit, 
@@ -227,6 +273,17 @@ export default function ContractsPage() {
   const [templatePreviewCountry, setTemplatePreviewCountry] = useState("");
   const [templatePreviewLoading, setTemplatePreviewLoading] = useState(false);
   const [categoryDefaultTemplates, setCategoryDefaultTemplates] = useState<Record<string, boolean>>({});
+  
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+  const [editingTemplateCountry, setEditingTemplateCountry] = useState("");
+  const [editingTemplateData, setEditingTemplateData] = useState<{
+    templateType: string;
+    extractedFields: string[];
+    placeholderMappings: Record<string, string>;
+    sourcePath: string;
+  } | null>(null);
+  const [templateMappings, setTemplateMappings] = useState<Record<string, string>>({});
+  const [savingMappings, setSavingMappings] = useState(false);
   
   const [contractForm, setContractForm] = useState({
     templateId: "",
@@ -873,6 +930,82 @@ export default function ContractsPage() {
       setTemplatePreviewContent("<p>Chyba pri načítaní šablóny</p>");
     } finally {
       setTemplatePreviewLoading(false);
+    }
+  };
+  
+  const handleEditCategoryTemplate = async (categoryId: number, countryCode: string) => {
+    setEditingTemplateCountry(countryCode);
+    setIsTemplateEditorOpen(true);
+    
+    try {
+      const response = await fetch(`/api/contracts/categories/${categoryId}/default-templates/${countryCode}`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const template = await response.json();
+        const extractedFields = template.extractedFields ? JSON.parse(template.extractedFields) : [];
+        const mappings = template.placeholderMappings ? JSON.parse(template.placeholderMappings) : {};
+        
+        setEditingTemplateData({
+          templateType: template.templateType || "pdf_form",
+          extractedFields: extractedFields,
+          placeholderMappings: mappings,
+          sourcePath: template.sourcePdfPath || template.sourceDocxPath || ""
+        });
+        setTemplateMappings(mappings);
+      } else {
+        toast({ 
+          title: "Chyba", 
+          description: "Nepodarilo sa načítať šablónu", 
+          variant: "destructive" 
+        });
+        setIsTemplateEditorOpen(false);
+      }
+    } catch (e) {
+      toast({ 
+        title: "Chyba", 
+        description: "Chyba pri načítaní šablóny", 
+        variant: "destructive" 
+      });
+      setIsTemplateEditorOpen(false);
+    }
+  };
+  
+  const handleSaveMappings = async () => {
+    if (!selectedCategory || !editingTemplateCountry) return;
+    
+    setSavingMappings(true);
+    try {
+      const filteredMappings: Record<string, string> = {};
+      for (const [key, value] of Object.entries(templateMappings)) {
+        if (value && value.trim() !== "") {
+          filteredMappings[key] = value;
+        }
+      }
+      
+      const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/${editingTemplateCountry}/mappings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mappings: filteredMappings }),
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast({ title: "Mapovanie uložené", description: `Uložených ${Object.keys(filteredMappings).length} mapovaní.` });
+        setIsTemplateEditorOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['/api/contracts/categories'] });
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || "Uloženie zlyhalo");
+      }
+    } catch (error: any) {
+      toast({ 
+        title: "Chyba", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setSavingMappings(false);
     }
   };
   
@@ -1999,14 +2132,26 @@ export default function ContractsPage() {
                                 <Badge variant="destructive" className="text-xs">Chyba</Badge>
                               )}
                               {hasTemplate && !isConverting && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handlePreviewTemplate(selectedCategory.id, country.code)}
-                                  data-testid={`button-preview-template-${country.code}`}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
+                                    data-testid={`button-edit-template-${country.code}`}
+                                    title="Upraviť mapovanie"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handlePreviewTemplate(selectedCategory.id, country.code)}
+                                    data-testid={`button-preview-template-${country.code}`}
+                                    title="Náhľad"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                               {!hasTemplate && !isConverting && !uploadState?.uploaded && (
                                 <Badge variant="secondary" className="text-xs">Bez šablóny</Badge>
@@ -3205,6 +3350,253 @@ export default function ContractsPage() {
                 Podpísať zmluvu
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTemplateEditorOpen} onOpenChange={setIsTemplateEditorOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Upraviť šablónu - {editingTemplateCountry}
+            </DialogTitle>
+            <DialogDescription>
+              Priraďte polia šablóny k údajom zákazníka. Pri generovaní zmluvy sa tieto hodnoty automaticky vyplnia.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto">
+            {editingTemplateData ? (
+              <Tabs defaultValue="mapping" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="mapping" data-testid="tab-template-mapping">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Mapovanie polí
+                  </TabsTrigger>
+                  <TabsTrigger value="preview" data-testid="tab-template-preview">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Náhľad s ukážkovými údajmi
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="mapping" className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+                    <Badge variant={editingTemplateData.templateType === "docx" ? "default" : "secondary"}>
+                      {editingTemplateData.templateType === "docx" ? "DOCX šablóna" : "PDF formulár"}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {editingTemplateData.extractedFields.length} polí nájdených
+                    </span>
+                  </div>
+                  
+                  {editingTemplateData.extractedFields.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 p-2 bg-muted rounded-md font-medium text-sm">
+                        <div>Pole v šablóne</div>
+                        <div>Údaj zákazníka</div>
+                      </div>
+                      
+                      {editingTemplateData.extractedFields.map((field, idx) => (
+                        <div key={idx} className="grid grid-cols-2 gap-4 items-center p-2 border rounded-md">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {editingTemplateData.templateType === "docx" ? `{{${field}}}` : field}
+                            </Badge>
+                          </div>
+                          <Select
+                            value={templateMappings[field] || ""}
+                            onValueChange={(value) => setTemplateMappings(prev => {
+                              const newMappings = { ...prev };
+                              if (value && value.trim() !== "") {
+                                newMappings[field] = value;
+                              } else {
+                                delete newMappings[field];
+                              }
+                              return newMappings;
+                            })}
+                          >
+                            <SelectTrigger data-testid={`select-mapping-${idx}`}>
+                              <SelectValue placeholder="Vyberte údaj..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">-- Nevyplnené --</SelectItem>
+                              {CUSTOMER_FIELDS.map(group => (
+                                <div key={group.group}>
+                                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted">
+                                    {group.group}
+                                  </div>
+                                  {group.fields.map(f => (
+                                    <SelectItem key={f.key} value={f.key}>
+                                      {f.label}
+                                    </SelectItem>
+                                  ))}
+                                </div>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Žiadne polia neboli nájdené v šablóne.</p>
+                      <p className="text-sm mt-2">
+                        Pre PDF: Uistite sa, že PDF obsahuje AcroForm polia.
+                      </p>
+                      <p className="text-sm">
+                        Pre DOCX: Použite premenné v tvare {"{{meno_premennej}}"}.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="preview" className="space-y-4">
+                  {(() => {
+                    const mappedCount = editingTemplateData.extractedFields.filter(f => templateMappings[f] && templateMappings[f].trim() !== "").length;
+                    const totalCount = editingTemplateData.extractedFields.length;
+                    const mappingProgress = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
+                    
+                    return (
+                      <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-md">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium">Stav mapovania</span>
+                            <span className={mappedCount === totalCount ? "text-green-600" : "text-amber-600"}>
+                              {mappedCount} z {totalCount} polí namapovaných ({mappingProgress}%)
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all ${mappedCount === totalCount ? "bg-green-500" : "bg-amber-500"}`}
+                              style={{ width: `${mappingProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                        {mappedCount === totalCount && totalCount > 0 && (
+                          <Badge variant="default" className="bg-green-600">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Kompletné
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
+                  <div className="p-4 bg-muted/50 rounded-md">
+                    <h4 className="font-medium mb-3">Ukážkové údaje zákazníka</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Meno:</span>
+                          <span>Jana Nováková</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Email:</span>
+                          <span>jana.novakova@example.com</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Telefón:</span>
+                          <span>+421 900 123 456</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Adresa:</span>
+                          <span>Hlavná 123</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Mesto:</span>
+                          <span>Bratislava</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">PSČ:</span>
+                          <span>831 01</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-md p-4">
+                    <h4 className="font-medium mb-3">Náhľad vyplnených polí</h4>
+                    {editingTemplateData.extractedFields.length > 0 ? (
+                      <div className="space-y-2">
+                        {editingTemplateData.extractedFields.map((field, idx) => {
+                          const mapping = templateMappings[field];
+                          const sampleValues: Record<string, string> = {
+                            firstName: "Jana",
+                            lastName: "Nováková",
+                            fullName: "Jana Nováková",
+                            email: "jana.novakova@example.com",
+                            phone: "+421 900 123 456",
+                            mobile: "+421 900 123 456",
+                            address: "Hlavná 123",
+                            city: "Bratislava",
+                            postalCode: "831 01",
+                            country: "Slovensko",
+                            dateOfBirth: "15.03.1990",
+                            nationalId: "900315/1234",
+                            currentDate: format(new Date(), "d.M.yyyy", { locale: sk }),
+                            contractNumber: "ZML-2026-0001",
+                            bankAccount: "SK89 1100 0000 0012 3456 7890",
+                            bankName: "Tatra banka",
+                          };
+                          const value = mapping ? (sampleValues[mapping] || `[${mapping}]`) : "(nenamapované)";
+                          
+                          return (
+                            <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded">
+                              <Badge variant="outline" className="font-mono text-xs shrink-0">
+                                {editingTemplateData.templateType === "docx" ? `{{${field}}}` : field}
+                              </Badge>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className={mapping ? "text-foreground" : "text-muted-foreground italic"}>
+                                {value}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-center py-4">
+                        Žiadne polia na zobrazenie
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      <strong>Tip:</strong> Po uložení mapovania môžete generovať zmluvy pre konkrétnych zákazníkov. 
+                      Systém automaticky vyplní všetky namapované polia údajmi zo zákazníckej karty.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsTemplateEditorOpen(false)}>
+              Zrušiť
+            </Button>
+            <Button 
+              onClick={handleSaveMappings}
+              disabled={savingMappings || !editingTemplateData}
+              data-testid="button-save-mappings"
+            >
+              {savingMappings ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Ukladám...
+                </>
+              ) : (
+                "Uložiť mapovanie"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

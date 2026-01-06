@@ -178,6 +178,63 @@ async function extractPdfText(filePath: string): Promise<string> {
   }
 }
 
+// Convert PDF pages to PNG images using pdftoppm (poppler-utils)
+async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promise<string[]> {
+  const { exec } = await import("child_process");
+  const { promisify } = await import("util");
+  const execAsync = promisify(exec);
+  
+  const outputDir = path.dirname(pdfPath);
+  const baseName = path.basename(pdfPath, ".pdf");
+  const outputPrefix = path.join(outputDir, `${baseName}-page`);
+  
+  try {
+    // Convert PDF to PNG images (limit to first maxPages pages)
+    await execAsync(`pdftoppm -png -r 150 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    
+    // Find all generated image files
+    const files = fs.readdirSync(outputDir);
+    const imageFiles = files
+      .filter(f => f.startsWith(`${baseName}-page`) && f.endsWith(".png"))
+      .sort()
+      .slice(0, maxPages)
+      .map(f => path.join(outputDir, f));
+    
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF`);
+    return imageFiles;
+  } catch (error) {
+    console.error("PDF to image conversion failed:", error);
+    return [];
+  }
+}
+
+// Read images and convert to base64 for OpenAI Vision
+function imagesToBase64(imagePaths: string[]): { type: "image_url"; image_url: { url: string } }[] {
+  return imagePaths.map(imagePath => {
+    const imageBuffer = fs.readFileSync(imagePath);
+    const base64 = imageBuffer.toString("base64");
+    return {
+      type: "image_url" as const,
+      image_url: {
+        url: `data:image/png;base64,${base64}`
+      }
+    };
+  });
+}
+
+// Cleanup temporary image files
+function cleanupTempImages(imagePaths: string[]): void {
+  for (const imagePath of imagePaths) {
+    try {
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    } catch (e) {
+      console.error(`Failed to cleanup temp image ${imagePath}:`, e);
+    }
+  }
+}
+
 declare module "express-session" {
   interface SessionData {
     user: SafeUser;
@@ -6721,18 +6778,27 @@ export async function registerRoutes(
       // Check if template already exists for this category and country
       const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
       
-      // Extract text from PDF
-      const pdfText = await extractPdfText(req.file.path);
+      // Convert PDF pages to images for Vision analysis
+      console.log(`[PDF Conversion] Converting PDF to images: ${req.file.path}`);
+      const imagePaths = await convertPdfToImages(req.file.path, 10);
       
-      // Convert PDF to HTML using OpenAI Vision
+      if (imagePaths.length === 0) {
+        return res.status(500).json({ error: "Failed to convert PDF to images. Make sure the PDF is valid." });
+      }
+      
+      // Extract text from PDF as supplementary info
+      const pdfText = await extractPdfText(req.file.path);
+      console.log(`[PDF Conversion] Extracted ${pdfText.length} characters of text from PDF`);
+      
+      // Convert PDF to HTML using OpenAI Vision with actual images
       let htmlContent = "";
       try {
         const OpenAI = (await import("openai")).default;
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         
-        // Read PDF as base64 for vision analysis
-        const pdfBuffer = fs.readFileSync(req.file.path);
-        const pdfBase64 = pdfBuffer.toString("base64");
+        // Convert images to base64 for Vision API
+        const imageInputs = imagesToBase64(imagePaths);
+        console.log(`[PDF Conversion] Sending ${imageInputs.length} page images to OpenAI Vision`);
         
         // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         const response = await openai.chat.completions.create({
@@ -6740,44 +6806,59 @@ export async function registerRoutes(
           messages: [
             {
               role: "system",
-              content: `You are an expert at converting PDF documents to HTML while preserving the exact layout, formatting, and structure. 
-Your task is to create HTML that closely matches the original PDF layout including:
-- Headers and footers
-- Columns and tables
-- Margins and spacing
-- Font styles (bold, italic, underline)
-- Text alignment
-- Lists and numbering
-- Signatures and signature lines
-- Images (represented as placeholder divs)
-- All text content exactly as it appears
+              content: `You are an expert at converting PDF documents to HTML while preserving the EXACT visual layout, formatting, and structure.
 
-Use CSS inline styles to preserve the layout. Use tables for columnar layouts if needed.
-Include placeholders for images as: <div class="image-placeholder" style="width:100px;height:100px;border:1px dashed #ccc;"></div>
-Include signature lines as: <div class="signature-line" style="border-bottom:1px solid #000;width:200px;margin-top:50px;"></div>
+CRITICAL: You MUST replicate the visual appearance of the PDF pages shown in the images as closely as possible.
 
-The HTML should be ready for use as a contract template with Handlebars placeholders.
-Common placeholders to identify and replace:
-- Client name, address, date of birth -> {{client.fullName}}, {{client.address}}, {{client.birthDate}}
-- Contract number, date -> {{contract.number}}, {{contract.date}}
-- Company info -> {{company.name}}, {{company.address}}, {{company.vatNumber}}
-- Product/price info -> {{product.name}}, {{product.price}}
+Your task is to create HTML that EXACTLY matches the original PDF layout including:
+- EXACT text content as it appears in the images
+- Headers and footers in their exact positions
+- Columns and tables with exact structure
+- Margins and spacing matching the original
+- Font styles (bold, italic, underline) as shown
+- Text alignment (left, center, right, justified)
+- Lists and numbering exactly as displayed
+- Signatures and signature lines in their positions
+- Logo/image placeholders where images appear
+- Any boxes, borders, or visual elements
 
-Output ONLY the HTML code, no explanations. Start with <div class="contract-template"> and end with </div>.`
+Use CSS inline styles to preserve the layout. Use tables for columnar layouts.
+For images/logos use: <div class="image-placeholder" style="width:XXpx;height:XXpx;border:1px dashed #ccc;"></div>
+For signature lines: <div class="signature-line" style="border-bottom:1px solid #000;width:200px;margin-top:30px;"></div>
+
+The HTML should be a contract template with Handlebars placeholders.
+Replace dynamic content with placeholders:
+- Client info -> {{client.fullName}}, {{client.address}}, {{client.birthDate}}, {{client.email}}, {{client.phone}}
+- Father info -> {{father.fullName}}, {{father.birthDate}}, {{father.address}}
+- Contract info -> {{contract.number}}, {{contract.date}}, {{contract.effectiveDate}}
+- Company info -> {{company.name}}, {{company.address}}, {{company.vatNumber}}, {{company.email}}
+- Product info -> {{product.name}}, {{product.price}}, {{product.description}}
+- Payment -> {{payment.total}}, {{payment.dueDate}}, {{payment.method}}
+
+PRESERVE all static text (terms, conditions, legal text) exactly as shown in Slovak/Czech/Hungarian or whatever language appears.
+
+Output ONLY the HTML code, no explanations. Start with <div class="contract-template" style="..."> and end with </div>.`
             },
             {
               role: "user",
-              content: `Convert this PDF text content to a well-structured HTML template that preserves the document layout and formatting. 
-Identify any fields that should be template placeholders (names, dates, addresses, amounts) and replace them with Handlebars syntax.
+              content: [
+                {
+                  type: "text",
+                  text: `Look at these PDF page images and convert them to HTML that EXACTLY replicates the visual layout and content. 
+This is a contract document - preserve all text exactly as shown, including any Slovak/Czech language text.
+Replace only clearly variable fields (names, dates, addresses, amounts) with Handlebars placeholders.
 
-PDF Text Content:
-${pdfText}`
+${pdfText.length > 0 ? `Additional extracted text for reference:\n${pdfText.substring(0, 2000)}` : "No text could be extracted - rely on the images."}`
+                },
+                ...imageInputs
+              ]
             }
           ],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 16384,
         });
         
         htmlContent = response.choices[0].message.content || "";
+        console.log(`[PDF Conversion] Received ${htmlContent.length} characters of HTML from OpenAI`);
         
         // Clean up the response - remove markdown code blocks if present
         htmlContent = htmlContent.replace(/^```html\n?/i, "").replace(/\n?```$/i, "").trim();
@@ -6787,9 +6868,13 @@ ${pdfText}`
         // Fallback to basic HTML wrapper with extracted text
         htmlContent = `<div class="contract-template">
           <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+            <p style="color: red; margin-bottom: 20px;">OpenAI konverzia zlyhala. Zobrazený je iba extrahovaný text:</p>
             <pre style="white-space: pre-wrap; font-family: inherit;">${pdfText}</pre>
           </div>
         </div>`;
+      } finally {
+        // Cleanup temporary image files
+        cleanupTempImages(imagePaths);
       }
       
       // Create or update the default template

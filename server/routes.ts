@@ -383,110 +383,116 @@ async function convertPdfToHtmlWithAI(
     console.warn("[PDF AI] Page image creation failed, will use text-only:", error);
   }
   
-  // 4. Use OpenAI Vision to convert PDF to HTML
+  // 4. Use OpenAI Vision to convert PDF to HTML - process each page separately
   if (pageImagePaths.length > 0) {
     try {
-      console.log(`[PDF AI] Sending ${pageImagePaths.length} pages to OpenAI Vision...`);
+      console.log(`[PDF AI] Processing ${pageImagePaths.length} pages separately...`);
       
-      // Prepare images for Vision API
-      const imageMessages: { type: "image_url"; image_url: { url: string } }[] = [];
-      for (const imgPath of pageImagePaths) {
+      const pageHtmlResults: string[] = [];
+      
+      for (let pageIndex = 0; pageIndex < pageImagePaths.length; pageIndex++) {
+        const imgPath = pageImagePaths[pageIndex];
+        const pageNum = pageIndex + 1;
+        
         try {
           const imageBuffer = fs.readFileSync(imgPath);
           const base64 = imageBuffer.toString("base64");
           const sizeKB = Math.round(imageBuffer.length / 1024);
           
-          // Skip images larger than 4MB to avoid API issues (OpenAI supports up to 20MB)
+          console.log(`[PDF AI] Processing page ${pageNum}/${pageImagePaths.length} (${sizeKB}KB)...`);
+          
           if (sizeKB > 4000) {
-            console.warn(`[PDF AI] Skipping oversized image: ${sizeKB}KB`);
+            console.warn(`[PDF AI] Page ${pageNum} too large (${sizeKB}KB), skipping`);
+            pageHtmlResults.push(`<div class="page-error">Strana ${pageNum} - príliš veľká pre spracovanie</div>`);
             continue;
           }
           
-          imageMessages.push({
-            type: "image_url" as const,
-            image_url: { 
-              url: `data:image/png;base64,${base64}`,
-              detail: "high" as const
-            }
-          } as any);
-        } catch (imgError) {
-          console.warn(`[PDF AI] Skipping problematic image ${imgPath}:`, imgError);
-          continue;
+          const pageSystemPrompt = `Si OCR nástroj. Konvertuj JEDNU stranu dokumentu na HTML.
+
+PRAVIDLÁ:
+1. Vrať LEN HTML obsah strany (bez <!DOCTYPE>, <html>, <head>, <body>)
+2. DVA STĹPCE = <div style="display:flex; gap:30px;"><div style="flex:1;">ĽAVÝ</div><div style="flex:1;">PRAVÝ</div></div>
+3. TABUĽKY s dátami = <table style="width:100%; border-collapse:collapse;"><tr><td style="border:1px solid #ccc; padding:8px;">...</td></tr></table>
+4. NADPISY (Článok I, II...) = <h3 style="font-weight:bold; margin:20px 0 10px;">
+5. Číslované body (I.1, II.2) = <p style="margin-left:20px; text-indent:-20px;">
+6. Podpisové polia = <div style="border-bottom:1px solid #000; width:200px; margin:20px 0;"></div>
+7. NIKDY nepýtaj na kvalitu. Odhadni nejasný text z kontextu.
+8. Zachovaj PRESNE rozloženie - ak sú 2 stĺpce, musia byť 2 stĺpce.`;
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-5",
+            messages: [
+              { role: "system", content: pageSystemPrompt },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: `Konvertuj túto stranu ${pageNum} na HTML. Zachovaj layout (stĺpce, tabuľky).` },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:image/png;base64,${base64}`, detail: "high" }
+                  } as any
+                ]
+              }
+            ],
+            max_completion_tokens: 32000,
+          });
+          
+          let pageHtml = response.choices[0].message.content || "";
+          
+          // Clean up markdown code blocks
+          pageHtml = pageHtml
+            .replace(/^```html?\n?/i, "")
+            .replace(/\n?```$/i, "")
+            .trim();
+          
+          console.log(`[PDF AI] Page ${pageNum} generated ${pageHtml.length} chars`);
+          pageHtmlResults.push(pageHtml);
+          
+        } catch (pageError: any) {
+          console.error(`[PDF AI] Page ${pageNum} failed:`, pageError.message);
+          pageHtmlResults.push(`<div class="page-error" style="color:red; padding:20px; border:1px solid red;">Strana ${pageNum} - chyba spracovania</div>`);
         }
       }
       
-      if (imageMessages.length === 0) {
-        throw new Error("No valid images to process");
-      }
-      
-      const numPages = imageMessages.length;
-      
-      console.log(`[PDF AI] Sending ${numPages} pages to Vision API...`);
-      
-      const systemPrompt = `Si profesionálny OCR nástroj pre konverziu dokumentov na HTML.
-
-VÝSTUP: Vždy vrať LEN čistý HTML kód, začni s <!DOCTYPE html> a skonči s </html>.
-NIKDY nepýtaj na lepšiu kvalitu. NIKDY nevysvetľuj. Pracuj s tým čo máš.
-
-PRAVIDLÁ FORMÁTOVANIA:
-1. LAYOUT: Ak dokument má DVA STĹPCE, použi CSS grid alebo flexbox: display:flex; gap:20px; s dvoma div-mi
-2. TABUĽKY: Ak vidíš zarovnaný text v riadkoch/stĺpcoch (cenník, zoznam), vytvor <table> s border-collapse:collapse
-3. NADPISY: Článok I, Článok II atď. = <h3 style="font-weight:bold; margin-top:20px;">
-4. ČÍSLOVANIE: I.1, II.2 atď. = text s odsadením margin-left:20px
-5. PODPISY: Polia pre podpis = prázdne bunky tabuľky s border-bottom
-6. ŠÍRKA: Celý dokument max-width:816px, margin:0 auto
-
-ŠTRUKTÚRA:
-<!DOCTYPE html>
+      // Assemble all pages into final document
+      if (pageHtmlResults.length > 0 && pageHtmlResults.some(p => p.length > 100)) {
+        const pagesContent = pageHtmlResults.map((html, idx) => 
+          `<section class="page" style="margin-bottom:40px; padding-bottom:20px; border-bottom:1px dashed #ccc;">
+            <!-- STRANA ${idx + 1} -->
+            ${html}
+          </section>`
+        ).join("\n\n");
+        
+        htmlContent = `<!DOCTYPE html>
 <html lang="sk">
-<head><meta charset="utf-8"><title>Dokument</title></head>
-<body style="font-family:Arial,sans-serif; font-size:11px; line-height:1.4; color:#000;">
-<div style="max-width:816px; margin:0 auto; padding:20px;">
-  <section style="margin-bottom:40px;"><!-- PAGE 1 -->...obsah strany 1...</section>
-  <section style="margin-bottom:40px;"><!-- PAGE 2 -->...obsah strany 2...</section>
-  ...
-</div>
+<head>
+  <meta charset="utf-8">
+  <title>Dokument</title>
+  <style>
+    .contract-content { max-width:816px; margin:0 auto; font-family:Arial,sans-serif; font-size:11px; line-height:1.5; color:#000; padding:20px; }
+    .contract-content h3 { font-size:13px; margin:20px 0 10px; }
+    .contract-content table { width:100%; border-collapse:collapse; margin:10px 0; }
+    .contract-content td, .contract-content th { border:1px solid #ccc; padding:6px 8px; vertical-align:top; }
+    .contract-content .page { page-break-after:always; }
+    @media print { .contract-content .page { border-bottom:none; } }
+  </style>
+</head>
+<body>
+  <div class="contract-content">
+    ${pagesContent}
+  </div>
 </body>
 </html>`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: [
-              { 
-                type: "text", 
-                text: `Konvertuj tento ${numPages}-stranový dokument na HTML. Zachovaj presne rozloženie: stĺpce, tabuľky, odsadenia. Preskuč logá/obrázky.`
-              },
-              ...imageMessages
-            ],
-          },
-        ],
-        max_completion_tokens: 128000,
-      });
-      
-      htmlContent = response.choices[0].message.content || "";
-      
-      // Clean up response - remove markdown code blocks if present
-      htmlContent = htmlContent
-        .replace(/^```html?\n?/i, "")
-        .replace(/\n?```$/i, "")
-        .trim();
-      
-      console.log(`[PDF AI] AI generated ${htmlContent.length} chars of HTML`);
-      conversionMethod = "ai";
+        
+        console.log(`[PDF AI] Assembled ${pageHtmlResults.length} pages into ${htmlContent.length} chars`);
+        conversionMethod = "ai";
+      } else {
+        throw new Error("No valid page content generated");
+      }
       
     } catch (aiError: any) {
-      console.error("[PDF AI] AI conversion failed, falling back to text-only:", aiError.message);
-      console.error("[PDF AI] Full error:", JSON.stringify(aiError, null, 2));
-      if (aiError.response) {
-        console.error("[PDF AI] API Response:", aiError.response?.data || aiError.response);
-      }
+      console.error("[PDF AI] AI conversion failed:", aiError.message);
+      console.error("[PDF AI] Error details:", aiError.status, aiError.code);
       conversionMethod = "text-only";
     }
   } else {

@@ -383,136 +383,83 @@ async function convertPdfToHtmlWithAI(
     console.warn("[PDF AI] Page image creation failed, will use text-only:", error);
   }
   
-  // 4. Use OpenAI Vision to convert PDF to HTML - process each page separately
-  if (pageImagePaths.length > 0) {
-    try {
-      console.log(`[PDF AI] Processing ${pageImagePaths.length} pages separately...`);
-      
-      const pageHtmlResults: string[] = [];
-      
-      for (let pageIndex = 0; pageIndex < pageImagePaths.length; pageIndex++) {
-        const imgPath = pageImagePaths[pageIndex];
-        const pageNum = pageIndex + 1;
-        
-        try {
-          const imageBuffer = fs.readFileSync(imgPath);
-          const base64 = imageBuffer.toString("base64");
-          const sizeKB = Math.round(imageBuffer.length / 1024);
-          
-          console.log(`[PDF AI] Processing page ${pageNum}/${pageImagePaths.length} (${sizeKB}KB)...`);
-          
-          if (sizeKB > 4000) {
-            console.warn(`[PDF AI] Page ${pageNum} too large (${sizeKB}KB), skipping`);
-            pageHtmlResults.push(`<div class="page-error">Strana ${pageNum} - príliš veľká pre spracovanie</div>`);
-            continue;
-          }
-          
-          const pageSystemPrompt = `Si OCR nástroj. Konvertuj JEDNU stranu dokumentu na HTML.
-
-PRAVIDLÁ:
-1. Vrať LEN HTML obsah strany (bez <!DOCTYPE>, <html>, <head>, <body>)
-2. DVA STĹPCE = <div style="display:flex; gap:30px;"><div style="flex:1;">ĽAVÝ</div><div style="flex:1;">PRAVÝ</div></div>
-3. TABUĽKY s dátami = <table style="width:100%; border-collapse:collapse;"><tr><td style="border:1px solid #ccc; padding:8px;">...</td></tr></table>
-4. NADPISY (Článok I, II...) = <h3 style="font-weight:bold; margin:20px 0 10px;">
-5. Číslované body (I.1, II.2) = <p style="margin-left:20px; text-indent:-20px;">
-6. Podpisové polia = <div style="border-bottom:1px solid #000; width:200px; margin:20px 0;"></div>
-7. NIKDY nepýtaj na kvalitu. Odhadni nejasný text z kontextu.
-8. Zachovaj PRESNE rozloženie - ak sú 2 stĺpce, musia byť 2 stĺpce.`;
-
-          const response = await openai.chat.completions.create({
-            model: "gpt-5",
-            messages: [
-              { role: "system", content: pageSystemPrompt },
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: `Konvertuj túto stranu ${pageNum} na HTML. Zachovaj layout (stĺpce, tabuľky).` },
-                  {
-                    type: "image_url",
-                    image_url: { url: `data:image/png;base64,${base64}`, detail: "high" }
-                  } as any
-                ]
-              }
-            ],
-            max_completion_tokens: 32000,
-          });
-          
-          let pageHtml = response.choices[0].message.content || "";
-          
-          // Clean up markdown code blocks
-          pageHtml = pageHtml
-            .replace(/^```html?\n?/i, "")
-            .replace(/\n?```$/i, "")
-            .trim();
-          
-          console.log(`[PDF AI] Page ${pageNum} generated ${pageHtml.length} chars`);
-          pageHtmlResults.push(pageHtml);
-          
-        } catch (pageError: any) {
-          console.error(`[PDF AI] Page ${pageNum} failed:`, pageError.message);
-          pageHtmlResults.push(`<div class="page-error" style="color:red; padding:20px; border:1px solid red;">Strana ${pageNum} - chyba spracovania</div>`);
-        }
-      }
-      
-      // Assemble all pages into final document
-      if (pageHtmlResults.length > 0 && pageHtmlResults.some(p => p.length > 100)) {
-        const pagesContent = pageHtmlResults.map((html, idx) => 
-          `<section class="page" style="margin-bottom:40px; padding-bottom:20px; border-bottom:1px dashed #ccc;">
-            <!-- STRANA ${idx + 1} -->
-            ${html}
-          </section>`
-        ).join("\n\n");
-        
-        htmlContent = `<!DOCTYPE html>
+  // 4. Skip AI conversion - use enhanced text-only mode
+  // AI conversion disabled due to quota limits - use text extraction with smart formatting
+  console.log("[PDF] Using enhanced text-only conversion (AI disabled)");
+  conversionMethod = "text-only";
+  
+  // Parse extracted text and create structured HTML with better formatting
+  const escapedText = extractedText
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  
+  // Split text by form feed (page breaks) or detect page patterns
+  const pages = escapedText.split(/\f/).filter(p => p.trim().length > 0);
+  
+  // Process each page with improved formatting
+  const processPage = (pageText: string, pageNum: number): string => {
+    let html = pageText;
+    
+    // Convert article headers (Článok I, II, III, etc.)
+    html = html.replace(/^(\s*)(Článok\s+[IVXLCDM]+\s*[-–—]\s*.+)$/gm, 
+      '<h3 style="font-weight:bold; margin:20px 0 10px; text-align:center;">$2</h3>');
+    
+    // Convert numbered sections (I.1, II.2, etc.)
+    html = html.replace(/^(\s*)([IVXLCDM]+\.\d+)\s+/gm, 
+      '<p style="margin:8px 0 8px 20px;"><strong>$2</strong> ');
+    
+    // Convert subsections (a), b), c))
+    html = html.replace(/^(\s*)([a-z]\))\s+/gm, 
+      '<p style="margin:4px 0 4px 40px;">$2 ');
+    
+    // Preserve line breaks for readability
+    html = html.replace(/\n{3,}/g, '</p><p style="margin:16px 0;">');
+    html = html.replace(/\n{2}/g, '</p><p style="margin:8px 0;">');
+    html = html.replace(/\n/g, '<br/>');
+    
+    // Wrap signature lines (dotted lines)
+    html = html.replace(/\.{10,}/g, '<span style="display:inline-block; border-bottom:1px dotted #000; min-width:200px;">&nbsp;</span>');
+    
+    return `<section class="page" style="margin-bottom:30px; padding-bottom:20px; border-bottom:1px dashed #ccc;">
+      <div style="text-align:right; font-size:10px; color:#666; margin-bottom:10px;">Strana ${pageNum}</div>
+      <div style="white-space:pre-wrap; word-wrap:break-word;">${html}</div>
+    </section>`;
+  };
+  
+  const pagesHtml = pages.length > 1 
+    ? pages.map((p, i) => processPage(p, i + 1)).join('\n')
+    : processPage(escapedText, 1);
+  
+  htmlContent = `<!DOCTYPE html>
 <html lang="sk">
 <head>
   <meta charset="utf-8">
   <title>Dokument</title>
   <style>
-    .contract-content { max-width:816px; margin:0 auto; font-family:Arial,sans-serif; font-size:11px; line-height:1.5; color:#000; padding:20px; }
+    .contract-content { 
+      max-width:816px; 
+      margin:0 auto; 
+      font-family:'Times New Roman', Georgia, serif; 
+      font-size:11px; 
+      line-height:1.5; 
+      color:#000; 
+      padding:20px; 
+    }
     .contract-content h3 { font-size:13px; margin:20px 0 10px; }
-    .contract-content table { width:100%; border-collapse:collapse; margin:10px 0; }
-    .contract-content td, .contract-content th { border:1px solid #ccc; padding:6px 8px; vertical-align:top; }
+    .contract-content p { margin:6px 0; }
     .contract-content .page { page-break-after:always; }
     @media print { .contract-content .page { border-bottom:none; } }
   </style>
 </head>
 <body>
   <div class="contract-content">
-    ${pagesContent}
+    ${pagesHtml}
   </div>
 </body>
 </html>`;
-        
-        console.log(`[PDF AI] Assembled ${pageHtmlResults.length} pages into ${htmlContent.length} chars`);
-        conversionMethod = "ai";
-      } else {
-        throw new Error("No valid page content generated");
-      }
-      
-    } catch (aiError: any) {
-      console.error("[PDF AI] AI conversion failed:", aiError.message);
-      console.error("[PDF AI] Error details:", aiError.status, aiError.code);
-      conversionMethod = "text-only";
-    }
-  } else {
-    conversionMethod = "text-only";
-  }
   
-  // 5. Fallback to text-only if AI failed
-  if (!htmlContent || htmlContent.length < 100) {
-    console.log("[PDF AI] Using text-only fallback");
-    conversionMethod = "text-only";
-    
-    const escapedText = extractedText
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    
-    htmlContent = `<div class="contract-template" style="width:816px;margin:0 auto;font-family:'Times New Roman',Georgia,serif;font-size:12px;line-height:1.5;">
-  <div style="white-space:pre-wrap;word-wrap:break-word;">${escapedText}</div>
-</div>`;
-  }
+  console.log(`[PDF] Generated ${htmlContent.length} chars of formatted HTML from text`);
   
   return { htmlContent, extractedText, embeddedImages, pageImages, conversionMethod };
 }

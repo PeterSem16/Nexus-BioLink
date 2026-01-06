@@ -3431,10 +3431,10 @@ export default function ContractsPage() {
                             </Badge>
                           </div>
                           <Select
-                            value={templateMappings[field] || ""}
+                            value={templateMappings[field] || "__none__"}
                             onValueChange={(value) => setTemplateMappings(prev => {
                               const newMappings = { ...prev };
-                              if (value && value.trim() !== "") {
+                              if (value && value !== "__none__") {
                                 newMappings[field] = value;
                               } else {
                                 delete newMappings[field];
@@ -3446,7 +3446,7 @@ export default function ContractsPage() {
                               <SelectValue placeholder="Vyberte údaj..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">-- Nevyplnené --</SelectItem>
+                              <SelectItem value="__none__">-- Nevyplnené --</SelectItem>
                               {CUSTOMER_FIELDS.map(group => (
                                 <div key={group.group}>
                                   <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted">

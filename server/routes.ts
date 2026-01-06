@@ -444,7 +444,7 @@ Začni VŽDY s <!DOCTYPE html> a skonči s </html>.`
             ],
           },
         ],
-        max_completion_tokens: 64000,
+        max_completion_tokens: 128000,
       });
       
       htmlContent = response.choices[0].message.content || "";

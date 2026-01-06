@@ -404,7 +404,10 @@ async function convertPdfToHtmlWithAI(
           
           imageMessages.push({
             type: "image_url",
-            image_url: { url: `data:image/png;base64,${base64}` }
+            image_url: { 
+              url: `data:image/png;base64,${base64}`,
+              detail: "high"
+            }
           });
         } catch (imgError) {
           console.warn(`[PDF AI] Skipping problematic image ${imgPath}:`, imgError);
@@ -420,25 +423,45 @@ async function convertPdfToHtmlWithAI(
       
       console.log(`[PDF AI] Sending ${numPages} pages to Vision API...`);
       
+      const systemPrompt = `Si profesionálny OCR nástroj pre konverziu dokumentov na HTML.
+
+VÝSTUP: Vždy vrať LEN čistý HTML kód, začni s <!DOCTYPE html> a skonči s </html>.
+NIKDY nepýtaj na lepšiu kvalitu. NIKDY nevysvetľuj. Pracuj s tým čo máš.
+
+PRAVIDLÁ FORMÁTOVANIA:
+1. LAYOUT: Ak dokument má DVA STĹPCE, použi CSS grid alebo flexbox: display:flex; gap:20px; s dvoma div-mi
+2. TABUĽKY: Ak vidíš zarovnaný text v riadkoch/stĺpcoch (cenník, zoznam), vytvor <table> s border-collapse:collapse
+3. NADPISY: Článok I, Článok II atď. = <h3 style="font-weight:bold; margin-top:20px;">
+4. ČÍSLOVANIE: I.1, II.2 atď. = text s odsadením margin-left:20px
+5. PODPISY: Polia pre podpis = prázdne bunky tabuľky s border-bottom
+6. ŠÍRKA: Celý dokument max-width:816px, margin:0 auto
+
+ŠTRUKTÚRA:
+<!DOCTYPE html>
+<html lang="sk">
+<head><meta charset="utf-8"><title>Dokument</title></head>
+<body style="font-family:Arial,sans-serif; font-size:11px; line-height:1.4; color:#000;">
+<div style="max-width:816px; margin:0 auto; padding:20px;">
+  <section style="margin-bottom:40px;"><!-- PAGE 1 -->...obsah strany 1...</section>
+  <section style="margin-bottom:40px;"><!-- PAGE 2 -->...obsah strany 2...</section>
+  ...
+</div>
+</body>
+</html>`;
+
       const response = await openai.chat.completions.create({
         model: "gpt-5",
         messages: [
           {
             role: "system",
-            content: `Si OCR nástroj. Tvoja JEDINÁ úloha je konvertovať obrázky dokumentov na HTML kód.
-NIKDY neodpovedaj ničím iným ako čistým HTML kódom.
-NIKDY nepýtaj na lepšiu kvalitu.
-NIKDY nevysvetľuj čo robíš.
-NIKDY nehovor že niečo nie je čitateľné.
-Ak text nie je jasný, odhadni ho z kontextu.
-Začni VŽDY s <!DOCTYPE html> a skonči s </html>.`
+            content: systemPrompt
           },
           {
             role: "user",
             content: [
               { 
                 type: "text", 
-                text: `Konvertuj tento ${numPages}-stranový dokument na HTML. Šírka 816px. Zachovaj formátovanie (nadpisy, tučné, tabuľky). Preskuč obrázky. Každá strana: <section><!-- PAGE X -->...</section>`
+                text: `Konvertuj tento ${numPages}-stranový dokument na HTML. Zachovaj presne rozloženie: stĺpce, tabuľky, odsadenia. Preskuč logá/obrázky.`
               },
               ...imageMessages
             ],

@@ -189,8 +189,8 @@ async function extractPdfText(filePath: string): Promise<string> {
   }
 }
 
-// Convert PDF pages to PNG images using pdftoppm (poppler-utils)
-async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promise<string[]> {
+// Convert PDF pages to JPEG images using pdftoppm (poppler-utils)
+async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promise<string[]> {
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
@@ -200,9 +200,9 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promis
   const outputPrefix = path.join(outputDir, `${baseName}-page`);
   
   try {
-    // Convert PDF to JPEG images - higher resolution (150 DPI) for better text recognition
-    // -jpeg for smaller file sizes, -r 150 for good quality, -l limits pages
-    await execAsync(`pdftoppm -jpeg -r 150 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    // Convert PDF to JPEG images - 72 DPI is enough for text recognition by GPT
+    // Lower resolution = smaller files = faster API calls
+    await execAsync(`pdftoppm -jpeg -jpegopt quality=60 -r 72 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
     
     // Find all generated image files
     const files = fs.readdirSync(outputDir);
@@ -212,7 +212,7 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promis
       .slice(0, maxPages)
       .map(f => path.join(outputDir, f));
     
-    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages, 150 DPI)`);
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages, 72 DPI)`);
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion failed:", error);
@@ -6793,9 +6793,9 @@ export async function registerRoutes(
       // Check if template already exists for this category and country
       const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
       
-      // Convert PDF pages to images for Vision analysis (limit to 5 pages for better coverage)
+      // Convert PDF pages to images for Vision analysis (limit to 3 pages for speed)
       console.log(`[PDF Conversion] Converting PDF to images: ${req.file.path}`);
-      const imagePaths = await convertPdfToImages(req.file.path, 5);
+      const imagePaths = await convertPdfToImages(req.file.path, 3);
       
       if (imagePaths.length === 0) {
         return res.status(500).json({ error: "Failed to convert PDF to images. Make sure the PDF is valid." });
@@ -6809,7 +6809,10 @@ export async function registerRoutes(
       let htmlContent = "";
       try {
         const OpenAI = (await import("openai")).default;
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = new OpenAI({ 
+          apiKey: process.env.OPENAI_API_KEY,
+          timeout: 120000 // 2 minute timeout
+        });
         
         // Convert images to base64 for Vision API
         const imageInputs = imagesToBase64(imagePaths);
@@ -6887,7 +6890,7 @@ ${pdfText.length > 0 ? `Additional extracted text for reference:\n${pdfText.subs
               ]
             }
           ],
-          max_completion_tokens: 32768,
+          max_completion_tokens: 16384,
         });
         
         const elapsed = Date.now() - startTime;

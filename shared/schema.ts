@@ -2626,6 +2626,27 @@ export const insertContractCategorySchema = createInsertSchema(contractCategorie
 export type InsertContractCategory = z.infer<typeof insertContractCategorySchema>;
 export type ContractCategory = typeof contractCategories.$inferSelect;
 
+// Contract Category Default Templates - per-country default templates for categories
+export const contractCategoryDefaultTemplates = pgTable("contract_category_default_templates", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull(), // FK to contract_categories
+  countryCode: varchar("country_code", { length: 2 }).notNull(), // SK, CZ, HU, RO, IT, DE, US
+  templateId: varchar("template_id"), // FK to contract_templates (optional - if linked to existing template)
+  sourcePdfPath: text("source_pdf_path"), // Path to uploaded source PDF
+  htmlContent: text("html_content"), // Converted HTML content
+  conversionStatus: varchar("conversion_status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed
+  conversionError: text("conversion_error"), // Error message if conversion failed
+  conversionMetadata: text("conversion_metadata"), // JSON with conversion details
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertContractCategoryDefaultTemplateSchema = createInsertSchema(contractCategoryDefaultTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertContractCategoryDefaultTemplate = z.infer<typeof insertContractCategoryDefaultTemplateSchema>;
+export type ContractCategoryDefaultTemplate = typeof contractCategoryDefaultTemplates.$inferSelect;
+
 // Contract Templates - reusable contract document templates
 export const contractTemplates = pgTable("contract_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

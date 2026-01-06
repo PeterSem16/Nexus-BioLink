@@ -119,6 +119,34 @@ const uploadAvatar = multer({
   },
 });
 
+// Configure multer for contract template PDF uploads
+const contractPdfStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads", "contract-pdfs");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `contract-template-${uniqueSuffix}${ext}`);
+  },
+});
+
+const uploadContractPdf = multer({
+  storage: contractPdfStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only PDF files are allowed."));
+    }
+  },
+});
+
 // Helper function to convert date strings to Date objects
 function parseDateFields(data: Record<string, any>): Record<string, any> {
   const result = { ...data };
@@ -6642,6 +6670,167 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error reordering contract categories:", error);
       res.status(500).json({ error: "Failed to reorder contract categories" });
+    }
+  });
+
+  // Contract Category Default Templates
+  app.get("/api/contracts/categories/:categoryId/default-templates", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const templates = await storage.getCategoryDefaultTemplates(categoryId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching category default templates:", error);
+      res.status(500).json({ error: "Failed to fetch category default templates" });
+    }
+  });
+
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const template = await storage.getCategoryDefaultTemplate(categoryId, req.params.countryCode);
+      if (!template) {
+        return res.status(404).json({ error: "Default template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching category default template:", error);
+      res.status(500).json({ error: "Failed to fetch category default template" });
+    }
+  });
+
+  // Upload PDF and convert to HTML for category default template
+  app.post("/api/contracts/categories/:categoryId/default-templates/upload", requireAuth, uploadContractPdf.single("pdf"), async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const { countryCode } = req.body;
+      
+      if (!countryCode) {
+        return res.status(400).json({ error: "Country code is required" });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "PDF file is required" });
+      }
+
+      // Check if template already exists for this category and country
+      const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      // Extract text from PDF
+      const pdfText = await extractPdfText(req.file.path);
+      
+      // Convert PDF to HTML using OpenAI Vision
+      let htmlContent = "";
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        
+        // Read PDF as base64 for vision analysis
+        const pdfBuffer = fs.readFileSync(req.file.path);
+        const pdfBase64 = pdfBuffer.toString("base64");
+        
+        // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        const response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert at converting PDF documents to HTML while preserving the exact layout, formatting, and structure. 
+Your task is to create HTML that closely matches the original PDF layout including:
+- Headers and footers
+- Columns and tables
+- Margins and spacing
+- Font styles (bold, italic, underline)
+- Text alignment
+- Lists and numbering
+- Signatures and signature lines
+- Images (represented as placeholder divs)
+- All text content exactly as it appears
+
+Use CSS inline styles to preserve the layout. Use tables for columnar layouts if needed.
+Include placeholders for images as: <div class="image-placeholder" style="width:100px;height:100px;border:1px dashed #ccc;"></div>
+Include signature lines as: <div class="signature-line" style="border-bottom:1px solid #000;width:200px;margin-top:50px;"></div>
+
+The HTML should be ready for use as a contract template with Handlebars placeholders.
+Common placeholders to identify and replace:
+- Client name, address, date of birth -> {{client.fullName}}, {{client.address}}, {{client.birthDate}}
+- Contract number, date -> {{contract.number}}, {{contract.date}}
+- Company info -> {{company.name}}, {{company.address}}, {{company.vatNumber}}
+- Product/price info -> {{product.name}}, {{product.price}}
+
+Output ONLY the HTML code, no explanations. Start with <div class="contract-template"> and end with </div>.`
+            },
+            {
+              role: "user",
+              content: `Convert this PDF text content to a well-structured HTML template that preserves the document layout and formatting. 
+Identify any fields that should be template placeholders (names, dates, addresses, amounts) and replace them with Handlebars syntax.
+
+PDF Text Content:
+${pdfText}`
+            }
+          ],
+          max_completion_tokens: 8192,
+        });
+        
+        htmlContent = response.choices[0].message.content || "";
+        
+        // Clean up the response - remove markdown code blocks if present
+        htmlContent = htmlContent.replace(/^```html\n?/i, "").replace(/\n?```$/i, "").trim();
+        
+      } catch (aiError) {
+        console.error("OpenAI conversion failed:", aiError);
+        // Fallback to basic HTML wrapper with extracted text
+        htmlContent = `<div class="contract-template">
+          <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+            <pre style="white-space: pre-wrap; font-family: inherit;">${pdfText}</pre>
+          </div>
+        </div>`;
+      }
+      
+      // Create or update the default template
+      if (existing) {
+        const updated = await storage.updateCategoryDefaultTemplate(existing.id, {
+          sourcePdfPath: req.file.path,
+          htmlContent,
+          conversionStatus: "completed",
+          conversionError: null,
+        });
+        res.json(updated);
+      } else {
+        const created = await storage.createCategoryDefaultTemplate({
+          categoryId,
+          countryCode,
+          sourcePdfPath: req.file.path,
+          htmlContent,
+          conversionStatus: "completed",
+          createdBy: req.session.user!.id,
+        });
+        res.status(201).json(created);
+      }
+    } catch (error) {
+      console.error("Error uploading and converting PDF:", error);
+      res.status(500).json({ error: "Failed to upload and convert PDF" });
+    }
+  });
+
+  app.delete("/api/contracts/categories/:categoryId/default-templates/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const template = await storage.getCategoryDefaultTemplate(categoryId, req.params.countryCode);
+      if (!template) {
+        return res.status(404).json({ error: "Default template not found" });
+      }
+      
+      // Delete the source PDF file if it exists
+      if (template.sourcePdfPath && fs.existsSync(template.sourcePdfPath)) {
+        fs.unlinkSync(template.sourcePdfPath);
+      }
+      
+      await storage.deleteCategoryDefaultTemplate(template.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting category default template:", error);
+      res.status(500).json({ error: "Failed to delete category default template" });
     }
   });
 

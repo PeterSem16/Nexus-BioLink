@@ -59,7 +59,7 @@ import {
   type CampaignMetricsSnapshot, type InsertCampaignMetricsSnapshot,
   sipSettings, callLogs, chatMessages, exchangeRates, inflationRates,
   productSets, productSetCollections, productSetStorage, customerConsents, tasks, taskComments,
-  contractCategories, contractTemplates, contractTemplateVersions, contractInstances, contractInstanceProducts,
+  contractCategories, contractCategoryDefaultTemplates, contractTemplates, contractTemplateVersions, contractInstances, contractInstanceProducts,
   contractParticipants, contractSignatureRequests, contractAuditLog,
   type SipSettings, type InsertSipSettings,
   type CallLog, type InsertCallLog,
@@ -73,6 +73,7 @@ import {
   type ExchangeRate, type InsertExchangeRate,
   type InflationRate, type InsertInflationRate,
   type ContractCategory, type InsertContractCategory,
+  type ContractCategoryDefaultTemplate, type InsertContractCategoryDefaultTemplate,
   type ContractTemplate, type InsertContractTemplate,
   type ContractTemplateVersion, type InsertContractTemplateVersion,
   type ContractInstance, type InsertContractInstance,
@@ -533,6 +534,13 @@ export interface IStorage {
   updateContractCategory(id: number, data: Partial<InsertContractCategory>): Promise<ContractCategory | undefined>;
   deleteContractCategory(id: number): Promise<boolean>;
   reorderContractCategories(orderedIds: number[]): Promise<void>;
+
+  // Contract Category Default Templates
+  getCategoryDefaultTemplates(categoryId: number): Promise<ContractCategoryDefaultTemplate[]>;
+  getCategoryDefaultTemplate(categoryId: number, countryCode: string): Promise<ContractCategoryDefaultTemplate | undefined>;
+  createCategoryDefaultTemplate(data: InsertContractCategoryDefaultTemplate): Promise<ContractCategoryDefaultTemplate>;
+  updateCategoryDefaultTemplate(id: number, data: Partial<InsertContractCategoryDefaultTemplate>): Promise<ContractCategoryDefaultTemplate | undefined>;
+  deleteCategoryDefaultTemplate(id: number): Promise<boolean>;
 
   // Contract Templates
   getAllContractTemplates(): Promise<ContractTemplate[]>;
@@ -3190,6 +3198,39 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: i, updatedAt: new Date() })
         .where(eq(contractCategories.id, validIds[i]));
     }
+  }
+
+  // Contract Category Default Templates
+  async getCategoryDefaultTemplates(categoryId: number): Promise<ContractCategoryDefaultTemplate[]> {
+    return db.select().from(contractCategoryDefaultTemplates)
+      .where(eq(contractCategoryDefaultTemplates.categoryId, categoryId));
+  }
+
+  async getCategoryDefaultTemplate(categoryId: number, countryCode: string): Promise<ContractCategoryDefaultTemplate | undefined> {
+    const [template] = await db.select().from(contractCategoryDefaultTemplates)
+      .where(and(
+        eq(contractCategoryDefaultTemplates.categoryId, categoryId),
+        eq(contractCategoryDefaultTemplates.countryCode, countryCode)
+      ));
+    return template || undefined;
+  }
+
+  async createCategoryDefaultTemplate(data: InsertContractCategoryDefaultTemplate): Promise<ContractCategoryDefaultTemplate> {
+    const [template] = await db.insert(contractCategoryDefaultTemplates).values(data).returning();
+    return template;
+  }
+
+  async updateCategoryDefaultTemplate(id: number, data: Partial<InsertContractCategoryDefaultTemplate>): Promise<ContractCategoryDefaultTemplate | undefined> {
+    const [template] = await db.update(contractCategoryDefaultTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractCategoryDefaultTemplates.id, id))
+      .returning();
+    return template || undefined;
+  }
+
+  async deleteCategoryDefaultTemplate(id: number): Promise<boolean> {
+    const result = await db.delete(contractCategoryDefaultTemplates).where(eq(contractCategoryDefaultTemplates.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Contract Templates

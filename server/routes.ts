@@ -7574,10 +7574,42 @@ Odpovedz v JSON formáte:
 
   app.post("/api/contracts/templates", requireAuth, async (req, res) => {
     try {
+      // Extract only the fields that belong to contractTemplates schema
+      const { 
+        name, 
+        description, 
+        countryCode, 
+        languageCode, 
+        category, 
+        contentHtml,
+        // These are new fields from the DOCX workflow - store them in placeholders JSON
+        loadedFromCategory,
+        loadedCategoryId,
+        sourceDocxPath,
+        extractedFields,
+        placeholderMappings
+      } = req.body;
+      
+      // Store DOCX workflow metadata in placeholders field as JSON
+      const placeholdersData = loadedFromCategory ? JSON.stringify({
+        loadedFromCategory,
+        loadedCategoryId,
+        sourceDocxPath,
+        extractedFields: extractedFields || [],
+        placeholderMappings: placeholderMappings || {}
+      }) : null;
+      
       const data = insertContractTemplateSchema.parse({
-        ...req.body,
+        name,
+        description: description || "",
+        countryCode,
+        languageCode: languageCode || countryCode?.toLowerCase() || "sk",
+        category: category || "general",
+        contentHtml: contentHtml || "",
+        placeholders: placeholdersData,
         createdBy: req.session.user!.id
       });
+      
       const template = await storage.createContractTemplate(data);
       
       await logActivity(req.session.user!.id, "create", "contract_template", template.id, template.name, null, req.ip);

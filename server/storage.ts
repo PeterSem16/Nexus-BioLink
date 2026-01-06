@@ -532,6 +532,7 @@ export interface IStorage {
   createContractCategory(data: InsertContractCategory): Promise<ContractCategory>;
   updateContractCategory(id: number, data: Partial<InsertContractCategory>): Promise<ContractCategory | undefined>;
   deleteContractCategory(id: number): Promise<boolean>;
+  reorderContractCategories(orderedIds: number[]): Promise<void>;
 
   // Contract Templates
   getAllContractTemplates(): Promise<ContractTemplate[]>;
@@ -3174,6 +3175,21 @@ export class DatabaseStorage implements IStorage {
   async deleteContractCategory(id: number): Promise<boolean> {
     const result = await db.delete(contractCategories).where(eq(contractCategories.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async reorderContractCategories(orderedIds: number[]): Promise<void> {
+    const existingCategories = await db.select({ id: contractCategories.id })
+      .from(contractCategories)
+      .where(inArray(contractCategories.id, orderedIds));
+    
+    const existingIds = new Set(existingCategories.map(c => c.id));
+    const validIds = orderedIds.filter(id => existingIds.has(id));
+    
+    for (let i = 0; i < validIds.length; i++) {
+      await db.update(contractCategories)
+        .set({ sortOrder: i, updatedAt: new Date() })
+        .where(eq(contractCategories.id, validIds[i]));
+    }
   }
 
   // Contract Templates

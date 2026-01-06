@@ -6630,6 +6630,21 @@ export async function registerRoutes(
     }
   });
 
+  // Reorder contract categories
+  app.post("/api/contracts/categories/reorder", requireAuth, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+      await storage.reorderContractCategories(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering contract categories:", error);
+      res.status(500).json({ error: "Failed to reorder contract categories" });
+    }
+  });
+
   // Contract Templates
   app.get("/api/contracts/templates", requireAuth, async (req, res) => {
     try {

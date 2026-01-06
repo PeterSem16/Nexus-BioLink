@@ -22,8 +22,25 @@ import {
   FileText, Plus, Edit2, Trash2, Send, Eye, Check, X, Clock, 
   FileSignature, Download, Copy, RefreshCw, AlertCircle, Filter,
   ChevronRight, Settings, PenTool, Mail, Phone, Shield, 
-  CheckCircle, Loader2, Edit, Pencil
+  CheckCircle, Loader2, Edit, Pencil, GripVertical
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { 
   ContractTemplate, ContractInstance, Customer, BillingDetails, ContractCategory
 } from "@shared/schema";
@@ -58,6 +75,79 @@ const PRODUCT_OPTIONS = [
   { id: "tissue_only", name: "Tkanivo pupočníka", total: 300, payments: 1, deposit: 0, remaining: 300 },
   { id: "premium_all", name: "Prémium + tkanivo pupočníka + tkanivo placenty", total: 1490, payments: 2, deposit: 150, remaining: 1340 }
 ];
+
+function SortableCategoryRow({ 
+  category, 
+  onEdit, 
+  onDelete 
+}: { 
+  category: ContractCategory; 
+  onEdit: (category: ContractCategory) => void; 
+  onDelete: (id: number) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow 
+      ref={setNodeRef} 
+      style={style} 
+      data-testid={`row-category-${category.id}`}
+      className={isDragging ? "bg-muted" : ""}
+    >
+      <TableCell className="w-10">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+          data-testid={`drag-handle-category-${category.id}`}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </TableCell>
+      <TableCell className="font-mono text-sm">{category.value}</TableCell>
+      <TableCell className="font-medium">{category.label}</TableCell>
+      <TableCell className="text-muted-foreground">{category.description || "-"}</TableCell>
+      <TableCell>{category.sortOrder}</TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={() => onEdit(category)}
+            data-testid={`button-edit-category-${category.id}`}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="ghost"
+            onClick={() => {
+              if (confirm("Naozaj chcete vymazať túto kategóriu?")) {
+                onDelete(category.id);
+              }
+            }}
+            data-testid={`button-delete-category-${category.id}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export default function ContractsPage() {
   const { toast } = useToast();
@@ -287,6 +377,15 @@ export default function ContractsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts/categories"] });
       toast({ title: "Kategória vymazaná" });
+    }
+  });
+
+  const reorderCategoriesMutation = useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      return apiRequest("POST", "/api/contracts/categories/reorder", { orderedIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/categories"] });
     }
   });
 
@@ -737,6 +836,35 @@ export default function ContractsPage() {
     return customer ? `${customer.firstName} ${customer.lastName}` : "Neznámy";
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!categories?.length || !over || active.id === over.id) {
+      return;
+    }
+    
+    const oldIndex = categories.findIndex(c => c.id === active.id);
+    const newIndex = categories.findIndex(c => c.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    
+    const reorderedCategories = arrayMove(categories, oldIndex, newIndex);
+    const orderedIds = reorderedCategories.map(c => c.id);
+    
+    queryClient.setQueryData(["/api/contracts/categories"], reorderedCategories);
+    
+    reorderCategoriesMutation.mutate(orderedIds);
+  };
+
   const getStatusBadge = (status: string) => {
     const config = CONTRACT_STATUSES[status as keyof typeof CONTRACT_STATUSES] || CONTRACT_STATUSES.draft;
     return (
@@ -920,65 +1048,53 @@ export default function ContractsPage() {
               <TabsContent value="categories" className="mt-0">
                 <Card>
                   <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Kód</TableHead>
-                          <TableHead>Názov</TableHead>
-                          <TableHead>Popis</TableHead>
-                          <TableHead>Poradie</TableHead>
-                          <TableHead className="text-right">Akcie</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {categoriesLoading ? (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                              Načítavam...
-                            </TableCell>
+                            <TableHead className="w-10"></TableHead>
+                            <TableHead>Kód</TableHead>
+                            <TableHead>Názov</TableHead>
+                            <TableHead>Popis</TableHead>
+                            <TableHead>Poradie</TableHead>
+                            <TableHead className="text-right">Akcie</TableHead>
                           </TableRow>
-                        ) : categories.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                              Žiadne kategórie
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          categories.map(category => (
-                            <TableRow key={category.id} data-testid={`row-category-${category.id}`}>
-                              <TableCell className="font-mono text-sm">{category.value}</TableCell>
-                              <TableCell className="font-medium">{category.label}</TableCell>
-                              <TableCell className="text-muted-foreground">{category.description || "-"}</TableCell>
-                              <TableCell>{category.sortOrder}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost" 
-                                    onClick={() => handleEditCategory(category)}
-                                    data-testid={`button-edit-category-${category.id}`}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost"
-                                    onClick={() => {
-                                      if (confirm("Naozaj chcete vymazať túto kategóriu?")) {
-                                        deleteCategoryMutation.mutate(category.id);
-                                      }
-                                    }}
-                                    data-testid={`button-delete-category-${category.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                        </TableHeader>
+                        <TableBody>
+                          {categoriesLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                Načítavam...
                               </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                          ) : categories.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                Žiadne kategórie
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            <SortableContext
+                              items={categories.map(c => c.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {categories.map(category => (
+                                <SortableCategoryRow
+                                  key={category.id}
+                                  category={category}
+                                  onEdit={handleEditCategory}
+                                  onDelete={(id) => deleteCategoryMutation.mutate(id)}
+                                />
+                              ))}
+                            </SortableContext>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </DndContext>
                   </CardContent>
                 </Card>
               </TabsContent>

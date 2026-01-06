@@ -837,7 +837,23 @@ export default function ContractsPage() {
       });
       if (response.ok) {
         const template = await response.json();
-        setTemplatePreviewContent(template.contentHtml || "<p>Šablóna je prázdna</p>");
+        if (template.contentHtml && template.contentHtml.trim().length > 0) {
+          setTemplatePreviewContent(template.contentHtml);
+        } else {
+          setTemplatePreviewContent(`
+            <div style="text-align: center; padding: 40px; color: #666;">
+              <p style="font-size: 16px; margin-bottom: 10px;">Šablóna existuje, ale nemá HTML obsah.</p>
+              <p style="font-size: 14px;">Pravdepodobne PDF konverzia zlyhala alebo nebola dokončená.</p>
+            </div>
+          `);
+        }
+      } else if (response.status === 404) {
+        setTemplatePreviewContent(`
+          <div style="text-align: center; padding: 40px; color: #666;">
+            <p style="font-size: 16px;">Šablóna pre túto krajinu neexistuje.</p>
+            <p style="font-size: 14px;">Nahrajte PDF v sekcii "Nová kategória" s krokom 2.</p>
+          </div>
+        `);
       } else {
         setTemplatePreviewContent("<p>Nepodarilo sa načítať šablónu</p>");
       }
@@ -1683,6 +1699,82 @@ export default function ContractsPage() {
                     placeholder="Zmluva o uchovávaní krvotvorných buniek"
                     data-testid="input-edit-category-label"
                   />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Jazykové mutácie názvu</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-sk" className="text-xs text-muted-foreground">Slovensko (SK)</Label>
+                      <Input
+                        id="edit-category-label-sk"
+                        value={categoryForm.labelSk}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelSk: e.target.value })}
+                        placeholder="Zmluva o uchovávaní..."
+                        data-testid="input-edit-category-label-sk"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-cz" className="text-xs text-muted-foreground">Česká republika (CZ)</Label>
+                      <Input
+                        id="edit-category-label-cz"
+                        value={categoryForm.labelCz}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelCz: e.target.value })}
+                        placeholder="Smlouva o uchovávání..."
+                        data-testid="input-edit-category-label-cz"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-hu" className="text-xs text-muted-foreground">Maďarsko (HU)</Label>
+                      <Input
+                        id="edit-category-label-hu"
+                        value={categoryForm.labelHu}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelHu: e.target.value })}
+                        placeholder="Tárolási szerződés..."
+                        data-testid="input-edit-category-label-hu"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-ro" className="text-xs text-muted-foreground">Rumunsko (RO)</Label>
+                      <Input
+                        id="edit-category-label-ro"
+                        value={categoryForm.labelRo}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelRo: e.target.value })}
+                        placeholder="Contract de depozitare..."
+                        data-testid="input-edit-category-label-ro"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-it" className="text-xs text-muted-foreground">Taliansko (IT)</Label>
+                      <Input
+                        id="edit-category-label-it"
+                        value={categoryForm.labelIt}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelIt: e.target.value })}
+                        placeholder="Contratto di conservazione..."
+                        data-testid="input-edit-category-label-it"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-de" className="text-xs text-muted-foreground">Nemecko (DE)</Label>
+                      <Input
+                        id="edit-category-label-de"
+                        value={categoryForm.labelDe}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelDe: e.target.value })}
+                        placeholder="Aufbewahrungsvertrag..."
+                        data-testid="input-edit-category-label-de"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-category-label-us" className="text-xs text-muted-foreground">USA (US)</Label>
+                      <Input
+                        id="edit-category-label-us"
+                        value={categoryForm.labelUs}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelUs: e.target.value })}
+                        placeholder="Storage Agreement..."
+                        data-testid="input-edit-category-label-us"
+                      />
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="space-y-2">

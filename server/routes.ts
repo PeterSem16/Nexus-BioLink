@@ -187,10 +187,10 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
   const outputPrefix = path.join(outputDir, `${baseName}-page`);
   
   try {
-    // Convert PDF to JPEG images - 150 DPI is sufficient for OCR with detail:high
-    // Use high-quality JPEG (90%) to keep file sizes manageable (<500KB per page)
-    // This prevents API timeouts while maintaining text readability
-    await execAsync(`pdftoppm -jpeg -jpegopt quality=90 -r 150 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    // Convert PDF to JPEG images - 100 DPI keeps files small (~200-300KB per page)
+    // Use 85% quality JPEG to reduce file size further while maintaining readability
+    // This prevents API timeouts and speeds up processing
+    await execAsync(`pdftoppm -jpeg -jpegopt quality=85 -r 100 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
     
     // Find all generated image files
     const files = fs.readdirSync(outputDir);
@@ -200,7 +200,7 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
       .slice(0, maxPages)
       .map(f => path.join(outputDir, f));
     
-    console.log(`[PDF Conversion] Generated ${imageFiles.length} JPEG images from PDF (max ${maxPages} pages, 150 DPI, 90% quality)`);
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} JPEG images from PDF (max ${maxPages} pages, 100 DPI, 85% quality)`);
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion failed:", error);
@@ -6801,7 +6801,7 @@ export async function registerRoutes(
         const OpenAI = (await import("openai")).default;
         const openai = new OpenAI({ 
           apiKey: process.env.OPENAI_API_KEY,
-          timeout: 120000 // 2 minute timeout per page
+          timeout: 180000 // 3 minute timeout per page
         });
         
         const systemPrompt = `You are an expert at converting PDF documents to HTML. Extract ALL text and preserve layout.

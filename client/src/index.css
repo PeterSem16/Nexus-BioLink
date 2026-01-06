@@ -510,3 +510,13 @@
     inset: -1px;
   }
 }
+
+/* Shimmer animation for progress indicators */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

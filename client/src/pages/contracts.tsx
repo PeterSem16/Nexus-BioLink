@@ -1858,19 +1858,33 @@ export default function ContractsPage() {
                       return (
                         <div key={country.code} className="relative">
                           {isConverting && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex flex-col items-center justify-center gap-3">
+                            <div className="absolute inset-0 bg-background/90 backdrop-blur-sm z-10 rounded-md flex flex-col items-center justify-center gap-4 p-4">
                               <div className="relative">
-                                <div className="w-12 h-12 border-4 border-primary/30 rounded-full animate-pulse" />
+                                <div className="w-16 h-16 border-4 border-primary/20 rounded-full" />
+                                <div className="absolute inset-0 w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <FileText className="w-5 h-5 text-primary animate-bounce" />
+                                  <FileText className="w-6 h-6 text-primary" />
                                 </div>
                               </div>
-                              <div className="text-center">
-                                <p className="text-sm font-medium text-primary">Konvertujem PDF</p>
-                                <p className="text-xs text-muted-foreground">AI analyzuje dokument...</p>
+                              <div className="text-center space-y-1">
+                                <p className="text-sm font-semibold text-foreground">Konverzia PDF do HTML</p>
+                                <p className="text-xs text-muted-foreground">AI analyzuje dokument po stranách...</p>
+                                <p className="text-xs text-muted-foreground/70">Môže trvať 1-3 minúty</p>
                               </div>
-                              <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary rounded-full animate-[pulse_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+                              <div className="w-48 space-y-2">
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-primary/60 via-primary to-primary/60 rounded-full"
+                                    style={{ 
+                                      width: '100%',
+                                      animation: 'shimmer 2s infinite linear',
+                                      backgroundSize: '200% 100%'
+                                    }} 
+                                  />
+                                </div>
+                                <p className="text-[10px] text-center text-muted-foreground">
+                                  Spracovávam strany (100 DPI, 3 min timeout)
+                                </p>
                               </div>
                             </div>
                           )}

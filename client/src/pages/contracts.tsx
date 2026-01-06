@@ -943,8 +943,29 @@ export default function ContractsPage() {
       });
       if (response.ok) {
         const template = await response.json();
-        const extractedFields = template.extractedFields ? JSON.parse(template.extractedFields) : [];
-        const mappings = template.placeholderMappings ? JSON.parse(template.placeholderMappings) : {};
+        let extractedFields = template.extractedFields;
+        if (typeof extractedFields === 'string') {
+          try {
+            extractedFields = JSON.parse(extractedFields);
+          } catch (e) {
+            extractedFields = [];
+          }
+        }
+        if (!Array.isArray(extractedFields)) {
+          extractedFields = [];
+        }
+        
+        let mappings = template.placeholderMappings;
+        if (typeof mappings === 'string') {
+          try {
+            mappings = JSON.parse(mappings);
+          } catch (e) {
+            mappings = {};
+          }
+        }
+        if (!mappings || typeof mappings !== 'object') {
+          mappings = {};
+        }
         
         setEditingTemplateData({
           templateType: template.templateType || "pdf_form",

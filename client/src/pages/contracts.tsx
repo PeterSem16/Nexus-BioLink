@@ -837,8 +837,9 @@ export default function ContractsPage() {
       });
       if (response.ok) {
         const template = await response.json();
-        if (template.contentHtml && template.contentHtml.trim().length > 0) {
-          setTemplatePreviewContent(template.contentHtml);
+        const htmlContent = template.htmlContent || template.contentHtml || "";
+        if (htmlContent && htmlContent.trim().length > 0) {
+          setTemplatePreviewContent(htmlContent);
         } else {
           setTemplatePreviewContent(`
             <div style="text-align: center; padding: 40px; color: #666;">

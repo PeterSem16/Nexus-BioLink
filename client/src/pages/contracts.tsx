@@ -22,7 +22,7 @@ import {
   FileText, Plus, Edit2, Trash2, Send, Eye, Check, X, Clock, 
   FileSignature, Download, Copy, RefreshCw, AlertCircle, Filter,
   ChevronRight, Settings, PenTool, Mail, Phone, Shield, 
-  CheckCircle, Loader2, Edit, Pencil, GripVertical, Globe
+  CheckCircle, Loader2, Edit, Pencil, GripVertical, Globe, ExternalLink
 } from "lucide-react";
 import {
   DndContext,
@@ -282,6 +282,8 @@ export default function ContractsPage() {
     extractedFields: string[];
     placeholderMappings: Record<string, string>;
     sourcePath: string;
+    categoryId: number;
+    countryCode: string;
   } | null>(null);
   const [templateMappings, setTemplateMappings] = useState<Record<string, string>>({});
   const [savingMappings, setSavingMappings] = useState(false);
@@ -982,7 +984,9 @@ export default function ContractsPage() {
           templateType: template.templateType || "pdf_form",
           extractedFields: extractedFields,
           placeholderMappings: mappings,
-          sourcePath: template.sourcePdfPath || template.sourceDocxPath || ""
+          sourcePath: template.sourceDocxPath || template.sourcePdfPath || "",
+          categoryId: selectedCategory!.id,
+          countryCode: countryCode
         });
         setTemplateMappings(mappings);
         setIsTemplateEditorLoading(false);
@@ -1817,7 +1821,7 @@ export default function ContractsPage() {
                         <div className="flex-1">
                           <Input
                             type="file"
-                            accept=".docx,.pdf"
+                            accept=".docx"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handlePdfUpload(country.code, file);
@@ -1858,10 +1862,11 @@ export default function ContractsPage() {
                 </div>
                 
                 <div className="p-4 bg-muted/50 rounded-md space-y-2">
-                  <p className="text-sm font-medium">Odporúčaný formát: DOCX</p>
+                  <p className="text-sm font-medium">Formát: DOCX (Word dokument)</p>
                   <ul className="text-sm text-muted-foreground list-disc pl-4 space-y-1">
-                    <li><strong>Word dokumenty (DOCX)</strong> - Použite premenné ako {"{{meno}}"}, {"{{priezvisko}}"}, {"{{adresa}}"}</li>
-                    <li className="text-amber-600 dark:text-amber-400">PDF konverzia má obmedzenia - odporúčame skonvertovať PDF v MS Word pred nahraním</li>
+                    <li>Použite premenné ako {"{{meno}}"}, {"{{priezvisko}}"}, {"{{adresa}}"} v texte dokumentu</li>
+                    <li>Po nahraní si môžete šablónu stiahnuť, upraviť v MS Word a znova nahrať</li>
+                    <li className="text-amber-600 dark:text-amber-400">Tip: Ak máte PDF, otvorte ho v MS Word a uložte ako DOCX pred nahraním</li>
                   </ul>
                 </div>
               </div>
@@ -2095,7 +2100,7 @@ export default function ContractsPage() {
                             <div className="flex-1">
                               <Input
                                 type="file"
-                                accept=".docx,.pdf"
+                                accept=".docx"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file && selectedCategory) {
@@ -3639,6 +3644,39 @@ export default function ContractsPage() {
                       Systém automaticky vyplní všetky namapované polia údajmi zo zákazníckej karty.
                     </p>
                   </div>
+                  
+                  {/* PDF Preview */}
+                  {editingTemplateData.categoryId && editingTemplateData.countryCode && (
+                    <div className="border rounded-md overflow-hidden">
+                      <div className="bg-muted/50 px-4 py-2 border-b flex items-center justify-between gap-2">
+                        <h4 className="font-medium">Náhľad šablóny (PDF)</h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            window.open(`/api/contracts/categories/${editingTemplateData.categoryId}/templates/${editingTemplateData.countryCode}/preview`, '_blank');
+                          }}
+                          data-testid="button-open-pdf-preview"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          Otvoriť v novom okne
+                        </Button>
+                      </div>
+                      <object
+                        key={`pdf-${editingTemplateData.categoryId}-${editingTemplateData.countryCode}`}
+                        data={`/api/contracts/categories/${editingTemplateData.categoryId}/templates/${editingTemplateData.countryCode}/preview`}
+                        type="application/pdf"
+                        className="w-full h-[600px]"
+                        data-testid="pdf-preview-object"
+                      >
+                        <div className="flex flex-col items-center justify-center h-[400px] bg-muted/30 text-muted-foreground">
+                          <FileText className="h-12 w-12 mb-4" />
+                          <p className="text-sm">PDF náhľad nie je k dispozícii</p>
+                          <p className="text-xs mt-1">Nahrajte DOCX šablónu pre zobrazenie náhľadu</p>
+                        </div>
+                      </object>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             ) : (

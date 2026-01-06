@@ -7152,68 +7152,57 @@ export async function registerRoutes(
       const isPdf = req.file.mimetype === "application/pdf";
       const isDocx = req.file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       
-      if (!isPdf && !isDocx) {
-        return res.status(400).json({ error: "File must be PDF or DOCX" });
+      // Only accept DOCX files - PDF must be converted manually in MS Word
+      if (isPdf) {
+        return res.status(400).json({ 
+          error: "Nahrajte DOCX súbor. Ak máte PDF, otvorte ho v MS Word a uložte ako DOCX.",
+          suggestion: "Otvorte PDF v MS Word → Súbor → Uložiť ako → DOCX",
+          requiresDocx: true
+        });
+      }
+      
+      if (!isDocx) {
+        return res.status(400).json({ error: "Súbor musí byť vo formáte DOCX (Word dokument)" });
       }
 
-      console.log(`[Template Upload] Processing ${isPdf ? "PDF" : "DOCX"} file: ${req.file.path}`);
+      console.log(`[Template Upload] Processing DOCX file: ${req.file.path}`);
       
       let extractedFields: any[] = [];
       let conversionError: string | null = null;
-      let docxPath: string | null = null;
-      let pdfPath: string | null = null;
-      let templateType = "docx";
+      const docxPath = req.file.path;
+      let previewPdfPath: string | null = null;
+      const templateType = "docx";
       
-      if (isPdf) {
-        pdfPath = req.file.path;
+      // Extract placeholders from DOCX
+      try {
+        extractedFields = await extractDocxPlaceholders(req.file.path);
+        console.log(`[Template Upload] Extracted ${extractedFields.length} placeholders from DOCX`);
+      } catch (extractError: any) {
+        console.warn("[Template Upload] Placeholder extraction warning:", extractError.message);
+        conversionError = extractError.message;
+      }
+      
+      // Generate PDF preview from DOCX and store in permanent location
+      try {
+        console.log(`[Template Upload] Converting DOCX to PDF for preview...`);
+        // Create permanent preview directory
+        const previewDir = path.join(process.cwd(), "uploads", "contract-previews", `${categoryId}`, normalizedCountryCode);
+        await fs.promises.mkdir(previewDir, { recursive: true });
         
-        const converterStatus = await isConverterAvailable();
-        if (!converterStatus.available) {
-          return res.status(400).json({ 
-            error: "Konvertor PDF nie je dostupný. LibreOffice nie je nainštalovaný.",
-            requiresConfig: true
-          });
+        // Generate PDF in temp location first
+        const tempPdfPath = await convertDocxToPdf(req.file.path, path.dirname(req.file.path));
+        
+        if (tempPdfPath && fs.existsSync(tempPdfPath)) {
+          // Move to permanent location
+          const permanentPdfPath = path.join(previewDir, `preview-${Date.now()}.pdf`);
+          await fs.promises.copyFile(tempPdfPath, permanentPdfPath);
+          // Clean up temp file
+          try { await fs.promises.unlink(tempPdfPath); } catch (e) {}
+          previewPdfPath = permanentPdfPath.replace(process.cwd() + "/", "");
+          console.log(`[Template Upload] DOCX converted to PDF preview: ${previewPdfPath}`);
         }
-        
-        console.log(`[Template Upload] Converting PDF to DOCX using ${converterStatus.converter}...`);
-        const conversionResult = await convertPdfToDocx(req.file.path, path.dirname(req.file.path));
-        
-        if (!conversionResult.success || !conversionResult.docxPath) {
-          return res.status(400).json({ 
-            error: `Konverzia PDF zlyhala. Odporúčame otvoriť PDF v MS Word a uložiť ako DOCX, potom nahrať DOCX súbor.`,
-            conversionFailed: true,
-            suggestion: "Otvorte PDF v MS Word → Súbor → Uložiť ako → DOCX"
-          });
-        }
-        
-        docxPath = conversionResult.docxPath;
-        console.log(`[Template Upload] PDF converted to DOCX: ${docxPath}`);
-        
-        try {
-          extractedFields = await extractDocxPlaceholders(docxPath);
-          console.log(`[Template Upload] Extracted ${extractedFields.length} placeholders from converted DOCX`);
-        } catch (extractError: any) {
-          console.warn("[Template Upload] Placeholder extraction warning:", extractError.message);
-        }
-        
-      } else {
-        docxPath = req.file.path;
-        
-        try {
-          extractedFields = await extractDocxPlaceholders(req.file.path);
-          console.log(`[Template Upload] Extracted ${extractedFields.length} placeholders from DOCX`);
-        } catch (extractError: any) {
-          console.warn("[Template Upload] Placeholder extraction warning:", extractError.message);
-          conversionError = extractError.message;
-        }
-        
-        try {
-          console.log(`[Template Upload] Converting DOCX to PDF for preview...`);
-          pdfPath = await convertDocxToPdf(req.file.path, path.dirname(req.file.path));
-          console.log(`[Template Upload] DOCX converted to PDF: ${pdfPath}`);
-        } catch (convErr: any) {
-          console.warn(`[Template Upload] DOCX to PDF conversion failed: ${convErr.message}`);
-        }
+      } catch (convErr: any) {
+        console.warn(`[Template Upload] DOCX to PDF preview conversion failed: ${convErr.message}`);
       }
 
       const conversionMetadata = JSON.stringify({
@@ -7221,7 +7210,6 @@ export async function registerRoutes(
         fileSize: req.file.size,
         extractedAt: new Date().toISOString(),
         fieldCount: extractedFields.length,
-        convertedFromPdf: isPdf,
       });
 
       const existing = await storage.getCategoryDefaultTemplate(categoryId, normalizedCountryCode);
@@ -7229,11 +7217,13 @@ export async function registerRoutes(
       const templateData: any = {
         templateType,
         extractedFields: JSON.stringify(extractedFields),
-        conversionStatus: "completed",
+        conversionStatus: previewPdfPath ? "completed" : "pending",
         conversionError,
         conversionMetadata,
         sourceDocxPath: docxPath,
-        sourcePdfPath: pdfPath,
+        previewPdfPath: previewPdfPath,
+        sourcePdfPath: null, // Not used in DOCX-only workflow
+        htmlContent: null, // Legacy field - not used
       };
 
       let result;
@@ -7298,6 +7288,42 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error serving template file:", error);
       res.status(500).json({ error: "Failed to serve file" });
+    }
+  });
+  
+  // Preview template as PDF (serves the generated PDF preview from DOCX)
+  app.get("/api/contracts/categories/:categoryId/templates/:countryCode/preview", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Try previewPdfPath first (generated from DOCX), then fall back to sourcePdfPath
+      const pdfPath = template.previewPdfPath || template.sourcePdfPath;
+      
+      if (!pdfPath) {
+        return res.status(404).json({ error: "PDF preview not available. Please re-upload the DOCX template." });
+      }
+      
+      const fullPath = path.join(process.cwd(), pdfPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "PDF preview file not found" });
+      }
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="preview-${countryCode}.pdf"`);
+      
+      const fileStream = fs.createReadStream(fullPath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error serving template preview:", error);
+      res.status(500).json({ error: "Failed to serve preview" });
     }
   });
   

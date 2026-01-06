@@ -403,12 +403,12 @@ async function convertPdfToHtmlWithAI(
           }
           
           imageMessages.push({
-            type: "image_url",
+            type: "image_url" as const,
             image_url: { 
               url: `data:image/png;base64,${base64}`,
-              detail: "high"
+              detail: "high" as const
             }
-          });
+          } as any);
         } catch (imgError) {
           console.warn(`[PDF AI] Skipping problematic image ${imgPath}:`, imgError);
           continue;

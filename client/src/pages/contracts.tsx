@@ -1993,8 +1993,17 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           
-                          {uploadState?.uploaded && (uploadState.embeddedImages?.length || uploadState.pageImages?.length) && (
+                          {uploadState?.uploaded && (uploadState.extractedText || uploadState.embeddedImages?.length || uploadState.pageImages?.length) && (
                             <div className="mt-2 p-3 bg-muted/30 rounded-md space-y-3">
+                              {uploadState.extractedText && (
+                                <div>
+                                  <p className="text-xs font-medium mb-2">Extrahovaný text (1:1 formátovanie):</p>
+                                  <div className="max-h-40 overflow-auto border rounded bg-background">
+                                    <pre className="text-[10px] font-mono p-2 whitespace-pre-wrap">{uploadState.extractedText}</pre>
+                                  </div>
+                                </div>
+                              )}
+                              
                               {uploadState.embeddedImages && uploadState.embeddedImages.length > 0 && (
                                 <div>
                                   <p className="text-xs font-medium mb-2">Vložené obrázky z PDF (logá, grafiky):</p>
@@ -2030,7 +2039,7 @@ export default function ContractsPage() {
                                         href={page.imageUrl} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="block w-14 h-18 border rounded overflow-hidden bg-white hover-elevate"
+                                        className="relative block w-14 h-18 border rounded overflow-hidden bg-white hover-elevate"
                                         title={`Strana ${page.pageNumber}\n${page.imageUrl}`}
                                         data-testid={`link-page-${country.code}-${page.pageNumber}`}
                                       >

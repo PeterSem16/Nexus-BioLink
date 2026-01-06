@@ -34,6 +34,7 @@ import OpenAI from "openai";
 import {
   extractPdfFormFields,
   extractDocxPlaceholders,
+  extractHtmlPlaceholders,
   fillPdfForm,
   fillDocxTemplate,
   convertDocxToPdf,
@@ -7098,8 +7099,25 @@ export async function registerRoutes(
         }
       }
       
+      let extractedFields = template.extractedFields;
+      if (typeof extractedFields === 'string') {
+        try {
+          extractedFields = JSON.parse(extractedFields);
+        } catch (e) {
+          extractedFields = [];
+        }
+      }
+      
+      if ((!extractedFields || (Array.isArray(extractedFields) && extractedFields.length === 0)) && template.htmlContent) {
+        const htmlFields = extractHtmlPlaceholders(template.htmlContent);
+        if (htmlFields.length > 0) {
+          extractedFields = JSON.stringify(htmlFields.map(f => f.name));
+        }
+      }
+      
       res.json({
         ...template,
+        extractedFields,
         pageImages,
         embeddedImages,
         conversionMethod
@@ -7146,6 +7164,18 @@ export async function registerRoutes(
       try {
         if (isPdf) {
           extractedFields = await extractPdfFormFields(req.file.path);
+          
+          if (extractedFields.length === 0) {
+            console.log("[Template Upload] No AcroForm fields in PDF. Will use HTML-based editing.");
+            const existing = await storage.getCategoryDefaultTemplate(categoryId, normalizedCountryCode);
+            if (existing && existing.htmlContent) {
+              const htmlFields = extractHtmlPlaceholders(existing.htmlContent);
+              if (htmlFields.length > 0) {
+                extractedFields = htmlFields;
+                console.log(`[Template Upload] Extracted ${htmlFields.length} fields from HTML content`);
+              }
+            }
+          }
         } else {
           extractedFields = await extractDocxPlaceholders(req.file.path);
         }

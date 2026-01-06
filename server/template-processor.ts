@@ -113,6 +113,72 @@ export async function fillPdfForm(
   }
 }
 
+export function extractHtmlPlaceholders(htmlContent: string): TemplateField[] {
+  try {
+    const placeholders = new Set<string>();
+    
+    const placeholderRegex = /\{\{([^}]+)\}\}/g;
+    let match;
+    while ((match = placeholderRegex.exec(htmlContent)) !== null) {
+      const placeholder = match[1].trim();
+      if (!placeholder.startsWith("#") && !placeholder.startsWith("/") && !placeholder.startsWith("^")) {
+        placeholders.add(placeholder);
+      }
+    }
+    
+    const fillFieldRegex = /class="[^"]*fill-field[^"]*"[^>]*data-field="([^"]+)"/g;
+    while ((match = fillFieldRegex.exec(htmlContent)) !== null) {
+      placeholders.add(match[1]);
+    }
+    
+    const labelRegex = /<(?:label|p|span)[^>]*>([^<]+):\s*<span[^>]*class="[^"]*fill-field[^"]*"[^>]*>/gi;
+    while ((match = labelRegex.exec(htmlContent)) !== null) {
+      const fieldName = match[1].trim().toLowerCase()
+        .replace(/\s+/g, '_')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (fieldName && fieldName.length > 0 && fieldName.length < 50) {
+        placeholders.add(fieldName);
+      }
+    }
+    
+    const extractedFields: TemplateField[] = Array.from(placeholders).map((name) => ({
+      name,
+      type: "text" as const,
+      required: false,
+    }));
+
+    console.log(`[HTML] Extracted ${extractedFields.length} placeholders from HTML content`);
+    return extractedFields;
+  } catch (error) {
+    console.error("[HTML] Error extracting placeholders:", error);
+    return [];
+  }
+}
+
+export async function extractPdfTextPlaceholders(pdfPath: string): Promise<TemplateField[]> {
+  try {
+    const pdfBytes = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    
+    const form = pdfDoc.getForm();
+    const formFields = form.getFields();
+    
+    if (formFields.length > 0) {
+      return formFields.map(field => ({
+        name: field.getName(),
+        type: "text" as const,
+        required: false,
+      }));
+    }
+    
+    console.log(`[PDF Text] No AcroForm fields found. PDF requires HTML-based template editing.`);
+    return [];
+  } catch (error) {
+    console.error("[PDF Text] Error:", error);
+    return [];
+  }
+}
+
 export async function extractDocxPlaceholders(docxPath: string): Promise<TemplateField[]> {
   try {
     const content = fs.readFileSync(docxPath, "binary");

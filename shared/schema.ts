@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, decimal, integer, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, decimal, integer, numeric, date, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -2603,6 +2603,21 @@ export type InflationRate = typeof inflationRates.$inferSelect;
 // ============================================
 // CONTRACT MANAGEMENT MODULE
 // ============================================
+
+// Contract Categories - categories for organizing contract templates
+export const contractCategories = pgTable("contract_categories", {
+  id: serial("id").primaryKey(),
+  value: varchar("value", { length: 50 }).notNull().unique(), // e.g., "general", "cord_blood"
+  label: text("label").notNull(), // Display label e.g., "Všeobecná zmluva"
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertContractCategorySchema = createInsertSchema(contractCategories).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertContractCategory = z.infer<typeof insertContractCategorySchema>;
+export type ContractCategory = typeof contractCategories.$inferSelect;
 
 // Contract Templates - reusable contract document templates
 export const contractTemplates = pgTable("contract_templates", {

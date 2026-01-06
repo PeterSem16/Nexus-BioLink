@@ -59,7 +59,7 @@ import {
   type CampaignMetricsSnapshot, type InsertCampaignMetricsSnapshot,
   sipSettings, callLogs, chatMessages, exchangeRates, inflationRates,
   productSets, productSetCollections, productSetStorage, customerConsents, tasks, taskComments,
-  contractTemplates, contractTemplateVersions, contractInstances, contractInstanceProducts,
+  contractCategories, contractTemplates, contractTemplateVersions, contractInstances, contractInstanceProducts,
   contractParticipants, contractSignatureRequests, contractAuditLog,
   type SipSettings, type InsertSipSettings,
   type CallLog, type InsertCallLog,
@@ -72,6 +72,7 @@ import {
   type ChatMessage, type InsertChatMessage,
   type ExchangeRate, type InsertExchangeRate,
   type InflationRate, type InsertInflationRate,
+  type ContractCategory, type InsertContractCategory,
   type ContractTemplate, type InsertContractTemplate,
   type ContractTemplateVersion, type InsertContractTemplateVersion,
   type ContractInstance, type InsertContractInstance,
@@ -523,6 +524,14 @@ export interface IStorage {
   getInflationRates(country?: string): Promise<InflationRate[]>;
   upsertInflationRate(data: InsertInflationRate): Promise<InflationRate>;
   getInflationRatesLastUpdate(country?: string): Promise<Date | null>;
+
+  // Contract Categories
+  getAllContractCategories(): Promise<ContractCategory[]>;
+  getContractCategory(id: number): Promise<ContractCategory | undefined>;
+  getContractCategoryByValue(value: string): Promise<ContractCategory | undefined>;
+  createContractCategory(data: InsertContractCategory): Promise<ContractCategory>;
+  updateContractCategory(id: number, data: Partial<InsertContractCategory>): Promise<ContractCategory | undefined>;
+  deleteContractCategory(id: number): Promise<boolean>;
 
   // Contract Templates
   getAllContractTemplates(): Promise<ContractTemplate[]>;
@@ -3132,6 +3141,39 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(inflationRates.updatedAt))
       .limit(1);
     return rate?.updatedAt || null;
+  }
+
+  // Contract Categories
+  async getAllContractCategories(): Promise<ContractCategory[]> {
+    return db.select().from(contractCategories).orderBy(contractCategories.sortOrder);
+  }
+
+  async getContractCategory(id: number): Promise<ContractCategory | undefined> {
+    const [category] = await db.select().from(contractCategories).where(eq(contractCategories.id, id));
+    return category || undefined;
+  }
+
+  async getContractCategoryByValue(value: string): Promise<ContractCategory | undefined> {
+    const [category] = await db.select().from(contractCategories).where(eq(contractCategories.value, value));
+    return category || undefined;
+  }
+
+  async createContractCategory(data: InsertContractCategory): Promise<ContractCategory> {
+    const [category] = await db.insert(contractCategories).values(data).returning();
+    return category;
+  }
+
+  async updateContractCategory(id: number, data: Partial<InsertContractCategory>): Promise<ContractCategory | undefined> {
+    const [category] = await db.update(contractCategories)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractCategories.id, id))
+      .returning();
+    return category || undefined;
+  }
+
+  async deleteContractCategory(id: number): Promise<boolean> {
+    const result = await db.delete(contractCategories).where(eq(contractCategories.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Contract Templates

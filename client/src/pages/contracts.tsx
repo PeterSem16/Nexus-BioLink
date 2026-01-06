@@ -201,6 +201,17 @@ export default function ContractsPage() {
     sortOrder: 0
   });
   
+  const [categoryWizardStep, setCategoryWizardStep] = useState(1);
+  const [categoryPdfUploads, setCategoryPdfUploads] = useState<Record<string, { file: File | null; uploading: boolean; uploaded: boolean; error?: string }>>({
+    SK: { file: null, uploading: false, uploaded: false },
+    CZ: { file: null, uploading: false, uploaded: false },
+    HU: { file: null, uploading: false, uploaded: false },
+    RO: { file: null, uploading: false, uploaded: false },
+    IT: { file: null, uploading: false, uploaded: false },
+    DE: { file: null, uploading: false, uploaded: false },
+    US: { file: null, uploading: false, uploaded: false },
+  });
+  
   const [contractForm, setContractForm] = useState({
     templateId: "",
     customerId: "",
@@ -769,6 +780,16 @@ export default function ContractsPage() {
       description: "",
       sortOrder: 0
     });
+    setCategoryWizardStep(1);
+    setCategoryPdfUploads({
+      SK: { file: null, uploading: false, uploaded: false },
+      CZ: { file: null, uploading: false, uploaded: false },
+      HU: { file: null, uploading: false, uploaded: false },
+      RO: { file: null, uploading: false, uploaded: false },
+      IT: { file: null, uploading: false, uploaded: false },
+      DE: { file: null, uploading: false, uploaded: false },
+      US: { file: null, uploading: false, uploaded: false },
+    });
   };
 
   const handleEditCategory = (category: ContractCategory) => {
@@ -786,7 +807,55 @@ export default function ContractsPage() {
       description: category.description || "",
       sortOrder: category.sortOrder
     });
+    setCategoryWizardStep(1);
     setIsCategoryDialogOpen(true);
+  };
+  
+  const handlePdfUpload = async (countryCode: string, file: File) => {
+    setCategoryPdfUploads(prev => ({
+      ...prev,
+      [countryCode]: { ...prev[countryCode], file, uploading: false, uploaded: false, error: undefined }
+    }));
+  };
+  
+  const uploadCategoryPdfs = async (categoryId: number) => {
+    const countries = Object.entries(categoryPdfUploads).filter(([_, data]) => data.file);
+    
+    for (const [countryCode, data] of countries) {
+      if (!data.file) continue;
+      
+      setCategoryPdfUploads(prev => ({
+        ...prev,
+        [countryCode]: { ...prev[countryCode], uploading: true }
+      }));
+      
+      try {
+        const formData = new FormData();
+        formData.append("pdf", data.file);
+        formData.append("countryCode", countryCode);
+        
+        const response = await fetch(`/api/contracts/categories/${categoryId}/default-templates/upload`, {
+          method: "POST",
+          body: formData,
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Upload failed");
+        }
+        
+        setCategoryPdfUploads(prev => ({
+          ...prev,
+          [countryCode]: { ...prev[countryCode], uploading: false, uploaded: true }
+        }));
+      } catch (error: any) {
+        setCategoryPdfUploads(prev => ({
+          ...prev,
+          [countryCode]: { ...prev[countryCode], uploading: false, error: error.message }
+        }));
+      }
+    }
   };
 
   const handleSaveCategory = () => {
@@ -1296,156 +1365,272 @@ export default function ContractsPage() {
       </Dialog>
 
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
-            <DialogTitle>{selectedCategory ? "Upraviť kategóriu" : "Nová kategória zmluvy"}</DialogTitle>
+            <DialogTitle>
+              {selectedCategory ? "Upraviť kategóriu" : "Nová kategória zmluvy"} - Krok {categoryWizardStep}/2
+            </DialogTitle>
             <DialogDescription>
-              Vytvorte alebo upravte kategóriu pre šablóny zmlúv s jazykovými mutáciami.
+              {categoryWizardStep === 1 && "Zadajte základné informácie a jazykové mutácie"}
+              {categoryWizardStep === 2 && "Nahrajte PDF šablóny pre jednotlivé krajiny (voliteľné)"}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="category-value">Kód kategórie</Label>
-                  <Input
-                    id="category-value"
-                    value={categoryForm.value}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
-                    placeholder="cord_blood"
-                    data-testid="input-category-value"
-                  />
-                  <p className="text-xs text-muted-foreground">Interný kód bez diakritiky a medzier</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category-sort-order">Poradie zobrazovania</Label>
-                  <Input
-                    id="category-sort-order"
-                    type="number"
-                    value={categoryForm.sortOrder}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
-                    data-testid="input-category-sort-order"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="category-label">Predvolený názov</Label>
-                <Input
-                  id="category-label"
-                  value={categoryForm.label}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
-                  placeholder="Zmluva o uchovávaní krvotvorných buniek"
-                  data-testid="input-category-label"
-                />
-                <p className="text-xs text-muted-foreground">Použije sa ak nie je dostupná jazyková mutácia</p>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Jazykové mutácie názvu</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-sk" className="text-xs text-muted-foreground">Slovensko (SK)</Label>
-                    <Input
-                      id="category-label-sk"
-                      value={categoryForm.labelSk}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelSk: e.target.value })}
-                      placeholder="Zmluva o uchovávaní..."
-                      data-testid="input-category-label-sk"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-cz" className="text-xs text-muted-foreground">Česká republika (CZ)</Label>
-                    <Input
-                      id="category-label-cz"
-                      value={categoryForm.labelCz}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelCz: e.target.value })}
-                      placeholder="Smlouva o uchovávání..."
-                      data-testid="input-category-label-cz"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-hu" className="text-xs text-muted-foreground">Maďarsko (HU)</Label>
-                    <Input
-                      id="category-label-hu"
-                      value={categoryForm.labelHu}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelHu: e.target.value })}
-                      placeholder="Tárolási szerződés..."
-                      data-testid="input-category-label-hu"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-ro" className="text-xs text-muted-foreground">Rumunsko (RO)</Label>
-                    <Input
-                      id="category-label-ro"
-                      value={categoryForm.labelRo}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelRo: e.target.value })}
-                      placeholder="Contract de depozitare..."
-                      data-testid="input-category-label-ro"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-it" className="text-xs text-muted-foreground">Taliansko (IT)</Label>
-                    <Input
-                      id="category-label-it"
-                      value={categoryForm.labelIt}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelIt: e.target.value })}
-                      placeholder="Contratto di conservazione..."
-                      data-testid="input-category-label-it"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-de" className="text-xs text-muted-foreground">Nemecko (DE)</Label>
-                    <Input
-                      id="category-label-de"
-                      value={categoryForm.labelDe}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelDe: e.target.value })}
-                      placeholder="Aufbewahrungsvertrag..."
-                      data-testid="input-category-label-de"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="category-label-us" className="text-xs text-muted-foreground">USA (US)</Label>
-                    <Input
-                      id="category-label-us"
-                      value={categoryForm.labelUs}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, labelUs: e.target.value })}
-                      placeholder="Storage Agreement..."
-                      data-testid="input-category-label-us"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <Label htmlFor="category-description">Popis (voliteľný)</Label>
-                <Textarea
-                  id="category-description"
-                  value={categoryForm.description}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                  placeholder="Popis kategórie..."
-                  data-testid="input-category-description"
-                />
-              </div>
-            </div>
+          <div className="flex gap-2 mb-4 px-1">
+            {[1, 2].map(step => (
+              <div 
+                key={step}
+                className={`flex-1 h-2 rounded-full ${
+                  step <= categoryWizardStep ? "bg-primary" : "bg-muted"
+                }`}
+              />
+            ))}
           </div>
           
-          <DialogFooter className="shrink-0 pt-4 border-t">
+          <div className="flex-1 overflow-y-auto">
+            {categoryWizardStep === 1 && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category-value">Kód kategórie</Label>
+                    <Input
+                      id="category-value"
+                      value={categoryForm.value}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                      placeholder="cord_blood"
+                      data-testid="input-category-value"
+                    />
+                    <p className="text-xs text-muted-foreground">Interný kód bez diakritiky a medzier</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category-sort-order">Poradie zobrazovania</Label>
+                    <Input
+                      id="category-sort-order"
+                      type="number"
+                      value={categoryForm.sortOrder}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
+                      data-testid="input-category-sort-order"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="category-label">Predvolený názov</Label>
+                  <Input
+                    id="category-label"
+                    value={categoryForm.label}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
+                    placeholder="Zmluva o uchovávaní krvotvorných buniek"
+                    data-testid="input-category-label"
+                  />
+                  <p className="text-xs text-muted-foreground">Použije sa ak nie je dostupná jazyková mutácia</p>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Jazykové mutácie názvu</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-sk" className="text-xs text-muted-foreground">Slovensko (SK)</Label>
+                      <Input
+                        id="category-label-sk"
+                        value={categoryForm.labelSk}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelSk: e.target.value })}
+                        placeholder="Zmluva o uchovávaní..."
+                        data-testid="input-category-label-sk"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-cz" className="text-xs text-muted-foreground">Česká republika (CZ)</Label>
+                      <Input
+                        id="category-label-cz"
+                        value={categoryForm.labelCz}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelCz: e.target.value })}
+                        placeholder="Smlouva o uchovávání..."
+                        data-testid="input-category-label-cz"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-hu" className="text-xs text-muted-foreground">Maďarsko (HU)</Label>
+                      <Input
+                        id="category-label-hu"
+                        value={categoryForm.labelHu}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelHu: e.target.value })}
+                        placeholder="Tárolási szerződés..."
+                        data-testid="input-category-label-hu"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-ro" className="text-xs text-muted-foreground">Rumunsko (RO)</Label>
+                      <Input
+                        id="category-label-ro"
+                        value={categoryForm.labelRo}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelRo: e.target.value })}
+                        placeholder="Contract de depozitare..."
+                        data-testid="input-category-label-ro"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-it" className="text-xs text-muted-foreground">Taliansko (IT)</Label>
+                      <Input
+                        id="category-label-it"
+                        value={categoryForm.labelIt}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelIt: e.target.value })}
+                        placeholder="Contratto di conservazione..."
+                        data-testid="input-category-label-it"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-de" className="text-xs text-muted-foreground">Nemecko (DE)</Label>
+                      <Input
+                        id="category-label-de"
+                        value={categoryForm.labelDe}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelDe: e.target.value })}
+                        placeholder="Aufbewahrungsvertrag..."
+                        data-testid="input-category-label-de"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="category-label-us" className="text-xs text-muted-foreground">USA (US)</Label>
+                      <Input
+                        id="category-label-us"
+                        value={categoryForm.labelUs}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, labelUs: e.target.value })}
+                        placeholder="Storage Agreement..."
+                        data-testid="input-category-label-us"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <Label htmlFor="category-description">Popis (voliteľný)</Label>
+                  <Textarea
+                    id="category-description"
+                    value={categoryForm.description}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                    placeholder="Popis kategórie..."
+                    data-testid="input-category-description"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {categoryWizardStep === 2 && (
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Predvolené PDF šablóny pre krajiny</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Nahrajte PDF súbory, ktoré budú automaticky konvertované na HTML šablóny. 
+                    Tieto šablóny sa použijú ako predvolené pri vytváraní zmluvy tejto kategórie.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { code: "SK", name: "Slovensko", flag: "SK" },
+                    { code: "CZ", name: "Česká republika", flag: "CZ" },
+                    { code: "HU", name: "Maďarsko", flag: "HU" },
+                    { code: "RO", name: "Rumunsko", flag: "RO" },
+                    { code: "IT", name: "Taliansko", flag: "IT" },
+                    { code: "DE", name: "Nemecko", flag: "DE" },
+                    { code: "US", name: "USA", flag: "US" },
+                  ].map(country => {
+                    const uploadState = categoryPdfUploads[country.code];
+                    return (
+                      <div key={country.code} className="flex items-center gap-4 p-3 border rounded-md">
+                        <div className="flex-shrink-0 w-24">
+                          <span className="text-sm font-medium">{country.name}</span>
+                          <span className="text-xs text-muted-foreground ml-1">({country.code})</span>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <Input
+                            type="file"
+                            accept=".pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handlePdfUpload(country.code, file);
+                            }}
+                            className="text-sm"
+                            data-testid={`input-pdf-${country.code}`}
+                          />
+                        </div>
+                        
+                        <div className="flex-shrink-0 w-32 text-right">
+                          {uploadState.uploading && (
+                            <span className="text-xs text-muted-foreground">Konvertujem...</span>
+                          )}
+                          {uploadState.uploaded && (
+                            <Badge variant="default" className="bg-green-600">Nahraté</Badge>
+                          )}
+                          {uploadState.error && (
+                            <Badge variant="destructive" className="text-xs">{uploadState.error}</Badge>
+                          )}
+                          {uploadState.file && !uploadState.uploading && !uploadState.uploaded && !uploadState.error && (
+                            <span className="text-xs text-muted-foreground truncate block">
+                              {uploadState.file.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="p-4 bg-muted/50 rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    PDF súbory budú automaticky analyzované a konvertované na HTML šablóny s Handlebars premennými. 
+                    Konverzia sa spustí po uložení kategórie.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="shrink-0 pt-4 border-t gap-2">
             <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
               Zrušiť
             </Button>
-            <Button 
-              onClick={handleSaveCategory}
-              disabled={!categoryForm.value || !categoryForm.label || createCategoryMutation.isPending || updateCategoryMutation.isPending}
-              data-testid="button-save-category"
-            >
-              {createCategoryMutation.isPending || updateCategoryMutation.isPending ? "Ukladám..." : "Uložiť"}
-            </Button>
+            
+            {categoryWizardStep > 1 && (
+              <Button variant="outline" onClick={() => setCategoryWizardStep(prev => prev - 1)}>
+                Späť
+              </Button>
+            )}
+            
+            {categoryWizardStep < 2 && (
+              <Button 
+                onClick={() => setCategoryWizardStep(prev => prev + 1)}
+                disabled={!categoryForm.value || !categoryForm.label}
+              >
+                Ďalej
+              </Button>
+            )}
+            
+            {categoryWizardStep === 2 && (
+              <Button 
+                onClick={async () => {
+                  if (selectedCategory) {
+                    updateCategoryMutation.mutate({ id: selectedCategory.id, data: categoryForm });
+                    await uploadCategoryPdfs(selectedCategory.id);
+                  } else {
+                    createCategoryMutation.mutate(categoryForm, {
+                      onSuccess: async (newCategory: any) => {
+                        await uploadCategoryPdfs(newCategory.id);
+                      }
+                    });
+                  }
+                }}
+                disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending || Object.values(categoryPdfUploads).some(u => u.uploading)}
+                data-testid="button-save-category"
+              >
+                {createCategoryMutation.isPending || updateCategoryMutation.isPending ? "Ukladám..." : "Uložiť a konvertovať"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

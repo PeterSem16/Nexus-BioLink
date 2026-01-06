@@ -163,23 +163,34 @@ function parseDateFields(data: Record<string, any>): Record<string, any> {
 async function extractPdfText(filePath: string): Promise<string> {
   try {
     const dataBuffer = fs.readFileSync(filePath);
-    // Dynamic import for pdf-parse which doesn't have proper ESM exports
+    // Dynamic import for pdf-parse - try multiple possible exports
     const pdfParseModule = await import("pdf-parse");
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    let pdfParse = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule;
+    
+    // If it's still not a function, try to find any function export
     if (typeof pdfParse !== 'function') {
-      console.error("pdf-parse is not a function, module structure:", Object.keys(pdfParseModule));
+      for (const key of Object.keys(pdfParseModule)) {
+        if (typeof (pdfParseModule as any)[key] === 'function' && key.toLowerCase().includes('parse')) {
+          pdfParse = (pdfParseModule as any)[key];
+          break;
+        }
+      }
+    }
+    
+    if (typeof pdfParse !== 'function') {
+      console.warn("[PDF Text] pdf-parse not available, skipping text extraction");
       return "";
     }
     const data = await pdfParse(dataBuffer);
     return data.text || "";
   } catch (error) {
-    console.error("PDF text extraction failed:", error);
+    console.warn("[PDF Text] Text extraction failed (this is OK for scanned PDFs):", error);
     return "";
   }
 }
 
 // Convert PDF pages to PNG images using pdftoppm (poppler-utils)
-async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promise<string[]> {
+async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promise<string[]> {
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
@@ -189,18 +200,19 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promis
   const outputPrefix = path.join(outputDir, `${baseName}-page`);
   
   try {
-    // Convert PDF to PNG images (limit to first maxPages pages)
-    await execAsync(`pdftoppm -png -r 150 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    // Convert PDF to JPEG images with lower resolution for faster processing
+    // -jpeg for smaller file sizes, -r 100 for reasonable quality, -l limits pages
+    await execAsync(`pdftoppm -jpeg -r 100 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
     
     // Find all generated image files
     const files = fs.readdirSync(outputDir);
     const imageFiles = files
-      .filter(f => f.startsWith(`${baseName}-page`) && f.endsWith(".png"))
+      .filter(f => f.startsWith(`${baseName}-page`) && (f.endsWith(".jpg") || f.endsWith(".png")))
       .sort()
       .slice(0, maxPages)
       .map(f => path.join(outputDir, f));
     
-    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF`);
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages)`);
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion failed:", error);
@@ -213,10 +225,13 @@ function imagesToBase64(imagePaths: string[]): { type: "image_url"; image_url: {
   return imagePaths.map(imagePath => {
     const imageBuffer = fs.readFileSync(imagePath);
     const base64 = imageBuffer.toString("base64");
+    const mimeType = imagePath.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    const fileSizeKB = Math.round(imageBuffer.length / 1024);
+    console.log(`[PDF Conversion] Image ${path.basename(imagePath)}: ${fileSizeKB}KB`);
     return {
       type: "image_url" as const,
       image_url: {
-        url: `data:image/png;base64,${base64}`
+        url: `data:${mimeType};base64,${base64}`
       }
     };
   });
@@ -6778,9 +6793,9 @@ export async function registerRoutes(
       // Check if template already exists for this category and country
       const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
       
-      // Convert PDF pages to images for Vision analysis
+      // Convert PDF pages to images for Vision analysis (limit to 3 pages for speed)
       console.log(`[PDF Conversion] Converting PDF to images: ${req.file.path}`);
-      const imagePaths = await convertPdfToImages(req.file.path, 10);
+      const imagePaths = await convertPdfToImages(req.file.path, 3);
       
       if (imagePaths.length === 0) {
         return res.status(500).json({ error: "Failed to convert PDF to images. Make sure the PDF is valid." });
@@ -6801,6 +6816,9 @@ export async function registerRoutes(
         console.log(`[PDF Conversion] Sending ${imageInputs.length} page images to OpenAI Vision`);
         
         // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        console.log(`[PDF Conversion] Starting OpenAI Vision API call...`);
+        const startTime = Date.now();
+        
         const response = await openai.chat.completions.create({
           model: "gpt-5",
           messages: [
@@ -6857,14 +6875,19 @@ ${pdfText.length > 0 ? `Additional extracted text for reference:\n${pdfText.subs
           max_completion_tokens: 16384,
         });
         
+        const elapsed = Date.now() - startTime;
         htmlContent = response.choices[0].message.content || "";
-        console.log(`[PDF Conversion] Received ${htmlContent.length} characters of HTML from OpenAI`);
+        console.log(`[PDF Conversion] Received ${htmlContent.length} characters of HTML from OpenAI in ${elapsed}ms`);
         
         // Clean up the response - remove markdown code blocks if present
         htmlContent = htmlContent.replace(/^```html\n?/i, "").replace(/\n?```$/i, "").trim();
         
-      } catch (aiError) {
-        console.error("OpenAI conversion failed:", aiError);
+        if (htmlContent.length < 100) {
+          console.warn(`[PDF Conversion] Warning: Very short HTML output (${htmlContent.length} chars)`);
+        }
+        
+      } catch (aiError: any) {
+        console.error("[PDF Conversion] OpenAI conversion failed:", aiError?.message || aiError);
         // Fallback to basic HTML wrapper with extracted text
         htmlContent = `<div class="contract-template">
           <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">

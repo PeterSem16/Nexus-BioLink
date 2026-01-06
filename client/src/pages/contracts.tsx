@@ -2116,7 +2116,7 @@ export default function ContractsPage() {
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-3">
                   {[
                     { code: "SK", name: "Slovensko", flag: "SK" },
                     { code: "CZ", name: "Česká republika", flag: "CZ" },
@@ -2127,50 +2127,90 @@ export default function ContractsPage() {
                     { code: "US", name: "USA", flag: "US" },
                   ].map(country => {
                     const uploadState = categoryPdfUploads[country.code];
+                    const hasFile = uploadState.uploaded || uploadState.file;
                     return (
-                      <div key={country.code} className="flex items-center gap-4 p-3 border rounded-md">
-                        <div className="flex-shrink-0 w-24">
-                          <span className="text-sm font-medium">{country.name}</span>
-                          <span className="text-xs text-muted-foreground ml-1">({country.code})</span>
-                        </div>
-                        
-                        <div className="flex-1">
-                          <Input
-                            type="file"
-                            accept=".docx"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handlePdfUpload(country.code, file);
-                            }}
-                            className="text-sm"
-                            data-testid={`input-template-${country.code}`}
-                          />
-                        </div>
-                        
-                        <div className="flex-shrink-0 w-40 text-right">
-                          {uploadState.uploading && (
-                            <span className="text-xs text-muted-foreground">Spracovávam...</span>
-                          )}
-                          {uploadState.uploaded && (
-                            <div className="flex items-center gap-2 justify-end">
-                              <Badge variant="default" className="bg-green-600">
-                                {(uploadState as any).templateType === "docx" ? "DOCX" : "PDF"}
-                              </Badge>
-                              {(uploadState as any).extractedFields?.length > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  {(uploadState as any).extractedFields.length} polí
-                                </span>
+                      <div 
+                        key={country.code} 
+                        className={`border rounded-lg overflow-hidden transition-colors ${
+                          uploadState.uploaded 
+                            ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' 
+                            : 'border-dashed border-muted-foreground/30 hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 p-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                              uploadState.uploaded 
+                                ? 'bg-green-100 dark:bg-green-900/50' 
+                                : 'bg-muted'
+                            }`}>
+                              {uploadState.uploading ? (
+                                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                              ) : uploadState.uploaded ? (
+                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                              ) : (
+                                <FileText className="w-5 h-5 text-muted-foreground" />
                               )}
                             </div>
-                          )}
-                          {uploadState.error && (
-                            <Badge variant="destructive" className="text-xs">{uploadState.error}</Badge>
-                          )}
-                          {uploadState.file && !uploadState.uploading && !uploadState.uploaded && !uploadState.error && (
-                            <span className="text-xs text-muted-foreground truncate block">
-                              {uploadState.file.name}
-                            </span>
-                          )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{country.name}</span>
+                                <Badge variant="outline" className="text-xs">{country.code}</Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {uploadState.uploading 
+                                  ? "Nahrávam..." 
+                                  : uploadState.uploaded 
+                                    ? "Šablóna nahraná" 
+                                    : uploadState.file 
+                                      ? uploadState.file.name 
+                                      : "Kliknite pre výber súboru"
+                                }
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 shrink-0">
+                            {uploadState.uploaded && (
+                              <Badge variant="default" className="bg-blue-600 text-xs">
+                                DOCX
+                              </Badge>
+                            )}
+                            {uploadState.error && (
+                              <Badge variant="destructive" className="text-xs">{uploadState.error}</Badge>
+                            )}
+                            
+                            <label 
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all ${
+                                uploadState.uploaded 
+                                  ? 'bg-muted hover:bg-muted/80 text-foreground' 
+                                  : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                              } ${uploadState.uploading ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                              <input
+                                type="file"
+                                accept=".docx"
+                                className="sr-only"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handlePdfUpload(country.code, file);
+                                }}
+                                disabled={uploadState.uploading}
+                                data-testid={`input-template-${country.code}`}
+                              />
+                              {uploadState.uploaded ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4" />
+                                  Nahradiť
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4" />
+                                  Vybrať
+                                </>
+                              )}
+                            </label>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2407,103 +2447,137 @@ export default function ContractsPage() {
                             </div>
                           )}
                           
-                          <div className={`flex items-center gap-4 p-3 border rounded-md ${isConverting ? 'opacity-50' : ''}`}>
-                            <div className="w-28 shrink-0">
-                              <span className="text-sm font-medium">{country.name}</span>
-                              <span className="text-xs text-muted-foreground ml-1">({country.code})</span>
-                            </div>
-                            
-                            <div className="flex-1">
-                              <Input
-                                type="file"
-                                accept=".docx"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file && selectedCategory) {
-                                    setCategoryPdfUploads(prev => ({
-                                      ...prev,
-                                      [country.code]: { file, uploading: true, uploaded: false, error: undefined }
-                                    }));
-                                    
-                                    try {
-                                      const formData = new FormData();
-                                      formData.append("file", file);
-                                      formData.append("countryCode", country.code);
-                                      
-                                      const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/upload`, {
-                                        method: "POST",
-                                        body: formData,
-                                        credentials: "include"
-                                      });
-                                      
-                                      if (!response.ok) {
-                                        const error = await response.json();
-                                        throw new Error(error.error || "Upload failed");
-                                      }
-                                      
-                                      const result = await response.json();
-                                      
-                                      setCategoryPdfUploads(prev => ({
-                                        ...prev,
-                                        [country.code]: { 
-                                          ...prev[country.code], 
-                                          uploading: false, 
-                                          uploaded: true,
-                                          extractedFields: result.extractedFields || [],
-                                          templateType: result.templateType
-                                        }
-                                      }));
-                                      setCategoryDefaultTemplates(prev => ({
-                                        ...prev,
-                                        [country.code]: true
-                                      }));
-                                      const fieldCount = result.extractedFields?.length || 0;
-                                      toast({ 
-                                        title: `Šablóna nahraná`, 
-                                        description: `${result.templateType === "docx" ? "DOCX" : "PDF formulár"} - ${fieldCount} polí nájdených` 
-                                      });
-                                    } catch (error: any) {
-                                      setCategoryPdfUploads(prev => ({
-                                        ...prev,
-                                        [country.code]: { ...prev[country.code], uploading: false, error: error.message }
-                                      }));
-                                      toast({
-                                        title: "Chyba pri nahrávaní",
-                                        description: error.message,
-                                        variant: "destructive"
-                                      });
+                          <div className={`border rounded-lg overflow-hidden ${isConverting ? 'opacity-50' : ''} ${hasTemplate ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' : 'border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors'}`}>
+                            <div className="flex items-center gap-3 p-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${hasTemplate ? 'bg-green-100 dark:bg-green-900/50' : 'bg-muted'}`}>
+                                  {hasTemplate ? (
+                                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                  ) : (
+                                    <FileText className="w-5 h-5 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{country.name}</span>
+                                    <Badge variant="outline" className="text-xs">{country.code}</Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {hasTemplate 
+                                      ? "Šablóna nahraná" 
+                                      : "Nahrať DOCX šablónu"
                                     }
-                                  }
-                                }}
-                                className="text-sm"
-                                disabled={isConverting}
-                                data-testid={`input-reupload-template-${country.code}`}
-                              />
-                            </div>
-                            
-                            <div className="w-auto shrink-0 flex items-center justify-end gap-2">
-                              {uploadState?.uploaded && (
-                                <Badge variant="default" className={(uploadState as any).templateType === "docx" ? "bg-blue-600 text-xs" : "bg-green-600 text-xs"}>
-                                  {(uploadState as any).templateType === "docx" ? "DOCX" : "PDF"}
-                                </Badge>
-                              )}
-                              {uploadState?.error && (
-                                <Badge variant="destructive" className="text-xs">Chyba</Badge>
-                              )}
-                              {hasTemplate && !isConverting && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
-                                  data-testid={`button-edit-template-${country.code}`}
-                                  title="Upraviť mapovanie"
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                {uploadState?.uploaded && (
+                                  <Badge variant="default" className="bg-blue-600 text-xs">
+                                    DOCX
+                                  </Badge>
+                                )}
+                                {uploadState?.error && (
+                                  <Badge variant="destructive" className="text-xs">Chyba</Badge>
+                                )}
+                                
+                                <label 
+                                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all ${
+                                    hasTemplate 
+                                      ? 'bg-muted hover:bg-muted/80 text-foreground' 
+                                      : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                                  } ${isConverting ? 'pointer-events-none opacity-50' : ''}`}
                                 >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {!hasTemplate && !isConverting && !uploadState?.uploaded && (
-                                <Badge variant="secondary" className="text-xs">Bez šablóny</Badge>
-                              )}
+                                  <input
+                                    type="file"
+                                    accept=".docx"
+                                    className="sr-only"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file && selectedCategory) {
+                                        setCategoryPdfUploads(prev => ({
+                                          ...prev,
+                                          [country.code]: { file, uploading: true, uploaded: false, error: undefined }
+                                        }));
+                                        
+                                        try {
+                                          const formData = new FormData();
+                                          formData.append("file", file);
+                                          formData.append("countryCode", country.code);
+                                          
+                                          const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/upload`, {
+                                            method: "POST",
+                                            body: formData,
+                                            credentials: "include"
+                                          });
+                                          
+                                          if (!response.ok) {
+                                            const error = await response.json();
+                                            throw new Error(error.error || "Upload failed");
+                                          }
+                                          
+                                          const result = await response.json();
+                                          
+                                          setCategoryPdfUploads(prev => ({
+                                            ...prev,
+                                            [country.code]: { 
+                                              ...prev[country.code], 
+                                              uploading: false, 
+                                              uploaded: true,
+                                              extractedFields: result.extractedFields || [],
+                                              templateType: result.templateType
+                                            }
+                                          }));
+                                          setCategoryDefaultTemplates(prev => ({
+                                            ...prev,
+                                            [country.code]: true
+                                          }));
+                                          const fieldCount = result.extractedFields?.length || 0;
+                                          toast({ 
+                                            title: `Šablóna nahraná`, 
+                                            description: `${result.templateType === "docx" ? "DOCX" : "PDF formulár"} - ${fieldCount} polí nájdených` 
+                                          });
+                                        } catch (error: any) {
+                                          setCategoryPdfUploads(prev => ({
+                                            ...prev,
+                                            [country.code]: { ...prev[country.code], uploading: false, error: error.message }
+                                          }));
+                                          toast({
+                                            title: "Chyba pri nahrávaní",
+                                            description: error.message,
+                                            variant: "destructive"
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    disabled={isConverting}
+                                    data-testid={`input-reupload-template-${country.code}`}
+                                  />
+                                  {hasTemplate ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4" />
+                                      Nahradiť
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="w-4 h-4" />
+                                      Nahrať
+                                    </>
+                                  )}
+                                </label>
+                                
+                                {hasTemplate && !isConverting && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
+                                    data-testid={`button-edit-template-${country.code}`}
+                                    title="Upraviť mapovanie"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                           

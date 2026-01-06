@@ -356,11 +356,11 @@ async function convertPdfToHtmlWithAI(
     console.warn("[PDF AI] Embedded image extraction skipped:", error);
   }
   
-  // 3. Convert PDF pages to images for AI analysis
+  // 3. Convert PDF pages to images for AI analysis (300 DPI for better quality)
   let pageImagePaths: string[] = [];
   try {
     const pagePrefix = path.join(pagesDir, "page");
-    await execAsync(`pdftoppm -png -r 150 -l ${maxPages} "${pdfPath}" "${pagePrefix}"`);
+    await execAsync(`pdftoppm -png -r 300 -l ${maxPages} "${pdfPath}" "${pagePrefix}"`);
     
     const files = fs.readdirSync(pagesDir);
     const sortedFiles = files
@@ -417,18 +417,21 @@ async function convertPdfToHtmlWithAI(
       }
       
       const numPages = imageMessages.length;
-      const prompt = `Toto je ${numPages}-stranový dokument. MUSÍŠ prepísať KOMPLETNE CELÝ TEXT zo VŠETKÝCH ${numPages} strán. Nesmieš nič vynechať.
+      const prompt = `Konvertuj tento ${numPages}-stranový dokument na HTML. 
 
-KRITICKÉ PRAVIDLÁ:
-1. Prepíš KAŽDÉ JEDNO SLOVO z dokumentu - žiadny text nevynechaj
-2. Zachovaj presné poradie textu ako v originále
-3. Pre každú stranu vytvor sekciu s komentárom <!-- PAGE X -->
-4. Zachovaj formátovanie: nadpisy, tučné, kurzíva, odsadenia
-5. Zachovaj štruktúru: tabuľky, zoznamy, odstavce, stĺpce
-6. PRESKUČ obrázky a logá - len text
+INŠTRUKCIE:
+- Prepíš VŠETOK TEXT z každej strany dokumentu
+- Nepýtaj sa na lepšiu kvalitu - pracuj s tým, čo máš
+- Ak niečo nie je čitateľné, skús to odhadnúť z kontextu
+- Vytvor HTML kód priamo bez vysvetlení alebo komentárov
 
-Použi HTML5 s inline štýlmi. Šírka dokumentu: 816px (A4).
-Vrať len HTML kód.`;
+FORMÁT:
+- HTML5 s inline štýlmi, šírka 816px
+- Zachovaj: nadpisy, tučné, kurzíva, tabuľky, zoznamy
+- Pre každú stranu: <section><!-- PAGE X -->...</section>
+- Preskuč obrázky/logá
+
+VRAŤ LEN HTML KÓD - žiadne vysvetlenia, žiadne otázky, žiadne poznámky.`;
 
       console.log(`[PDF AI] Sending ${numPages} pages to Vision API with enhanced prompt...`);
       

@@ -1,0 +1,162 @@
+INDEXUS
+CRM System
+FILTER
+
+All Countries
+Dashboard
+
+Customers
+Customers
+Contracts
+Hospitals
+Collaborators
+Invoices
+Campaigns
+Users
+Settings
+Configurator
+Tasks
+
+System Administrator
+admin
+
+v1.0.0
+Toggle Sidebar
+
+Quick Create
+
+
+
+
+Zmluvy
+Správa zmlúv a šablón
+Zmluvy
+Šablóny
+Nová kategória
+Šablóny
+Kategórie
+Kód	Názov	Popis	Poradie	Akcie
+	general	Všeobecné	Všeobecné zmluvy a dokumenty	0	
+
+
+	collection	Zmluva o odbere	Zmluva o odbere	1	
+
+
+	storage	Zmluva o skladovaní	-	2	
+
+
+	cord_blood	Pupočníková krv	Zmluvy súvisiace s uchovávaním pupočníkovej krvi	3	
+
+
+	service	Servisná zmluva	Servisné zmluvy a dodatky k službám	4	
+
+
+	gdpr	GDPR	Dokumenty týkajúce sa ochrany osobných údajov	6	
+
+
+Upraviť kategóriu
+Upravte informácie a prezrite si konvertované šablóny
+Základné
+Jazyky
+Šablóny
+Nahrajte PDF šablóny pre jednotlivé krajiny. AI automaticky konvertuje PDF na HTML šablónu.
+Slovensko(SK)
+
+AI
+
+Extrahovaný text (1:1 formátovanie):
+
+                                                          Zmluva o odbere
+                                                 číslo zmluvy ........................................,
+uzavretá podľa § 262 ods. 1 a § 269 ods. 2 zákona č. 513/1991 Zb. Obchodný zákonník v znení neskorších predpisov (ďalej len „Obchodný zákonník“)
+
+medzi                                                                               a
+
+
+Cord Blood Center AG                                                                pani: ...........................................................................................................................
+so sídlom: Bodenhof 4, 6014 Luzern, Švajčiarska konfederácia                        ............................................................................................ (ďalej len „RODIČKA“)
+Identifikačné číslo: CHE-178.669.230                                                trvale bytom: ...........................................................................................................
+Daňové Identifikačné číslo: 2014927                                                 ......................................................................................................................................
+Identifikačné číslo DPH: CHE-178.669.230 MWST
+                                                                                    korešpondenčná adresa (ak je iná ako miesto trvalého pobytu):
+Zastúpená na základe plnomocenstva: Ján Šidlík, MBA,
+                                                                                    ......................................................................................................................................
+splnomocnenec
+                                                                                    dátum narodenia: ..................................................................................................
+IBAN: SK44 1111 0000 0013 8851 9013
+SWIFT: UNCRSKBX                                                                     a
+                                                                                    pán: ........................................................................................... (ďalej len „otec“)
+                                                                                    trvale bytom: ...........................................................................................................
+(ďalej ako spoločnosť „CBC AG“ v príslušnom ženskom rode)                           ......................................................................................................................................
+
+(ďalej len „Zmluva“) takto:
+
+                             Článok I - Preambula                                           sa zaväzuje zaplatiť dohodnutú odplatu podľa tejto Zmluvy. Zabez-
+I.1     Zmluvné strany sa dohodli, že túto Zmluvu uzatvárajú podľa § 262                    pečenie skladovania transplantátu bude medzi zmluvnými stranami
+        ods. 1 Obchodného zákonníka a v zmysle § 269 ods. 2 Obchodného                      upravené prostredníctvom osobitnej Zmluvy o skladovaní.
+        zákonníka.                                                              III.2       Transplantát môže byť použitý na autológnu transplantáciu. Trans-
+I.2     Zmluvné strany vyhlasujú, že túto Zmluvu uzatvárajú slobodne, váž-                  plantát môže byť pripravený spracovaním z pupočníkovej krvi (ďalej
+        ne a bez omylu, že sú spôsobilé na právne úkony v plnom rozsahu,                    ako „Produkt Štandard“) alebo z pupočníkovej a placentárnej krvi
+        obsah Zmluvy im je dobre známy v celom jeho rozsahu a Zmluvu                        alebo iba z placentárnej krvi (ďalej ako „Produkt Prémium“) alebo
+        neuzatvárajú v tiesni alebo za nápadne nevýhodných podmienok.                       z pupočníkovej krvi a tkaniva pupočníka (ďalej ako „Produkt Štan-
+                                                                                            dard + tkanivo pupočníka“) alebo z pupočníkovej a placentárnej krvi
+I.3     CBC AG je obchodná spoločnosť založená a existujúca podľa práva
+                                                                                            alebo iba z placentárnej krvi a tkaniva pupočníka (ďalej ako „Produkt
+        Švajčiarskej konfederácie, ktorá zabezpečuje niektoré činnosti regis-
+                                                                                            Prémium + tkanivo pupočníka“) alebo z pupočníkovej a placentár-
+        tra pupočníkovej a placentárnej krvi, tkaniva pupočníka a placen-
+                                                                                            nej krvi alebo iba z placentárnej krvi a tkaniva pupočníka a tkaniva
+        ty, pričom predmetná činnosť zahŕňa najmä zabezpečenie odberu
+                                                                                            placenty (ďalej ak
+Vložené obrázky z PDF (logá, grafiky):
+
+img-000.png
+Stránky PDF ako obrázky:
+
+Strana 11
+Strana 22
+Strana 33
+Strana 44
+URL pre vloženie do HTML editora: Kliknite na obrázok, skopírujte URL z prehliadača
+Česká republika(CZ)
+
+Bez šablóny
+Maďarsko(HU)
+
+Bez šablóny
+Rumunsko(RO)
+
+Bez šablóny
+Taliansko(IT)
+
+Bez šablóny
+Nemecko(DE)
+
+Bez šablóny
+USA(US)
+
+Bez šablóny
+Zrušiť
+Uložiť zmeny
+Close
+Náhľad šablóny - SK
+Konvertovaná HTML šablóna z PDF
+Poznámka k prepisu
+
+Pre úplné a presné splnenie vašich kritických pravidiel (prepísať každé slovo, zachovať poradie, formátovanie, tabuľky, zoznamy a odseky) potrebujem dokument v čitateľnejšej podobe. Aktuálne priložené snímky majú v kľúčových pasážach (najmä drobný text pod nadpismi, podmienky v bodoch I–VII a tabuľku cien) nedostatočné rozlíšenie, takže jednotlivé slová nie je možné spoľahlivo rozlíšiť bez rizika chýb.
+
+Prosím, pošlite:
+
+PDF alebo skeny v pôvodnom rozlíšení (aspoň 300 DPI),
+alebo jednotlivé strany ako samostatné obrázky vo vyššej kvalite,
+prípadne povoľte „najlepšie možné OCR s prípadnou korekciou“ – v tom prípade dokument prepíšem a nečitateľné miesta vyznačím, aby ste ich mohli skontrolovať.
+Hneď ako dodáte kvalitnejší podklad, kompletne prepíšem celý text zo všetkých 4 strán v HTML5 s inline štýlmi, v šírke 816 px, so sekciami , pričom zachovám nadpisy, tučné/kurzíva, odsadenia, tabuľky aj zoznamy, a preskočím iba obrázky/logá.
+
+Rezervované miesto pre presný prepis strany 2 po dodaní čitateľného podkladu.
+
+Rezervované miesto pre presný prepis strany 3 (vrátane tabuľky s typmi produktov a cenami) po dodaní čitateľného podkladu.
+
+Rezervované miesto pre presný prepis strany 4 po dodaní čitateľného podkladu.
+
+Zavrieť
+Close

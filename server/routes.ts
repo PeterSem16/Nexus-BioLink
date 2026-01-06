@@ -6984,7 +6984,7 @@ export async function registerRoutes(
 
   app.post("/api/contracts/categories", requireAuth, async (req, res) => {
     try {
-      const { value, label, description, sortOrder } = req.body;
+      const { value, label, description, sortOrder, labelSk, labelCz, labelHu, labelRo, labelIt, labelDe, labelUs } = req.body;
       
       // Check if value already exists
       const existing = await storage.getContractCategoryByValue(value);
@@ -6997,6 +6997,13 @@ export async function registerRoutes(
         label,
         description: description || null,
         sortOrder: sortOrder || 0,
+        labelSk: labelSk || null,
+        labelCz: labelCz || null,
+        labelHu: labelHu || null,
+        labelRo: labelRo || null,
+        labelIt: labelIt || null,
+        labelDe: labelDe || null,
+        labelUs: labelUs || null,
       });
       res.status(201).json(category);
     } catch (error) {
@@ -7008,7 +7015,7 @@ export async function registerRoutes(
   app.patch("/api/contracts/categories/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { value, label, description, sortOrder } = req.body;
+      const { value, label, description, sortOrder, labelSk, labelCz, labelHu, labelRo, labelIt, labelDe, labelUs } = req.body;
       
       // Check if value already exists for another category
       if (value) {
@@ -7023,6 +7030,13 @@ export async function registerRoutes(
         ...(label && { label }),
         ...(description !== undefined && { description }),
         ...(sortOrder !== undefined && { sortOrder }),
+        ...(labelSk !== undefined && { labelSk: labelSk || null }),
+        ...(labelCz !== undefined && { labelCz: labelCz || null }),
+        ...(labelHu !== undefined && { labelHu: labelHu || null }),
+        ...(labelRo !== undefined && { labelRo: labelRo || null }),
+        ...(labelIt !== undefined && { labelIt: labelIt || null }),
+        ...(labelDe !== undefined && { labelDe: labelDe || null }),
+        ...(labelUs !== undefined && { labelUs: labelUs || null }),
       });
       
       if (!category) {

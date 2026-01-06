@@ -202,7 +202,13 @@ export default function ContractsPage() {
   });
   
   const [categoryWizardStep, setCategoryWizardStep] = useState(1);
-  const [categoryPdfUploads, setCategoryPdfUploads] = useState<Record<string, { file: File | null; uploading: boolean; uploaded: boolean; error?: string }>>({
+  const [categoryPdfUploads, setCategoryPdfUploads] = useState<Record<string, { 
+    file: File | null; 
+    uploading: boolean; 
+    uploaded: boolean; 
+    error?: string;
+    extractedPages?: { pageNumber: number; imageUrl: string; fileName: string }[];
+  }>>({
     SK: { file: null, uploading: false, uploaded: false },
     CZ: { file: null, uploading: false, uploaded: false },
     HU: { file: null, uploading: false, uploaded: false },
@@ -1867,9 +1873,8 @@ export default function ContractsPage() {
                                 </div>
                               </div>
                               <div className="text-center space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Konverzia PDF do HTML</p>
-                                <p className="text-xs text-muted-foreground">AI analyzuje dokument po stranách...</p>
-                                <p className="text-xs text-muted-foreground/70">Môže trvať 1-3 minúty</p>
+                                <p className="text-sm font-semibold text-foreground">Extrahujem stránky z PDF</p>
+                                <p className="text-xs text-muted-foreground">Konvertujem stránky na obrázky...</p>
                               </div>
                               <div className="w-48 space-y-2">
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -1883,7 +1888,7 @@ export default function ContractsPage() {
                                   />
                                 </div>
                                 <p className="text-[10px] text-center text-muted-foreground">
-                                  Spracovávam strany (100 DPI, 3 min timeout)
+                                  200 DPI PNG obrázky
                                 </p>
                               </div>
                             </div>
@@ -1923,15 +1928,26 @@ export default function ContractsPage() {
                                         throw new Error(error.error || "Upload failed");
                                       }
                                       
+                                      const result = await response.json();
+                                      const extractedPages = result.extractedPages || [];
+                                      
                                       setCategoryPdfUploads(prev => ({
                                         ...prev,
-                                        [country.code]: { ...prev[country.code], uploading: false, uploaded: true }
+                                        [country.code]: { 
+                                          ...prev[country.code], 
+                                          uploading: false, 
+                                          uploaded: true,
+                                          extractedPages 
+                                        }
                                       }));
                                       setCategoryDefaultTemplates(prev => ({
                                         ...prev,
                                         [country.code]: true
                                       }));
-                                      toast({ title: `PDF pre ${country.name} úspešne konvertované` });
+                                      toast({ 
+                                        title: `PDF extrahované`, 
+                                        description: `${extractedPages.length} stránok pripravených na použitie` 
+                                      });
                                     } catch (error: any) {
                                       setCategoryPdfUploads(prev => ({
                                         ...prev,
@@ -1951,8 +1967,13 @@ export default function ContractsPage() {
                               />
                             </div>
                             
-                            <div className="w-32 shrink-0 flex items-center justify-end gap-2">
-                              {uploadState?.uploaded && (
+                            <div className="w-auto shrink-0 flex items-center justify-end gap-2">
+                              {uploadState?.uploaded && uploadState?.extractedPages && uploadState.extractedPages.length > 0 && (
+                                <Badge variant="default" className="bg-green-600 text-xs">
+                                  {uploadState.extractedPages.length} stránok
+                                </Badge>
+                              )}
+                              {uploadState?.uploaded && !uploadState?.extractedPages && (
                                 <Badge variant="default" className="bg-green-600 text-xs">OK</Badge>
                               )}
                               {uploadState?.error && (
@@ -1973,6 +1994,34 @@ export default function ContractsPage() {
                               )}
                             </div>
                           </div>
+                          
+                          {uploadState?.extractedPages && uploadState.extractedPages.length > 0 && (
+                            <div className="mt-2 p-3 bg-muted/30 rounded-md">
+                              <p className="text-xs font-medium mb-2">Extrahované stránky (kliknite pre náhľad):</p>
+                              <div className="flex flex-wrap gap-2">
+                                {uploadState.extractedPages.map((page) => (
+                                  <a 
+                                    key={page.pageNumber}
+                                    href={page.imageUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block w-16 h-20 border rounded overflow-hidden bg-white hover-elevate"
+                                    title={`Strana ${page.pageNumber} - ${page.imageUrl}`}
+                                    data-testid={`link-page-${country.code}-${page.pageNumber}`}
+                                  >
+                                    <img 
+                                      src={page.imageUrl} 
+                                      alt={`Strana ${page.pageNumber}`}
+                                      className="w-full h-full object-cover object-top"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mt-2">
+                                URL pre použitie v HTML editore: <code className="bg-muted px-1 rounded">/uploads/contract-pdfs/...</code>
+                              </p>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

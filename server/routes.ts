@@ -6839,14 +6839,21 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Country code is required" });
       }
       
+      // Validate countryCode to prevent path traversal attacks
+      const validCountryCodes = ["SK", "CZ", "HU", "RO", "IT", "DE", "US"];
+      const normalizedCountryCode = String(countryCode).toUpperCase().trim();
+      if (!validCountryCodes.includes(normalizedCountryCode) || !/^[A-Z]{2}$/.test(normalizedCountryCode)) {
+        return res.status(400).json({ error: "Invalid country code" });
+      }
+      
       if (!req.file) {
         return res.status(400).json({ error: "PDF file is required" });
       }
 
-      console.log(`[PDF Upload] Extracting pages from PDF: ${req.file.path} for category ${categoryId}, country ${countryCode}`);
+      console.log(`[PDF Upload] Extracting pages from PDF: ${req.file.path} for category ${categoryId}, country ${normalizedCountryCode}`);
       
       // Extract PDF pages as high-quality PNG images (no AI conversion)
-      const { pages } = await extractPdfPagesAsImages(req.file.path, categoryId, countryCode, 10);
+      const { pages } = await extractPdfPagesAsImages(req.file.path, categoryId, normalizedCountryCode, 10);
       
       if (pages.length === 0) {
         return res.status(500).json({ error: "Failed to extract images from PDF. Make sure the PDF is valid." });
@@ -6875,7 +6882,7 @@ ${pages.map(p => `      <li>Strana ${p.pageNumber}: <code>${p.imageUrl}</code></
       });
 
       // Check if template already exists for this category and country
-      const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      const existing = await storage.getCategoryDefaultTemplate(categoryId, normalizedCountryCode);
       
       // Create or update the default template
       let result;
@@ -6890,7 +6897,7 @@ ${pages.map(p => `      <li>Strana ${p.pageNumber}: <code>${p.imageUrl}</code></
       } else {
         result = await storage.createCategoryDefaultTemplate({
           categoryId,
-          countryCode,
+          countryCode: normalizedCountryCode,
           sourcePdfPath: req.file.path,
           htmlContent,
           conversionStatus: "completed",

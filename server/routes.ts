@@ -200,20 +200,20 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
   const outputPrefix = path.join(outputDir, `${baseName}-page`);
   
   try {
-    // Convert PDF to JPEG images - 300 DPI for clear fine print (legal clauses, IBANs, addresses)
-    // OpenAI Vision API recommends at least 300 DPI for accurate text extraction
-    // 85% quality provides good balance between file size and readability
-    await execAsync(`pdftoppm -jpeg -jpegopt quality=85 -r 300 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    // Convert PDF to PNG images - lossless format for best text clarity
+    // 300 DPI for clear fine print (legal clauses, IBANs, addresses)
+    // PNG preserves sharp glyph edges better than JPEG compression
+    await execAsync(`pdftoppm -png -r 300 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
     
-    // Find all generated image files
+    // Find all generated image files (PNG preferred, fallback to JPG)
     const files = fs.readdirSync(outputDir);
     const imageFiles = files
-      .filter(f => f.startsWith(`${baseName}-page`) && (f.endsWith(".jpg") || f.endsWith(".png")))
+      .filter(f => f.startsWith(`${baseName}-page`) && (f.endsWith(".png") || f.endsWith(".jpg")))
       .sort()
       .slice(0, maxPages)
       .map(f => path.join(outputDir, f));
     
-    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages, 300 DPI, 85% quality)`);
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} PNG images from PDF (max ${maxPages} pages, 300 DPI, lossless)`);
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion failed:", error);
@@ -222,17 +222,19 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
 }
 
 // Read images and convert to base64 for OpenAI Vision
-function imagesToBase64(imagePaths: string[]): { type: "image_url"; image_url: { url: string } }[] {
+function imagesToBase64(imagePaths: string[]): { type: "image_url"; image_url: { url: string; detail: "high" } }[] {
   return imagePaths.map(imagePath => {
     const imageBuffer = fs.readFileSync(imagePath);
     const base64 = imageBuffer.toString("base64");
-    const mimeType = imagePath.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    // Prefer PNG for lossless quality, fallback to JPEG
+    const mimeType = imagePath.endsWith(".png") ? "image/png" : "image/jpeg";
     const fileSizeKB = Math.round(imageBuffer.length / 1024);
-    console.log(`[PDF Conversion] Image ${path.basename(imagePath)}: ${fileSizeKB}KB`);
+    console.log(`[PDF Conversion] Image ${path.basename(imagePath)}: ${fileSizeKB}KB (${mimeType})`);
     return {
       type: "image_url" as const,
       image_url: {
-        url: `data:${mimeType};base64,${base64}`
+        url: `data:${mimeType};base64,${base64}`,
+        detail: "high" as const  // Force high resolution - prevents auto-downscaling
       }
     };
   });
@@ -6817,7 +6819,7 @@ export async function registerRoutes(
         
         // Convert images to base64 for Vision API
         const imageInputs = imagesToBase64(imagePaths);
-        console.log(`[PDF Conversion] Sending ${imageInputs.length} page images to OpenAI Vision (300 DPI)`);
+        console.log(`[PDF Conversion] Sending ${imageInputs.length} page images to OpenAI Vision (300 DPI PNG, detail:high)`);
         
         // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         console.log(`[PDF Conversion] Starting OpenAI Vision API call...`);

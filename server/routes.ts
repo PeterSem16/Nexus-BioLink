@@ -319,13 +319,14 @@ async function convertPdfToHtmlWithAI(
   let htmlContent = "";
   let conversionMethod: "ai" | "text-only" = "ai";
   
-  // 1. Extract text with layout preservation (fallback)
+  // 1. Extract text - use raw mode for single-column output (no layout preservation)
   try {
-    const { stdout } = await execAsync(`pdftotext -layout "${pdfPath}" -`);
+    // Use -raw for linear reading order (left-to-right, top-to-bottom per column)
+    const { stdout } = await execAsync(`pdftotext -raw "${pdfPath}" -`);
     extractedText = stdout || "";
-    console.log(`[PDF AI] Extracted ${extractedText.length} characters of text`);
+    console.log(`[PDF] Extracted ${extractedText.length} characters of text (raw mode)`);
   } catch (error) {
-    console.warn("[PDF AI] Text extraction failed:", error);
+    console.warn("[PDF] Text extraction failed:", error);
   }
   
   // 2. Extract embedded images (logos, graphics) - skip if fails
@@ -383,53 +384,74 @@ async function convertPdfToHtmlWithAI(
     console.warn("[PDF AI] Page image creation failed, will use text-only:", error);
   }
   
-  // 4. Skip AI conversion - use enhanced text-only mode
-  // AI conversion disabled due to quota limits - use text extraction with smart formatting
-  console.log("[PDF] Using enhanced text-only conversion (AI disabled)");
+  // 4. Use text-only conversion with clean single-column formatting
+  console.log("[PDF] Using text-only conversion (single-column format)");
   conversionMethod = "text-only";
   
-  // Parse extracted text and create structured HTML with better formatting
-  const escapedText = extractedText
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  // Clean and format extracted text for single-column output
+  let cleanText = extractedText
+    // Normalize whitespace - collapse multiple spaces
+    .replace(/[ \t]+/g, ' ')
+    // Remove lines that are just whitespace
+    .replace(/^\s*$/gm, '')
+    // Normalize line endings
+    .replace(/\r\n/g, '\n')
+    // Remove excessive blank lines (keep max 2)
+    .replace(/\n{3,}/g, '\n\n');
   
-  // Split text by form feed (page breaks) or detect page patterns
-  const pages = escapedText.split(/\f/).filter(p => p.trim().length > 0);
+  // Split by form feed (page breaks)
+  const pages = cleanText.split(/\f/).filter(p => p.trim().length > 0);
   
-  // Process each page with improved formatting
+  // Process each page with clean formatting
   const processPage = (pageText: string, pageNum: number): string => {
-    let html = pageText;
+    // Escape HTML entities
+    let html = pageText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     
-    // Convert article headers (Článok I, II, III, etc.)
-    html = html.replace(/^(\s*)(Článok\s+[IVXLCDM]+\s*[-–—]\s*.+)$/gm, 
-      '<h3 style="font-weight:bold; margin:20px 0 10px; text-align:center;">$2</h3>');
+    // Format article headers (Článok I, II, III, etc.)
+    html = html.replace(/(Článok\s+[IVXLCDM]+)\s*[-–—]\s*([^\n]+)/g, 
+      '</p>\n<h3 class="article-header">$1 - $2</h3>\n<p>');
     
-    // Convert numbered sections (I.1, II.2, etc.)
-    html = html.replace(/^(\s*)([IVXLCDM]+\.\d+)\s+/gm, 
-      '<p style="margin:8px 0 8px 20px;"><strong>$2</strong> ');
+    // Format numbered sections (I.1, II.2, III.3, etc.)
+    html = html.replace(/\n([IVXLCDM]+\.\d+)\s+/g, 
+      '</p>\n<p class="section"><strong>$1</strong> ');
     
-    // Convert subsections (a), b), c))
-    html = html.replace(/^(\s*)([a-z]\))\s+/gm, 
-      '<p style="margin:4px 0 4px 40px;">$2 ');
+    // Format subsections a), b), c)
+    html = html.replace(/\n\s*([a-z]\))\s+/g, 
+      '</p>\n<p class="subsection">$1 ');
     
-    // Preserve line breaks for readability
-    html = html.replace(/\n{3,}/g, '</p><p style="margin:16px 0;">');
-    html = html.replace(/\n{2}/g, '</p><p style="margin:8px 0;">');
-    html = html.replace(/\n/g, '<br/>');
+    // Convert signature dotted lines to input fields
+    html = html.replace(/\.{8,}/g, '<span class="signature-line"></span>');
     
-    // Wrap signature lines (dotted lines)
-    html = html.replace(/\.{10,}/g, '<span style="display:inline-block; border-bottom:1px dotted #000; min-width:200px;">&nbsp;</span>');
+    // Convert double newlines to paragraph breaks
+    html = html.replace(/\n\n+/g, '</p>\n<p>');
     
-    return `<section class="page" style="margin-bottom:30px; padding-bottom:20px; border-bottom:1px dashed #ccc;">
-      <div style="text-align:right; font-size:10px; color:#666; margin-bottom:10px;">Strana ${pageNum}</div>
-      <div style="white-space:pre-wrap; word-wrap:break-word;">${html}</div>
+    // Convert single newlines to spaces (join wrapped lines)
+    html = html.replace(/\n/g, ' ');
+    
+    // Clean up empty paragraphs
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    html = html.replace(/^\s*<\/p>/g, '');
+    
+    // Wrap in paragraph if not already
+    if (!html.startsWith('<')) {
+      html = '<p>' + html;
+    }
+    if (!html.endsWith('</p>') && !html.endsWith('</h3>')) {
+      html = html + '</p>';
+    }
+    
+    return `<section class="page">
+      <div class="page-number">Strana ${pageNum}</div>
+      ${html}
     </section>`;
   };
   
   const pagesHtml = pages.length > 1 
     ? pages.map((p, i) => processPage(p, i + 1)).join('\n')
-    : processPage(escapedText, 1);
+    : processPage(cleanText, 1);
   
   htmlContent = `<!DOCTYPE html>
 <html lang="sk">
@@ -438,18 +460,53 @@ async function convertPdfToHtmlWithAI(
   <title>Dokument</title>
   <style>
     .contract-content { 
-      max-width:816px; 
-      margin:0 auto; 
-      font-family:'Times New Roman', Georgia, serif; 
-      font-size:11px; 
-      line-height:1.5; 
-      color:#000; 
-      padding:20px; 
+      max-width: 700px; 
+      margin: 0 auto; 
+      font-family: 'Times New Roman', Georgia, serif; 
+      font-size: 12px; 
+      line-height: 1.6; 
+      color: #000; 
+      padding: 30px;
     }
-    .contract-content h3 { font-size:13px; margin:20px 0 10px; }
-    .contract-content p { margin:6px 0; }
-    .contract-content .page { page-break-after:always; }
-    @media print { .contract-content .page { border-bottom:none; } }
+    .contract-content h3.article-header { 
+      font-size: 14px; 
+      font-weight: bold;
+      margin: 25px 0 15px; 
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .contract-content p { 
+      margin: 10px 0; 
+      text-align: justify;
+    }
+    .contract-content p.section { 
+      margin: 12px 0 8px 0; 
+    }
+    .contract-content p.subsection { 
+      margin: 6px 0 6px 25px; 
+    }
+    .contract-content .signature-line {
+      display: inline-block;
+      border-bottom: 1px dotted #000;
+      min-width: 180px;
+      height: 1em;
+    }
+    .contract-content .page { 
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px dashed #ccc;
+      page-break-after: always;
+    }
+    .contract-content .page-number {
+      text-align: right;
+      font-size: 10px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+    @media print { 
+      .contract-content .page { border-bottom: none; }
+      .contract-content .page-number { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -459,7 +516,7 @@ async function convertPdfToHtmlWithAI(
 </body>
 </html>`;
   
-  console.log(`[PDF] Generated ${htmlContent.length} chars of formatted HTML from text`);
+  console.log(`[PDF] Generated ${htmlContent.length} chars of formatted HTML`);
   
   return { htmlContent, extractedText, embeddedImages, pageImages, conversionMethod };
 }

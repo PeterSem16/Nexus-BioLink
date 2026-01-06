@@ -483,6 +483,10 @@ PRAVIDLÁ FORMÁTOVANIA:
       
     } catch (aiError: any) {
       console.error("[PDF AI] AI conversion failed, falling back to text-only:", aiError.message);
+      console.error("[PDF AI] Full error:", JSON.stringify(aiError, null, 2));
+      if (aiError.response) {
+        console.error("[PDF AI] API Response:", aiError.response?.data || aiError.response);
+      }
       conversionMethod = "text-only";
     }
   } else {

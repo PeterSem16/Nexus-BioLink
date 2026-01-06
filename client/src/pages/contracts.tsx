@@ -3479,15 +3479,39 @@ export default function ContractsPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Žiadne polia neboli nájdené v šablóne.</p>
-                      <p className="text-sm mt-2">
-                        Pre PDF: Uistite sa, že PDF obsahuje AcroForm polia.
-                      </p>
-                      <p className="text-sm">
-                        Pre DOCX: Použite premenné v tvare {"{{meno_premennej}}"}.
-                      </p>
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground mb-4">Žiadne premenné neboli nájdené v šablóne.</p>
+                      
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 max-w-md mx-auto text-left">
+                        <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-3">Ako pridať premenné do šablóny:</h4>
+                        <ol className="text-sm text-blue-600 dark:text-blue-400 space-y-2 list-decimal list-inside">
+                          <li>Stiahnite konvertovaný DOCX súbor</li>
+                          <li>Otvorte ho v Microsoft Word</li>
+                          <li>Pridajte premenné v tvare <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">{"{{meno}}"}</code></li>
+                          <li>Uložte súbor a nahrajte ho späť</li>
+                        </ol>
+                        
+                        <div className="mt-4 flex flex-col gap-2">
+                          {editingTemplateData.sourcePath && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.open(`/api/contracts/template-file/${encodeURIComponent(editingTemplateData.sourcePath)}`, '_blank');
+                              }}
+                              data-testid="button-download-docx"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Stiahnuť DOCX šablónu
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs text-blue-500 dark:text-blue-400 mt-3">
+                          Príklady premenných: {"{{meno}}"}, {"{{priezvisko}}"}, {"{{adresa}}"}, {"{{datum}}"}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </TabsContent>

@@ -7263,6 +7263,42 @@ export async function registerRoutes(
     res.json(CRM_DATA_FIELDS);
   });
   
+  // Download template file (DOCX or PDF)
+  app.get("/api/contracts/template-file/:filePath(*)", requireAuth, async (req, res) => {
+    try {
+      const filePath = decodeURIComponent(req.params.filePath);
+      
+      if (!filePath.startsWith("uploads/") || filePath.includes("..")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const fullPath = path.join(process.cwd(), filePath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const ext = path.extname(fullPath).toLowerCase();
+      const filename = path.basename(fullPath);
+      
+      let contentType = "application/octet-stream";
+      if (ext === ".docx") {
+        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      } else if (ext === ".pdf") {
+        contentType = "application/pdf";
+      }
+      
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      
+      const fileStream = fs.createReadStream(fullPath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error serving template file:", error);
+      res.status(500).json({ error: "Failed to serve file" });
+    }
+  });
+  
   // Generate contract from template for a customer
   app.post("/api/contracts/generate", requireAuth, async (req, res) => {
     try {

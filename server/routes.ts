@@ -7256,6 +7256,60 @@ export async function registerRoutes(
     res.json(CRM_DATA_FIELDS);
   });
   
+  // AI-powered field mapping
+  app.post("/api/contracts/ai-mapping", requireAuth, async (req, res) => {
+    try {
+      const { extractedFields, availableFields } = req.body;
+      
+      if (!extractedFields || !Array.isArray(extractedFields) || extractedFields.length === 0) {
+        return res.status(400).json({ error: "extractedFields is required" });
+      }
+      
+      const fieldNames = extractedFields.map((f: any) => typeof f === 'string' ? f : f.name);
+      const availableFieldNames = availableFields ? Object.keys(availableFields) : Object.keys(CRM_DATA_FIELDS);
+      
+      const prompt = `Mapuj premenné zo šablóny zmluvy na dostupné CRM polia.
+
+Premenné zo šablóny ({{placeholder}}):
+${fieldNames.join(", ")}
+
+Dostupné CRM polia:
+${availableFieldNames.map(f => `${f}: ${CRM_DATA_FIELDS[f] || "popis nedostupný"}`).join("\n")}
+
+Pre každú premennú zo šablóny urči najlepšie zodpovedajúce CRM pole. Ak nie je zhoda, vynechaj.
+
+Odpovedz v JSON formáte:
+{
+  "mappings": {
+    "meno": "firstName",
+    "priezvisko": "lastName",
+    ...
+  }
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Si asistent pre mapovanie polí v CRM systéme. Odpovedaj len v JSON formáte." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      });
+      
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+      
+      const result = JSON.parse(content);
+      res.json(result);
+    } catch (error) {
+      console.error("AI mapping error:", error);
+      res.status(500).json({ error: "AI mapping failed" });
+    }
+  });
+  
   // Download template file (DOCX or PDF)
   app.get("/api/contracts/template-file/:filePath(*)", requireAuth, async (req, res) => {
     try {

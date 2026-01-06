@@ -22,8 +22,10 @@ import {
   FileText, Plus, Edit2, Trash2, Send, Eye, Check, X, Clock, 
   FileSignature, Download, Copy, RefreshCw, AlertCircle, Filter,
   ChevronRight, Settings, PenTool, Mail, Phone, Shield, 
-  CheckCircle, Loader2, Edit, Pencil, GripVertical, Globe, ExternalLink
+  CheckCircle, Loader2, Edit, Pencil, GripVertical, Globe, ExternalLink,
+  Sparkles, ArrowRight
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DndContext,
   closestCenter,
@@ -224,16 +226,29 @@ export default function ContractsPage() {
     description: string;
     countryCode: string;
     contentHtml: string;
+    loadedFromCategory: boolean;
+    loadedCategoryId: number | null;
+    sourceDocxPath: string;
+    extractedFields: string[];
+    placeholderMappings: Record<string, string>;
   }>({
     name: "",
     category: "general",
     languageCode: "sk",
     description: "",
     countryCode: selectedCountry || "SK",
-    contentHtml: ""
+    contentHtml: "",
+    loadedFromCategory: false,
+    loadedCategoryId: null,
+    sourceDocxPath: "",
+    extractedFields: [],
+    placeholderMappings: {}
   });
   
   const [templatePageImages, setTemplatePageImages] = useState<{ pageNumber: number; imageUrl: string; fileName: string }[]>([]);
+  const [loadingCategoryTemplate, setLoadingCategoryTemplate] = useState(false);
+  const [aiMappingInProgress, setAiMappingInProgress] = useState(false);
+  const [templatePreviewPdfUrl, setTemplatePreviewPdfUrl] = useState<string | null>(null);
   
   const [categoryForm, setCategoryForm] = useState({
     value: "",
@@ -821,8 +836,107 @@ export default function ContractsPage() {
       languageCode: "sk",
       description: "",
       countryCode: selectedCountry || "SK",
-      contentHtml: ""
+      contentHtml: "",
+      loadedFromCategory: false,
+      loadedCategoryId: null,
+      sourceDocxPath: "",
+      extractedFields: [],
+      placeholderMappings: {}
     });
+    setTemplatePreviewPdfUrl(null);
+  };
+  
+  const handleLoadCategoryTemplate = async () => {
+    if (!templateForm.category || !templateForm.countryCode) {
+      toast({ title: "Vyberte kategóriu a krajinu", variant: "destructive" });
+      return;
+    }
+    
+    const category = categories?.find((c: ContractCategory) => c.value === templateForm.category);
+    if (!category) {
+      toast({ title: "Kategória nenájdená", variant: "destructive" });
+      return;
+    }
+    
+    setLoadingCategoryTemplate(true);
+    try {
+      const response = await fetch(`/api/contracts/categories/${category.id}/templates/${templateForm.countryCode}`, {
+        credentials: "include"
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast({ 
+            title: "Šablóna neexistuje", 
+            description: `Pre kategóriu "${category.label}" a krajinu ${templateForm.countryCode} neexistuje DOCX šablóna. Najprv ju nahrajte v sekcii Kategórie.`,
+            variant: "destructive" 
+          });
+        } else {
+          throw new Error("Failed to load template");
+        }
+        return;
+      }
+      
+      const template = await response.json();
+      
+      setTemplateForm(prev => ({
+        ...prev,
+        loadedFromCategory: true,
+        loadedCategoryId: category.id,
+        sourceDocxPath: template.sourceDocxPath || "",
+        extractedFields: template.extractedFields || [],
+        placeholderMappings: template.placeholderMappings || {}
+      }));
+      
+      setTemplatePreviewPdfUrl(`/api/contracts/categories/${category.id}/templates/${templateForm.countryCode}/preview?t=${Date.now()}`);
+      
+      toast({ title: "Šablóna načítaná", description: `Načítaná DOCX šablóna z kategórie "${category.label}"` });
+    } catch (error) {
+      console.error("Error loading category template:", error);
+      toast({ title: "Chyba pri načítaní šablóny", variant: "destructive" });
+    } finally {
+      setLoadingCategoryTemplate(false);
+    }
+  };
+  
+  const handleAiMapping = async () => {
+    if (templateForm.extractedFields.length === 0) {
+      toast({ title: "Žiadne premenné na mapovanie", description: "Najprv načítajte šablónu s premennými", variant: "destructive" });
+      return;
+    }
+    
+    setAiMappingInProgress(true);
+    try {
+      const response = await fetch("/api/contracts/ai-mapping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          extractedFields: templateForm.extractedFields
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("AI mapping failed");
+      }
+      
+      const result = await response.json();
+      
+      setTemplateForm(prev => ({
+        ...prev,
+        placeholderMappings: { ...prev.placeholderMappings, ...result.mappings }
+      }));
+      
+      toast({ 
+        title: "AI mapovanie dokončené", 
+        description: `Namapovaných ${Object.keys(result.mappings).length} z ${templateForm.extractedFields.length} premenných`
+      });
+    } catch (error) {
+      console.error("AI mapping error:", error);
+      toast({ title: "Chyba pri AI mapovaní", variant: "destructive" });
+    } finally {
+      setAiMappingInProgress(false);
+    }
   };
 
   const resetContractForm = () => {
@@ -1127,7 +1241,12 @@ export default function ContractsPage() {
       languageCode: template.languageCode,
       description: template.description || "",
       countryCode: template.countryCode,
-      contentHtml: template.contentHtml || ""
+      contentHtml: template.contentHtml || "",
+      loadedFromCategory: false,
+      loadedCategoryId: null,
+      sourceDocxPath: "",
+      extractedFields: [],
+      placeholderMappings: {}
     });
     setIsTemplateDialogOpen(true);
   };
@@ -1518,31 +1637,31 @@ export default function ContractsPage() {
           <DialogHeader className="shrink-0">
             <DialogTitle>{selectedTemplate ? "Upraviť šablónu" : "Nová šablóna zmluvy"}</DialogTitle>
             <DialogDescription>
-              Vytvorte alebo upravte šablónu zmluvy. Kliknite na pole vľavo pre vloženie do šablóny.
+              Vytvorte šablónu zmluvy načítaním vzoru z kategórie a namapovaním premenných.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 gap-4">
+          <div className="flex-1 overflow-hidden">
+            <div className="grid gap-4 py-4 h-full">
+              <div className="grid grid-cols-5 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="template-name">Názov šablóny</Label>
+                  <Label htmlFor="template-name">1. Názov šablóny</Label>
                   <Input
                     id="template-name"
                     value={templateForm.name}
                     onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
-                    placeholder="Zmluva o uchovávaní"
+                    placeholder="Zmluva o uchovávaní SK"
                     data-testid="input-template-name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="template-category">Kategória</Label>
+                  <Label htmlFor="template-category">2. Kategória</Label>
                   <Select
                     value={templateForm.category}
-                    onValueChange={(value) => setTemplateForm({ ...templateForm, category: value })}
+                    onValueChange={(value) => setTemplateForm({ ...templateForm, category: value, loadedFromCategory: false })}
                   >
                     <SelectTrigger id="template-category" data-testid="select-template-category">
-                      <SelectValue />
+                      <SelectValue placeholder="Vyberte kategóriu" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.length > 0 ? (
@@ -1562,13 +1681,13 @@ export default function ContractsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="template-country">Krajina</Label>
+                  <Label htmlFor="template-country">3. Krajina</Label>
                   <Select
                     value={templateForm.countryCode}
-                    onValueChange={(value) => setTemplateForm({ ...templateForm, countryCode: value })}
+                    onValueChange={(value) => setTemplateForm({ ...templateForm, countryCode: value, loadedFromCategory: false })}
                   >
                     <SelectTrigger id="template-country" data-testid="select-template-country">
-                      <SelectValue />
+                      <SelectValue placeholder="Vyberte krajinu" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="SK">Slovensko</SelectItem>
@@ -1582,7 +1701,7 @@ export default function ContractsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="template-description">Popis</Label>
+                  <Label htmlFor="template-description">Popis (voliteľný)</Label>
                   <Input
                     id="template-description"
                     value={templateForm.description}
@@ -1591,28 +1710,224 @@ export default function ContractsPage() {
                     data-testid="input-template-description"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>4. Načítať vzor</Label>
+                  <Button
+                    onClick={handleLoadCategoryTemplate}
+                    disabled={!templateForm.category || !templateForm.countryCode || loadingCategoryTemplate}
+                    className="w-full"
+                    data-testid="button-load-template"
+                  >
+                    {loadingCategoryTemplate ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Načítavam...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Načítať vzor
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               
               <Separator />
               
-              <ContractTemplateEditor
-                value={templateForm.contentHtml}
-                onChange={(value) => setTemplateForm({ ...templateForm, contentHtml: value })}
-                pageImages={templatePageImages}
-              />
+              {!templateForm.loadedFromCategory ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center text-muted-foreground p-8">
+                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium mb-2">Vyberte kategóriu a krajinu</p>
+                    <p className="text-sm">Potom kliknite na "Načítať vzor" pre načítanie DOCX šablóny</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden">
+                  <div className="flex flex-col overflow-hidden border rounded-md">
+                    <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
+                      <h3 className="font-medium text-sm">Dostupné CRM polia</h3>
+                    </div>
+                    <ScrollArea className="flex-1">
+                      <div className="p-2 space-y-1">
+                        {Object.entries({
+                          firstName: "Meno",
+                          lastName: "Priezvisko",
+                          email: "Email",
+                          phone: "Telefón",
+                          birthDate: "Dátum narodenia",
+                          personalId: "Rodné číslo",
+                          idNumber: "Číslo OP",
+                          street: "Ulica",
+                          city: "Mesto",
+                          postalCode: "PSČ",
+                          country: "Krajina",
+                          companyName: "Názov firmy",
+                          companyId: "IČO",
+                          vatId: "DIČ",
+                          bankAccount: "Bankový účet",
+                          contractNumber: "Číslo zmluvy",
+                          contractDate: "Dátum zmluvy",
+                          todayDate: "Dnešný dátum"
+                        }).map(([key, label]) => (
+                          <div 
+                            key={key} 
+                            className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm"
+                          >
+                            <span className="text-muted-foreground">{label}</span>
+                            <Badge variant="outline" className="font-mono text-xs">{key}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                  
+                  <div className="flex flex-col overflow-hidden border rounded-md">
+                    <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
+                      <h3 className="font-medium text-sm">Náhľad šablóny (PDF)</h3>
+                      {templateForm.loadedCategoryId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            window.open(`/api/contracts/categories/${templateForm.loadedCategoryId}/templates/${templateForm.countryCode}/download`, '_blank');
+                          }}
+                          data-testid="button-download-docx-dialog"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          DOCX
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex-1 bg-muted/20 overflow-hidden">
+                      {templatePreviewPdfUrl ? (
+                        <object
+                          key={templatePreviewPdfUrl}
+                          data={templatePreviewPdfUrl}
+                          type="application/pdf"
+                          className="w-full h-full"
+                        >
+                          <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <p>PDF náhľad nie je dostupný</p>
+                          </div>
+                        </object>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                          <p>Načítajte šablónu pre zobrazenie náhľadu</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col overflow-hidden border rounded-md">
+                    <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
+                      <h3 className="font-medium text-sm">
+                        Mapovanie premenných ({templateForm.extractedFields.length})
+                      </h3>
+                      <Button
+                        size="sm"
+                        onClick={handleAiMapping}
+                        disabled={aiMappingInProgress || templateForm.extractedFields.length === 0}
+                        data-testid="button-ai-mapping"
+                      >
+                        {aiMappingInProgress ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            AI mapuje...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-1" />
+                            AI Mapovanie
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <ScrollArea className="flex-1">
+                      <div className="p-2 space-y-2">
+                        {templateForm.extractedFields.length === 0 ? (
+                          <div className="text-center text-muted-foreground p-4">
+                            <p className="text-sm">Žiadne premenné v šablóne</p>
+                          </div>
+                        ) : (
+                          templateForm.extractedFields.map((field: any) => {
+                            const fieldName = typeof field === 'string' ? field : field.name;
+                            const mappedTo = templateForm.placeholderMappings[fieldName];
+                            return (
+                              <div key={fieldName} className="p-2 border rounded-md bg-background">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="secondary" className="font-mono text-xs">
+                                    {`{{${fieldName}}}`}
+                                  </Badge>
+                                  {mappedTo && (
+                                    <>
+                                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                      <Badge variant="default" className="font-mono text-xs">
+                                        {mappedTo}
+                                      </Badge>
+                                    </>
+                                  )}
+                                </div>
+                                <Select
+                                  value={mappedTo || ""}
+                                  onValueChange={(value) => {
+                                    setTemplateForm(prev => ({
+                                      ...prev,
+                                      placeholderMappings: {
+                                        ...prev.placeholderMappings,
+                                        [fieldName]: value
+                                      }
+                                    }));
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs" data-testid={`select-mapping-${fieldName}`}>
+                                    <SelectValue placeholder="Vybrať CRM pole..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">-- Bez mapovania --</SelectItem>
+                                    <SelectItem value="firstName">Meno</SelectItem>
+                                    <SelectItem value="lastName">Priezvisko</SelectItem>
+                                    <SelectItem value="email">Email</SelectItem>
+                                    <SelectItem value="phone">Telefón</SelectItem>
+                                    <SelectItem value="birthDate">Dátum narodenia</SelectItem>
+                                    <SelectItem value="personalId">Rodné číslo</SelectItem>
+                                    <SelectItem value="idNumber">Číslo OP</SelectItem>
+                                    <SelectItem value="street">Ulica</SelectItem>
+                                    <SelectItem value="city">Mesto</SelectItem>
+                                    <SelectItem value="postalCode">PSČ</SelectItem>
+                                    <SelectItem value="country">Krajina</SelectItem>
+                                    <SelectItem value="companyName">Názov firmy</SelectItem>
+                                    <SelectItem value="companyId">IČO</SelectItem>
+                                    <SelectItem value="vatId">DIČ</SelectItem>
+                                    <SelectItem value="bankAccount">Bankový účet</SelectItem>
+                                    <SelectItem value="contractNumber">Číslo zmluvy</SelectItem>
+                                    <SelectItem value="contractDate">Dátum zmluvy</SelectItem>
+                                    <SelectItem value="todayDate">Dnešný dátum</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
-          <DialogFooter className="pt-4 border-t">
+          <DialogFooter className="pt-4 border-t gap-2 shrink-0">
             <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
               Zrušiť
             </Button>
             <Button 
               onClick={handleSaveTemplate}
-              disabled={!templateForm.name || createTemplateMutation.isPending || updateTemplateMutation.isPending}
+              disabled={!templateForm.name || !templateForm.loadedFromCategory || createTemplateMutation.isPending || updateTemplateMutation.isPending}
               data-testid="button-save-template"
             >
-              {createTemplateMutation.isPending || updateTemplateMutation.isPending ? "Ukladám..." : "Uložiť"}
+              {createTemplateMutation.isPending || updateTemplateMutation.isPending ? "Ukladám..." : "Uložiť šablónu"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2175,26 +2490,15 @@ export default function ContractsPage() {
                                 <Badge variant="destructive" className="text-xs">Chyba</Badge>
                               )}
                               {hasTemplate && !isConverting && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
-                                    data-testid={`button-edit-template-${country.code}`}
-                                    title="Upraviť mapovanie"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handlePreviewTemplate(selectedCategory.id, country.code)}
-                                    data-testid={`button-preview-template-${country.code}`}
-                                    title="Náhľad"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
+                                  data-testid={`button-edit-template-${country.code}`}
+                                  title="Upraviť mapovanie"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
                               )}
                               {!hasTemplate && !isConverting && !uploadState?.uploaded && (
                                 <Badge variant="secondary" className="text-xs">Bez šablóny</Badge>

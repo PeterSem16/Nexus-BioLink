@@ -190,7 +190,7 @@ async function extractPdfText(filePath: string): Promise<string> {
 }
 
 // Convert PDF pages to PNG images using pdftoppm (poppler-utils)
-async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promise<string[]> {
+async function convertPdfToImages(pdfPath: string, maxPages: number = 5): Promise<string[]> {
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
@@ -200,9 +200,9 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
   const outputPrefix = path.join(outputDir, `${baseName}-page`);
   
   try {
-    // Convert PDF to JPEG images with lower resolution for faster processing
-    // -jpeg for smaller file sizes, -r 100 for reasonable quality, -l limits pages
-    await execAsync(`pdftoppm -jpeg -r 100 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
+    // Convert PDF to JPEG images - higher resolution (150 DPI) for better text recognition
+    // -jpeg for smaller file sizes, -r 150 for good quality, -l limits pages
+    await execAsync(`pdftoppm -jpeg -r 150 -l ${maxPages} "${pdfPath}" "${outputPrefix}"`);
     
     // Find all generated image files
     const files = fs.readdirSync(outputDir);
@@ -212,7 +212,7 @@ async function convertPdfToImages(pdfPath: string, maxPages: number = 3): Promis
       .slice(0, maxPages)
       .map(f => path.join(outputDir, f));
     
-    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages)`);
+    console.log(`[PDF Conversion] Generated ${imageFiles.length} images from PDF (max ${maxPages} pages, 150 DPI)`);
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion failed:", error);
@@ -6793,9 +6793,9 @@ export async function registerRoutes(
       // Check if template already exists for this category and country
       const existing = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
       
-      // Convert PDF pages to images for Vision analysis (limit to 3 pages for speed)
+      // Convert PDF pages to images for Vision analysis (limit to 5 pages for better coverage)
       console.log(`[PDF Conversion] Converting PDF to images: ${req.file.path}`);
-      const imagePaths = await convertPdfToImages(req.file.path, 3);
+      const imagePaths = await convertPdfToImages(req.file.path, 5);
       
       if (imagePaths.length === 0) {
         return res.status(500).json({ error: "Failed to convert PDF to images. Make sure the PDF is valid." });
@@ -6824,47 +6824,62 @@ export async function registerRoutes(
           messages: [
             {
               role: "system",
-              content: `You are an expert at converting PDF documents to HTML while preserving the EXACT visual layout, formatting, and structure.
+              content: `You are an expert at converting PDF contract documents to HTML templates. Your task is to extract and convert ALL content from the PDF images to HTML.
 
-CRITICAL: You MUST replicate the visual appearance of the PDF pages shown in the images as closely as possible.
+CRITICAL REQUIREMENTS:
+1. Extract EVERY SINGLE piece of text from the PDF - do not skip anything
+2. Preserve the EXACT visual layout, formatting, and structure
+3. Include ALL paragraphs, sections, terms, and conditions - even long legal text
+4. Keep ALL text in its original language (Slovak, Czech, Hungarian, etc.) - do NOT translate
 
-Your task is to create HTML that EXACTLY matches the original PDF layout including:
-- EXACT text content as it appears in the images
-- Headers and footers in their exact positions
-- Columns and tables with exact structure
-- Margins and spacing matching the original
-- Font styles (bold, italic, underline) as shown
-- Text alignment (left, center, right, justified)
-- Lists and numbering exactly as displayed
-- Signatures and signature lines in their positions
-- Logo/image placeholders where images appear
-- Any boxes, borders, or visual elements
+CONTENT TO EXTRACT:
+- ALL text content including headers, paragraphs, bullet points, numbered lists
+- ALL tables with their complete content
+- ALL terms and conditions - every single paragraph
+- ALL legal text and fine print
+- Headers and footers
+- Signature blocks and lines
+- Company logos/images (as placeholders)
 
-Use CSS inline styles to preserve the layout. Use tables for columnar layouts.
-For images/logos use: <div class="image-placeholder" style="width:XXpx;height:XXpx;border:1px dashed #ccc;"></div>
+HTML STRUCTURE:
+- Use inline CSS styles for layout
+- Use HTML tables for columnar layouts  
+- Width should be 816px (A4 paper width at 96dpi)
+- Use font-family: "Times New Roman", Georgia, serif
+- Use font-size: 12px as base
+
+PLACEHOLDERS FOR DYNAMIC CONTENT:
+For images/logos: <div class="image-placeholder" style="width:100px;height:100px;border:1px dashed #ccc;"></div>
 For signature lines: <div class="signature-line" style="border-bottom:1px solid #000;width:200px;margin-top:30px;"></div>
 
-The HTML should be a contract template with Handlebars placeholders.
-Replace dynamic content with placeholders:
-- Client info -> {{client.fullName}}, {{client.address}}, {{client.birthDate}}, {{client.email}}, {{client.phone}}
-- Father info -> {{father.fullName}}, {{father.birthDate}}, {{father.address}}
-- Contract info -> {{contract.number}}, {{contract.date}}, {{contract.effectiveDate}}
-- Company info -> {{company.name}}, {{company.address}}, {{company.vatNumber}}, {{company.email}}
-- Product info -> {{product.name}}, {{product.price}}, {{product.description}}
-- Payment -> {{payment.total}}, {{payment.dueDate}}, {{payment.method}}
+Replace ONLY variable data with Handlebars placeholders:
+- Client: {{client.fullName}}, {{client.address}}, {{client.birthDate}}, {{client.email}}, {{client.phone}}, {{client.idNumber}}
+- Father: {{father.fullName}}, {{father.birthDate}}, {{father.address}}, {{father.idNumber}}
+- Mother: {{mother.fullName}}, {{mother.birthDate}}, {{mother.address}}
+- Contract: {{contract.number}}, {{contract.date}}, {{contract.effectiveDate}}
+- Company: {{company.name}}, {{company.address}}, {{company.vatNumber}}, {{company.email}}, {{company.phone}}
+- Product: {{product.name}}, {{product.price}}, {{product.description}}
+- Payment: {{payment.total}}, {{payment.dueDate}}, {{payment.method}}
+- Signatures: {{signatures.client.date}}, {{signatures.company.name}}, {{signatures.company.title}}
 
-PRESERVE all static text (terms, conditions, legal text) exactly as shown in Slovak/Czech/Hungarian or whatever language appears.
+KEEP ALL STATIC TEXT EXACTLY AS SHOWN - including all terms, conditions, legal paragraphs in the original language.
 
-Output ONLY the HTML code, no explanations. Start with <div class="contract-template" style="..."> and end with </div>.`
+Output ONLY clean HTML code. Start with <div class="contract-template" style="width:816px;margin:0 auto;"> and end with </div>.
+Do NOT wrap in markdown code blocks.`
             },
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: `Look at these PDF page images and convert them to HTML that EXACTLY replicates the visual layout and content. 
-This is a contract document - preserve all text exactly as shown, including any Slovak/Czech language text.
-Replace only clearly variable fields (names, dates, addresses, amounts) with Handlebars placeholders.
+                  text: `Convert these PDF page images to HTML. This is a contract document.
+
+IMPORTANT:
+1. Extract and include EVERY piece of text you see - do not summarize or skip any content
+2. Keep all text in the original language exactly as shown
+3. Include all paragraphs, terms, conditions, legal text
+4. Replace only variable data (specific names, dates, addresses) with Handlebars placeholders
+5. Keep all static/legal text exactly as written
 
 ${pdfText.length > 0 ? `Additional extracted text for reference:\n${pdfText.substring(0, 2000)}` : "No text could be extracted - rely on the images."}`
                 },
@@ -6872,7 +6887,7 @@ ${pdfText.length > 0 ? `Additional extracted text for reference:\n${pdfText.subs
               ]
             }
           ],
-          max_completion_tokens: 16384,
+          max_completion_tokens: 32768,
         });
         
         const elapsed = Date.now() - startTime;

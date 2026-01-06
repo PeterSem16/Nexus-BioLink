@@ -2608,7 +2608,14 @@ export type InflationRate = typeof inflationRates.$inferSelect;
 export const contractCategories = pgTable("contract_categories", {
   id: serial("id").primaryKey(),
   value: varchar("value", { length: 50 }).notNull().unique(), // e.g., "general", "cord_blood"
-  label: text("label").notNull(), // Display label e.g., "Všeobecná zmluva"
+  label: text("label").notNull(), // Default display label e.g., "Všeobecná zmluva"
+  labelSk: text("label_sk"), // Slovak
+  labelCz: text("label_cz"), // Czech
+  labelHu: text("label_hu"), // Hungarian
+  labelRo: text("label_ro"), // Romanian
+  labelIt: text("label_it"), // Italian
+  labelDe: text("label_de"), // German
+  labelUs: text("label_us"), // English (US)
   description: text("description"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

@@ -34,10 +34,40 @@ export function SuperDocEditor({
   const [isAiInserting, setIsAiInserting] = useState(false);
   const [extractedVariables, setExtractedVariables] = useState<string[]>([]);
   const [docxBlobUrl, setDocxBlobUrl] = useState<string | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
+  const [htmlContent, setHtmlContent] = useState<string>("");
   const { toast } = useToast();
+
+  const loadHtmlFallback = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx-html`,
+        { credentials: "include" }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setHtmlContent(data.html || "");
+      }
+    } catch (error) {
+      console.error("Error loading HTML fallback:", error);
+    }
+  }, [categoryId, countryCode]);
 
   const loadDocument = useCallback(async () => {
     setIsLoading(true);
+    
+    const isCrossOriginIsolated = (self as any).crossOriginIsolated === true;
+    console.log("Cross-origin isolated:", isCrossOriginIsolated);
+    
+    if (!isCrossOriginIsolated) {
+      console.log("Environment not cross-origin isolated, using HTML fallback");
+      setUseFallback(true);
+      await loadHtmlFallback();
+      await extractVariablesFromDocument();
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       const response = await fetch(
         `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx`,
@@ -89,23 +119,24 @@ export function SuperDocEditor({
         setTimeout(() => {
           setIsLoading(prev => {
             if (prev) {
-              console.log("SuperDoc timeout - forcing loading state off");
+              console.log("SuperDoc timeout - falling back to HTML editor");
+              setUseFallback(true);
+              loadHtmlFallback();
+              extractVariablesFromDocument();
               return false;
             }
             return prev;
           });
-        }, 10000);
+        }, 8000);
       }
     } catch (error: any) {
       console.error("Error loading document:", error);
-      toast({
-        title: "Chyba pri načítaní",
-        description: error.message,
-        variant: "destructive",
-      });
+      setUseFallback(true);
+      await loadHtmlFallback();
+      await extractVariablesFromDocument();
       setIsLoading(false);
     }
-  }, [categoryId, countryCode, toast]);
+  }, [categoryId, countryCode, toast, loadHtmlFallback, extractVariablesFromDocument]);
 
   const extractVariablesFromDocument = useCallback(async () => {
     try {
@@ -342,15 +373,33 @@ export function SuperDocEditor({
         </div>
       </div>
 
-      <div id="superdoc-toolbar" ref={toolbarRef} className="superdoc-toolbar shrink-0" />
+      {!useFallback && (
+        <div id="superdoc-toolbar" ref={toolbarRef} className="superdoc-toolbar shrink-0" />
+      )}
 
       <div className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900">
-        <div
-          id="superdoc-container"
-          ref={containerRef}
-          className="superdoc-container"
-          style={{ minHeight: "700px", height: "100%" }}
-        />
+        {useFallback ? (
+          <div className="p-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 mb-4">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                SuperDoc editor nie je dostupný v tomto prostredí (vyžaduje cross-origin izoláciu). 
+                Používa sa HTML náhľad - pre plnú editáciu otvorte aplikáciu v samostatnom okne.
+              </p>
+            </div>
+            <div 
+              className="bg-white dark:bg-gray-800 p-6 rounded-md shadow-sm prose dark:prose-invert max-w-none"
+              style={{ minHeight: "600px" }}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+          </div>
+        ) : (
+          <div
+            id="superdoc-container"
+            ref={containerRef}
+            className="superdoc-container"
+            style={{ minHeight: "700px", height: "100%" }}
+          />
+        )}
       </div>
 
       <Dialog open={isVariableBrowserOpen} onOpenChange={setIsVariableBrowserOpen}>

@@ -638,6 +638,7 @@ export default function ContractsPage() {
   const [isTemplateEditorLoading, setIsTemplateEditorLoading] = useState(false);
   const [isAiInsertingPlaceholders, setIsAiInsertingPlaceholders] = useState(false);
   const [isEditorMaximized, setIsEditorMaximized] = useState(false);
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const [editorFontSize, setEditorFontSize] = useState(14);
   const [variableStyle, setVariableStyle] = useState<"bold" | "highlight" | "brackets">("brackets");
   const [isResettingTemplate, setIsResettingTemplate] = useState(false);
@@ -2265,6 +2266,16 @@ export default function ContractsPage() {
                           <Eye className="h-4 w-4 mr-1" />
                           Náhľad
                         </Button>
+                        <Button
+                          size="sm"
+                          variant={isHistoryPanelOpen ? "default" : "outline"}
+                          onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)}
+                          disabled={!templateForm.loadedCategoryId}
+                          data-testid="button-toggle-history"
+                        >
+                          <History className="h-4 w-4 mr-1" />
+                          História
+                        </Button>
                       </div>
                     </div>
                     <div className={`flex-1 overflow-auto p-2 ${isEditorMaximized ? 'min-h-[500px]' : ''}`}>
@@ -2307,6 +2318,31 @@ export default function ContractsPage() {
                   
                   {!isEditorMaximized && (
                   <div className="flex flex-col overflow-hidden border rounded-md">
+                    {isHistoryPanelOpen && templateForm.loadedCategoryId ? (
+                      <>
+                        <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
+                          <h3 className="font-medium text-sm flex items-center gap-2">
+                            <History className="h-4 w-4" />
+                            História verzií
+                          </h3>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsHistoryPanelOpen(false)}
+                            data-testid="button-close-history"
+                          >
+                            Späť na mapovanie
+                          </Button>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <VersionHistoryPanel
+                            categoryId={templateForm.loadedCategoryId}
+                            countryCode={templateForm.countryCode}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                    <>
                     <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
                       <h3 className="font-medium text-sm">
                         Mapovanie premenných ({templateForm.extractedFields.length})
@@ -2478,6 +2514,8 @@ export default function ContractsPage() {
                         )}
                       </div>
                     </ScrollArea>
+                    </>
+                    )}
                   </div>
                   )}
                 </div>

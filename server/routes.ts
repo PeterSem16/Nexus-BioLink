@@ -8401,6 +8401,85 @@ Odpovedz v JSON formáte:
     }
   });
   
+  // Get DOCX preview as full HTML page for iframe display
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/preview-pdf", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).send("<html><body><p>Šablóna nebola nájdená</p></body></html>");
+      }
+      
+      if (!template.sourceDocxPath) {
+        return res.status(404).send("<html><body><p>DOCX šablóna nebola nájdená</p></body></html>");
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).send("<html><body><p>DOCX súbor nebol nájdený</p></body></html>");
+      }
+      
+      // Convert DOCX to HTML using mammoth
+      const result = await mammoth.convertToHtml({ path: fullPath }, {
+        styleMap: [
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Heading 3'] => h3:fresh",
+          "b => strong",
+          "i => em",
+          "u => u"
+        ]
+      });
+      
+      let html = result.value;
+      
+      // Highlight placeholders
+      html = html.replace(/\{\{([^}]+)\}\}/g, '<span style="background: #fff3cd; padding: 2px 4px; border-radius: 3px; font-weight: bold; color: #856404;">{{$1}}</span>');
+      
+      // Return full HTML page
+      const fullPage = `<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Náhľad dokumentu</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Times New Roman', serif; 
+      line-height: 1.6; 
+      padding: 40px; 
+      max-width: 800px; 
+      margin: 0 auto;
+      background: white;
+      color: #333;
+    }
+    p { margin: 0.5em 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    td, th { border: 1px solid #ddd; padding: 8px; }
+    h1 { font-size: 1.5em; font-weight: bold; margin: 1em 0 0.5em; }
+    h2 { font-size: 1.3em; font-weight: bold; margin: 1em 0 0.5em; }
+    h3 { font-size: 1.1em; font-weight: bold; margin: 1em 0 0.5em; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  ${html}
+</body>
+</html>`;
+      
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(fullPage);
+    } catch (error) {
+      console.error("Error generating preview:", error);
+      res.status(500).send("<html><body><p>Chyba pri generovaní náhľadu</p></body></html>");
+    }
+  });
+  
   // Get raw DOCX file for SuperDoc editor
   app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/docx", requireAuth, async (req, res) => {
     try {

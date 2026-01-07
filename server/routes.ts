@@ -8219,6 +8219,77 @@ Odpovedz v JSON formáte:
     }
   });
   
+  // Update DOCX from HTML content (converts HTML to DOCX format)
+  app.post("/api/contracts/categories/:categoryId/default-templates/:countryCode/update-html", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      const { html } = req.body;
+      
+      if (!html) {
+        return res.status(400).json({ error: "HTML is required" });
+      }
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template || !template.sourceDocxPath) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      // Use html-to-docx library for proper conversion
+      const htmlToDocx = (await import("html-to-docx")).default;
+      
+      // Wrap HTML in proper document structure
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; }
+            p { margin: 0.5em 0; }
+            h1 { font-size: 18pt; font-weight: bold; }
+            h2 { font-size: 16pt; font-weight: bold; }
+            h3 { font-size: 14pt; font-weight: bold; }
+          </style>
+        </head>
+        <body>${html}</body>
+        </html>
+      `;
+      
+      // Convert HTML to DOCX buffer
+      const docxBuffer = await htmlToDocx(fullHtml, null, {
+        table: { row: { cantSplit: true } },
+        footer: false,
+        pageNumber: false
+      });
+      
+      // Write the DOCX file
+      fs.writeFileSync(fullPath, Buffer.from(docxBuffer));
+      
+      // Find placeholders in HTML
+      const placeholderRegex = /\{\{([^}]+)\}\}/g;
+      const foundPlaceholders: string[] = [];
+      let match;
+      while ((match = placeholderRegex.exec(html)) !== null) {
+        if (!foundPlaceholders.includes(match[1])) {
+          foundPlaceholders.push(match[1]);
+        }
+      }
+      
+      res.json({
+        success: true,
+        extractedFields: foundPlaceholders,
+        sourceDocxPath: template.sourceDocxPath
+      });
+    } catch (error) {
+      console.error("Error updating DOCX from HTML:", error);
+      res.status(500).json({ error: "Failed to update from HTML" });
+    }
+  });
+  
   // Get DOCX as formatted HTML using mammoth (preserves styling)
   app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/docx-html", requireAuth, async (req, res) => {
     try {

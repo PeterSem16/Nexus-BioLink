@@ -49,6 +49,7 @@ import type {
 import { ContractTemplateEditor, DEFAULT_CONTRACT_TEMPLATE } from "@/components/contract-template-editor";
 import { DocxEditor } from "@/components/docx-editor";
 import { VariableBrowser } from "@/components/variable-browser";
+import { DefaultEditor, BtnBold, BtnItalic, BtnUnderline, BtnNumberedList, BtnBulletList, Separator as EditorSeparator, Toolbar, Editor, BtnStyles } from "react-simple-wysiwyg";
 
 type TabType = "templates" | "contracts";
 type TemplateSubTab = "list" | "categories";
@@ -1054,17 +1055,17 @@ export default function ContractsPage() {
       
       setTemplatePreviewPdfUrl(`/api/contracts/categories/${category.id}/default-templates/${templateForm.countryCode}/preview?t=${Date.now()}`);
       
-      // Load text content for editing
+      // Load HTML content for WYSIWYG editing
       try {
-        const textResponse = await fetch(`/api/contracts/categories/${category.id}/default-templates/${templateForm.countryCode}/text`, {
+        const htmlResponse = await fetch(`/api/contracts/categories/${category.id}/default-templates/${templateForm.countryCode}/docx-html`, {
           credentials: "include"
         });
-        if (textResponse.ok) {
-          const textData = await textResponse.json();
-          setTemplateForm(prev => ({ ...prev, contentHtml: textData.text || "" }));
+        if (htmlResponse.ok) {
+          const htmlData = await htmlResponse.json();
+          setTemplateForm(prev => ({ ...prev, contentHtml: htmlData.rawHtml || htmlData.html || "" }));
         }
-      } catch (textError) {
-        console.error("Error loading text:", textError);
+      } catch (htmlError) {
+        console.error("Error loading HTML:", htmlError);
       }
       
       toast({ title: "Šablóna načítaná", description: `Načítaná DOCX šablóna z kategórie "${category.label}"` });
@@ -2000,16 +2001,16 @@ export default function ContractsPage() {
                           onClick={async () => {
                             if (!templateForm.loadedCategoryId) return;
                             try {
-                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/text`, {
+                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/docx-html`, {
                                 credentials: "include"
                               });
                               if (response.ok) {
                                 const data = await response.json();
-                                setTemplateForm(prev => ({ ...prev, contentHtml: data.text || "" }));
-                                toast({ title: "Text načítaný" });
+                                setTemplateForm(prev => ({ ...prev, contentHtml: data.rawHtml || data.html || "" }));
+                                toast({ title: "HTML načítané" });
                               }
                             } catch (error) {
-                              toast({ title: "Chyba pri načítaní textu", variant: "destructive" });
+                              toast({ title: "Chyba pri načítaní", variant: "destructive" });
                             }
                           }}
                           data-testid="button-load-text"
@@ -2022,11 +2023,11 @@ export default function ContractsPage() {
                           onClick={async () => {
                             if (!templateForm.loadedCategoryId || !templateForm.contentHtml) return;
                             try {
-                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/update-text`, {
+                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/update-html`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 credentials: "include",
-                                body: JSON.stringify({ text: templateForm.contentHtml })
+                                body: JSON.stringify({ html: templateForm.contentHtml })
                               });
                               if (response.ok) {
                                 const data = await response.json();
@@ -2036,7 +2037,9 @@ export default function ContractsPage() {
                                   sourceDocxPath: data.sourceDocxPath || prev.sourceDocxPath
                                 }));
                                 setTemplatePreviewPdfUrl(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/preview?t=${Date.now()}`);
-                                toast({ title: "Dokument uložený", description: `Nájdených ${data.extractedFields?.length || 0} premenných` });
+                                toast({ title: "HTML uložené do DOCX", description: `Nájdených ${data.extractedFields?.length || 0} premenných` });
+                              } else {
+                                throw new Error("Save failed");
                               }
                             } catch (error) {
                               toast({ title: "Chyba pri ukladaní", variant: "destructive" });
@@ -2065,56 +2068,94 @@ export default function ContractsPage() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={async () => {
-                            if (templateForm.loadedCategoryId) {
-                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/docx-html?withSampleData=true`, {
-                                credentials: "include"
-                              });
-                              if (response.ok) {
-                                const data = await response.json();
-                                const newWindow = window.open('', '_blank');
-                                if (newWindow) {
-                                  newWindow.document.write(`
-                                    <!DOCTYPE html>
-                                    <html>
-                                    <head>
-                                      <title>Náhľad so vzorovými dátami</title>
-                                      <style>
-                                        body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-                                        .sample-value { background: #d4edda; padding: 2px 4px; border-radius: 3px; color: #155724; }
-                                      </style>
-                                    </head>
-                                    <body>${data.html}</body>
-                                    </html>
-                                  `);
-                                  newWindow.document.close();
-                                }
-                              }
+                          onClick={() => {
+                            const html = templateForm.contentHtml || "";
+                            const sampleData: Record<string, string> = {
+                              "customer.fullName": "Ján Novák",
+                              "customer.firstName": "Ján",
+                              "customer.lastName": "Novák",
+                              "customer.email": "jan.novak@email.sk",
+                              "customer.phone": "+421 900 123 456",
+                              "customer.birthDate": "15.03.1985",
+                              "customer.personalId": "850315/1234",
+                              "customer.street": "Hlavná 123",
+                              "customer.city": "Bratislava",
+                              "customer.postalCode": "81101",
+                              "father.fullName": "Peter Novák",
+                              "mother.fullName": "Mária Nováková",
+                              "child.fullName": "Adam Novák",
+                              "contract.number": "2024-SK-001234",
+                              "contract.date": "07.01.2026",
+                              "system.todayDate": new Date().toLocaleDateString("sk-SK")
+                            };
+                            let previewHtml = html;
+                            for (const [key, value] of Object.entries(sampleData)) {
+                              const regex = new RegExp(`\\{\\{${key.replace(/\./g, "\\.")}\\}\\}`, "g");
+                              previewHtml = previewHtml.replace(regex, `<span style="background:#d4edda;padding:2px 4px;border-radius:3px;color:#155724;">${value}</span>`);
+                            }
+                            previewHtml = previewHtml.replace(/\{\{([^}]+)\}\}/g, '<span style="background:#fff3cd;padding:2px 4px;border-radius:3px;color:#856404;">[$1]</span>');
+                            const newWindow = window.open('', '_blank');
+                            if (newWindow) {
+                              newWindow.document.write(`
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                  <title>Živý náhľad so vzorovými dátami</title>
+                                  <style>
+                                    body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+                                    p { margin: 0.5em 0; }
+                                    h1, h2, h3 { font-weight: bold; margin: 1em 0 0.5em; }
+                                  </style>
+                                </head>
+                                <body>${previewHtml}</body>
+                                </html>
+                              `);
+                              newWindow.document.close();
                             }
                           }}
-                          disabled={!templateForm.loadedCategoryId}
+                          disabled={!templateForm.contentHtml}
                           data-testid="button-preview-sample-data"
                         >
                           <Eye className="h-4 w-4 mr-1" />
-                          S dátami
+                          Živý náhľad
                         </Button>
                       </div>
                     </div>
-                    <div className={`flex-1 overflow-hidden p-2 ${isEditorMaximized ? 'min-h-[400px]' : ''}`}>
-                      <textarea
-                        id="template-text-editor"
-                        className="w-full h-full resize-none border rounded-md p-3 font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                        style={{ fontSize: `${editorFontSize}px` }}
+                    <div className={`flex-1 overflow-auto p-2 ${isEditorMaximized ? 'min-h-[500px]' : ''}`}>
+                      <style>{`
+                        .rsw-editor { min-height: 300px; height: 100%; font-family: 'Times New Roman', serif; }
+                        .rsw-editor .rsw-ce { padding: 16px; font-size: ${editorFontSize}px; line-height: 1.6; }
+                        .rsw-editor .rsw-ce p { margin: 0.5em 0; }
+                        .rsw-editor .rsw-ce h1, .rsw-editor .rsw-ce h2, .rsw-editor .rsw-ce h3 { font-weight: bold; margin: 1em 0 0.5em; }
+                        .rsw-editor .placeholder { background: #fff3cd; padding: 2px 4px; border-radius: 3px; font-weight: bold; color: #856404; }
+                      `}</style>
+                      <DefaultEditor
                         value={templateForm.contentHtml || ""}
                         onChange={(e) => setTemplateForm(prev => ({ ...prev, contentHtml: e.target.value }))}
-                        placeholder="Kliknite na 'Načítať' pre načítanie textu dokumentu, potom vkladajte premenné kliknutím na ne vľavo..."
-                        data-testid="textarea-template-editor"
+                        data-testid="wysiwyg-template-editor"
                       />
                     </div>
-                    <div className="p-2 border-t bg-muted/30 shrink-0">
+                    <div className="p-2 border-t bg-muted/30 shrink-0 flex items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">
-                        Kliknite do textu a potom na premennú vľavo pre vloženie. Premenné: {"{{nazov}}"}
+                        WYSIWYG editor - formátovanie sa zachová. Premenné: {"{{nazov}}"}
                       </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const selection = window.getSelection();
+                          if (selection && selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            const span = document.createElement('span');
+                            span.className = 'placeholder';
+                            span.textContent = '{{...}}';
+                            range.insertNode(span);
+                          }
+                        }}
+                        data-testid="button-insert-placeholder"
+                      >
+                        Vložiť {"{{...}}"}
+                      </Button>
                     </div>
                   </div>
                   

@@ -30,6 +30,7 @@ export function DocxEditor({ categoryId, countryCode, onClose, onSave }: DocxEdi
   const [extractedFields, setExtractedFields] = useState<string[]>([]);
   const [placeholderMappings, setPlaceholderMappings] = useState<Record<string, string>>({});
   const [sampleData, setSampleData] = useState<Record<string, string>>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   const [insertDialogOpen, setInsertDialogOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -39,6 +40,7 @@ export function DocxEditor({ categoryId, countryCode, onClose, onSave }: DocxEdi
   const loadHtmlContent = async () => {
     console.log("[DocxEditor] Loading HTML content...");
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch(
         `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx-html?withSampleData=${showSampleData}`,
@@ -77,6 +79,7 @@ export function DocxEditor({ categoryId, countryCode, onClose, onSave }: DocxEdi
       console.log("[DocxEditor] State updated successfully");
     } catch (error) {
       console.error("Error loading DOCX:", error);
+      setLoadError((error as Error).message);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať obsah dokumentu",
@@ -90,6 +93,18 @@ export function DocxEditor({ categoryId, countryCode, onClose, onSave }: DocxEdi
   useEffect(() => {
     loadHtmlContent();
   }, [categoryId, countryCode, showSampleData]);
+  
+  // Show simple error state if load failed
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-full p-8 text-center">
+        <div>
+          <p className="text-destructive font-medium mb-2">Chyba pri načítaní</p>
+          <p className="text-muted-foreground text-sm">{loadError}</p>
+        </div>
+      </div>
+    );
+  }
   
   const handleInsertPlaceholder = async () => {
     if (!searchText.trim() || !newPlaceholder.trim()) {

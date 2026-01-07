@@ -7593,6 +7593,7 @@ Odpovedz v JSON formáte:
         crmField: string;
         confidence: number;
         sectionEntity?: string;
+        lineIndex?: number;
       }> = [];
       
       for (const field of fillFieldReplacements) {
@@ -7662,7 +7663,8 @@ Odpovedz v JSON formáte:
           reason: reason,
           crmField: placeholder,
           confidence: confidence,
-          sectionEntity: sectionEntity || undefined
+          sectionEntity: sectionEntity || undefined,
+          lineIndex: field.lineIndex
         });
       }
       

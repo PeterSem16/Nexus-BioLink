@@ -172,6 +172,23 @@ const uploadContractPdf = multer({
   },
 });
 
+// Configure multer for SuperDoc DOCX uploads (memory storage for direct buffer access)
+const uploadDocxMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for large documents
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/octet-stream", // SuperDoc may send as binary
+    ];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.endsWith('.docx')) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only DOCX files are allowed."));
+    }
+  },
+});
+
 // Helper function to convert date strings to Date objects
 function parseDateFields(data: Record<string, any>): Record<string, any> {
   const result = { ...data };
@@ -8381,6 +8398,187 @@ Odpovedz v JSON formáte:
     } catch (error) {
       console.error("Error converting DOCX to HTML:", error);
       res.status(500).json({ error: "Failed to convert DOCX to HTML" });
+    }
+  });
+  
+  // Get raw DOCX file for SuperDoc editor
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/docx", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      if (!template.sourceDocxPath) {
+        return res.status(404).json({ error: "DOCX template not found" });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "DOCX file not found" });
+      }
+      
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="template_${countryCode}.docx"`);
+      res.sendFile(fullPath);
+    } catch (error) {
+      console.error("Error serving DOCX:", error);
+      res.status(500).json({ error: "Failed to serve DOCX file" });
+    }
+  });
+  
+  // Save DOCX file from SuperDoc editor
+  app.post("/api/contracts/categories/:categoryId/default-templates/:countryCode/save-docx", requireAuth, uploadDocxMemory.single("file"), async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Create backup of existing file
+      if (template.sourceDocxPath) {
+        const oldPath = path.join(process.cwd(), template.sourceDocxPath);
+        if (fs.existsSync(oldPath)) {
+          const backupDir = path.join(process.cwd(), "uploads", "contract-templates", `${categoryId}`, countryCode, "backups");
+          await fs.promises.mkdir(backupDir, { recursive: true });
+          const backupPath = path.join(backupDir, `backup-${Date.now()}.docx`);
+          fs.copyFileSync(oldPath, backupPath);
+        }
+      }
+      
+      // Save DOCX from memory buffer to disk
+      const saveDir = path.join(process.cwd(), "uploads", "contract-templates", `${categoryId}`, countryCode);
+      await fs.promises.mkdir(saveDir, { recursive: true });
+      const savePath = path.join(saveDir, `template-${Date.now()}.docx`);
+      
+      // Write buffer directly to file
+      fs.writeFileSync(savePath, req.file.buffer);
+      
+      const relativePath = savePath.replace(process.cwd() + "/", "");
+      
+      // Extract placeholders - try multiple methods for SuperDoc compatibility
+      let foundPlaceholders: string[] = [];
+      const existingPlaceholders = template.extractedFields 
+        ? (typeof template.extractedFields === 'string' 
+            ? JSON.parse(template.extractedFields) 
+            : template.extractedFields)
+        : [];
+      
+      try {
+        // Method 1: mammoth extractRawText
+        const mammothResult = await mammoth.extractRawText({ path: savePath });
+        const text = mammothResult.value || "";
+        
+        const placeholderRegex = /\{\{([^}]+)\}\}/g;
+        let match;
+        while ((match = placeholderRegex.exec(text)) !== null) {
+          if (!foundPlaceholders.includes(match[1])) {
+            foundPlaceholders.push(match[1]);
+          }
+        }
+        
+        // Method 2: If mammoth found nothing, try direct XML parsing
+        if (foundPlaceholders.length === 0) {
+          console.log("[DOCX Save] Mammoth found no placeholders, trying XML parsing");
+          try {
+            const PizZip = (await import("pizzip")).default;
+            const content = fs.readFileSync(savePath);
+            const zip = new PizZip(content);
+            const docXml = zip.files["word/document.xml"]?.asText() || "";
+            
+            let xmlMatch;
+            while ((xmlMatch = placeholderRegex.exec(docXml)) !== null) {
+              if (!foundPlaceholders.includes(xmlMatch[1])) {
+                foundPlaceholders.push(xmlMatch[1]);
+              }
+            }
+          } catch (xmlError) {
+            console.warn("[DOCX Save] XML parsing also failed:", xmlError);
+          }
+        }
+        
+        // Method 3: If still no placeholders found, preserve existing ones
+        if (foundPlaceholders.length === 0 && existingPlaceholders.length > 0) {
+          console.log("[DOCX Save] No placeholders found, preserving existing:", existingPlaceholders.length);
+          foundPlaceholders = existingPlaceholders;
+        }
+        
+      } catch (extractError) {
+        console.warn("[DOCX Save] Extraction failed, preserving existing:", extractError);
+        foundPlaceholders = existingPlaceholders;
+      }
+      
+      // Update template with new path and extracted fields
+      await storage.updateCategoryDefaultTemplate(categoryId, countryCode, {
+        sourceDocxPath: relativePath,
+        extractedFields: foundPlaceholders
+      });
+      
+      res.json({
+        success: true,
+        sourceDocxPath: relativePath,
+        extractedFields: foundPlaceholders
+      });
+    } catch (error) {
+      console.error("Error saving DOCX:", error);
+      res.status(500).json({ error: "Failed to save DOCX file" });
+    }
+  });
+  
+  // Extract variables from DOCX template
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/extract-variables", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      if (!template.sourceDocxPath) {
+        return res.json({ variables: [] });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.json({ variables: [] });
+      }
+      
+      // Extract placeholders from DOCX
+      const PizZip = (await import("pizzip")).default;
+      const content = fs.readFileSync(fullPath);
+      const zip = new PizZip(content);
+      const docXml = zip.files["word/document.xml"]?.asText() || "";
+      
+      const placeholderRegex = /\{\{([^}]+)\}\}/g;
+      const foundVariables: string[] = [];
+      let match;
+      while ((match = placeholderRegex.exec(docXml)) !== null) {
+        if (!foundVariables.includes(match[1])) {
+          foundVariables.push(match[1]);
+        }
+      }
+      
+      res.json({ variables: foundVariables });
+    } catch (error) {
+      console.error("Error extracting variables:", error);
+      res.status(500).json({ error: "Failed to extract variables" });
     }
   });
   

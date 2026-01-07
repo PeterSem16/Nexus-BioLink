@@ -82,14 +82,12 @@ export function SuperDocEditor({
     setIsLoading(true);
     
     const isCrossOriginIsolated = (self as any).crossOriginIsolated === true;
-    const isReplitEnv = window.location.hostname.includes('replit') || 
-                        window.location.hostname.includes('worf.replit.dev') ||
-                        window.self !== window.top;
+    const isInIframe = window.self !== window.top;
     
-    console.log("Cross-origin isolated:", isCrossOriginIsolated, "Replit env:", isReplitEnv);
+    console.log("Cross-origin isolated:", isCrossOriginIsolated, "In iframe:", isInIframe);
     
-    if (!isCrossOriginIsolated || isReplitEnv) {
-      console.log("Using HTML fallback (cross-origin isolated:", isCrossOriginIsolated, ", Replit:", isReplitEnv, ")");
+    if (!isCrossOriginIsolated || isInIframe) {
+      console.log("Using HTML fallback (cross-origin isolated:", isCrossOriginIsolated, ", iframe:", isInIframe, ")");
       setUseFallback(true);
       await loadHtmlFallback();
       await extractVariablesFromDocument();

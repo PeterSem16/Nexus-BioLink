@@ -2061,13 +2061,13 @@ export default function ContractsPage() {
                                     }
                                     
                                     toast({
-                                      title: "AI vložilo premenné",
+                                      title: "Premenné vložené",
                                       description: result.message || `Vložených ${newExtractedFields.length} premenných - mapovania boli nastavené`
                                     });
                                   } catch (error: any) {
-                                    console.error("AI insert error:", error);
+                                    console.error("Insert error:", error);
                                     toast({
-                                      title: "Chyba pri AI vkladaní",
+                                      title: "Chyba pri vkladaní",
                                       description: error.message,
                                       variant: "destructive"
                                     });
@@ -2081,12 +2081,12 @@ export default function ContractsPage() {
                                 {isAiInsertingPlaceholders ? (
                                   <>
                                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                    AI analyzuje...
+                                    Analyzujem...
                                   </>
                                 ) : (
                                   <>
                                     <Sparkles className="h-4 w-4 mr-1" />
-                                    AI vložiť premenné
+                                    Vložiť premenné automaticky
                                   </>
                                 )}
                               </Button>
@@ -4285,14 +4285,14 @@ export default function ContractsPage() {
                                     } else {
                                       toast({
                                         title: "Žiadne zmeny",
-                                        description: "AI nenašlo žiadne polia na nahradenie v dokumente",
+                                        description: "Nenašli sa žiadne polia na nahradenie v dokumente",
                                         variant: "default"
                                       });
                                     }
                                   } catch (error) {
-                                    console.error("AI insertion error:", error);
+                                    console.error("Insertion error:", error);
                                     toast({
-                                      title: "Chyba AI",
+                                      title: "Chyba",
                                       description: (error as Error).message,
                                       variant: "destructive"
                                     });
@@ -4306,12 +4306,12 @@ export default function ContractsPage() {
                                 {isAiInsertingPlaceholders ? (
                                   <>
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    AI analyzuje dokument...
+                                    Analyzujem dokument...
                                   </>
                                 ) : (
                                   <>
                                     <Sparkles className="h-4 w-4 mr-2" />
-                                    AI vložiť premenné automaticky
+                                    Vložiť premenné automaticky
                                   </>
                                 )}
                               </Button>

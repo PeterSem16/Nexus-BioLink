@@ -48,6 +48,7 @@ import type {
 } from "@shared/schema";
 import { ContractTemplateEditor, DEFAULT_CONTRACT_TEMPLATE } from "@/components/contract-template-editor";
 import { DocxEditor } from "@/components/docx-editor";
+import { VariableBrowser } from "@/components/variable-browser";
 
 type TabType = "templates" | "contracts";
 type TemplateSubTab = "list" | "categories";
@@ -1917,77 +1918,53 @@ export default function ContractsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden min-h-0">
+                <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden min-h-0">
                   <div className="flex flex-col overflow-hidden border rounded-md">
                     <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
-                      <h3 className="font-medium text-sm">Dostupné CRM polia</h3>
-                    </div>
-                    <ScrollArea className="flex-1">
-                      <div className="p-2 space-y-1">
-                        {Object.entries({
-                          firstName: "Meno",
-                          lastName: "Priezvisko",
-                          email: "Email",
-                          phone: "Telefón",
-                          birthDate: "Dátum narodenia",
-                          personalId: "Rodné číslo",
-                          idNumber: "Číslo OP",
-                          street: "Ulica",
-                          city: "Mesto",
-                          postalCode: "PSČ",
-                          country: "Krajina",
-                          companyName: "Názov firmy",
-                          companyId: "IČO",
-                          vatId: "DIČ",
-                          bankAccount: "Bankový účet",
-                          contractNumber: "Číslo zmluvy",
-                          contractDate: "Dátum zmluvy",
-                          todayDate: "Dnešný dátum"
-                        }).map(([key, label]) => (
-                          <div 
-                            key={key} 
-                            className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm"
-                          >
-                            <span className="text-muted-foreground">{label}</span>
-                            <Badge variant="outline" className="font-mono text-xs">{key}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                  
-                  <div className="flex flex-col overflow-hidden border rounded-md">
-                    <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
-                      <h3 className="font-medium text-sm">DOCX Editor</h3>
+                      <h3 className="font-medium text-sm">Globálne premenné INDEXUS</h3>
                       {templateForm.loadedCategoryId && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            window.open(`/api/contracts/categories/${templateForm.loadedCategoryId}/templates/${templateForm.countryCode}/download`, '_blank');
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/download`, {
+                                credentials: "include"
+                              });
+                              if (!response.ok) throw new Error("Download failed");
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `template_${templateForm.category}_${templateForm.countryCode}.docx`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            } catch (error) {
+                              toast({ title: "Chyba pri sťahovaní", variant: "destructive" });
+                            }
                           }}
                           data-testid="button-download-docx-dialog"
                         >
                           <Download className="h-4 w-4 mr-1" />
-                          DOCX
+                          Stiahnuť DOCX
                         </Button>
                       )}
                     </div>
                     <div className="flex-1 overflow-hidden">
-                      {templateForm.loadedCategoryId ? (
-                        <DocxEditor
-                          categoryId={templateForm.loadedCategoryId}
-                          countryCode={templateForm.countryCode}
-                          onClose={() => {}}
-                          onSave={() => {
-                            handleLoadCategoryTemplate();
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-muted-foreground">
-                          <p>Načítajte šablónu pre zobrazenie editora</p>
-                        </div>
-                      )}
+                      <VariableBrowser 
+                        onCopyVariable={(variableKey) => {
+                          navigator.clipboard.writeText(`{{${variableKey}}}`);
+                          toast({
+                            title: "Premenná skopírovaná",
+                            description: `{{${variableKey}}} bola skopírovaná do schránky. Vložte ju do DOCX súboru.`
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="p-3 border-t bg-muted/30 shrink-0">
+                      <p className="text-xs text-muted-foreground">
+                        Kliknite na premennú pre skopírovanie. Potom vložte do DOCX v MS Word a nahrajte späť do kategórie.
+                      </p>
                     </div>
                   </div>
                   
@@ -2821,11 +2798,27 @@ export default function ContractsPage() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => handleEditCategoryTemplate(selectedCategory.id, country.code)}
-                                      data-testid={`button-edit-template-${country.code}`}
-                                      title="Upraviť mapovanie"
+                                      onClick={async () => {
+                                        try {
+                                          const response = await fetch(`/api/contracts/categories/${selectedCategory.id}/default-templates/${country.code}/download`, {
+                                            credentials: "include"
+                                          });
+                                          if (!response.ok) throw new Error("Download failed");
+                                          const blob = await response.blob();
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement("a");
+                                          a.href = url;
+                                          a.download = `template_${selectedCategory.value}_${country.code}.docx`;
+                                          a.click();
+                                          URL.revokeObjectURL(url);
+                                        } catch (error) {
+                                          toast({ title: "Chyba pri sťahovaní", variant: "destructive" });
+                                        }
+                                      }}
+                                      data-testid={`button-download-template-${country.code}`}
+                                      title="Stiahnuť šablónu"
                                     >
-                                      <Edit className="h-4 w-4" />
+                                      <Download className="h-4 w-4" />
                                     </Button>
                                     <Button
                                       size="sm"
@@ -2865,75 +2858,6 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           
-                          {uploadState?.uploaded && (uploadState.extractedText || uploadState.embeddedImages?.length || uploadState.pageImages?.length) && (
-                            <div className="mt-2 p-3 bg-muted/30 rounded-md space-y-3">
-                              {uploadState.extractedText && (
-                                <div>
-                                  <p className="text-xs font-medium mb-2">Extrahovaný text (1:1 formátovanie):</p>
-                                  <div className="max-h-40 overflow-auto border rounded bg-background">
-                                    <pre className="text-[10px] font-mono p-2 whitespace-pre-wrap">{uploadState.extractedText}</pre>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {uploadState.embeddedImages && uploadState.embeddedImages.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-medium mb-2">Vložené obrázky z PDF (logá, grafiky):</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {uploadState.embeddedImages.map((img, idx) => (
-                                      <a 
-                                        key={idx}
-                                        href={img.imageUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="block w-16 h-16 border rounded overflow-hidden bg-white hover-elevate"
-                                        title={`${img.fileName} (${img.sizeKB}KB)\n${img.imageUrl}`}
-                                        data-testid={`link-embedded-${country.code}-${idx}`}
-                                      >
-                                        <img 
-                                          src={img.imageUrl} 
-                                          alt={img.fileName}
-                                          className="w-full h-full object-contain"
-                                        />
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {uploadState.pageImages && uploadState.pageImages.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-medium mb-2">Stránky PDF ako obrázky:</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {uploadState.pageImages.map((page) => (
-                                      <a 
-                                        key={page.pageNumber}
-                                        href={page.imageUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="relative block w-14 h-18 border rounded overflow-hidden bg-white hover-elevate"
-                                        title={`Strana ${page.pageNumber}\n${page.imageUrl}`}
-                                        data-testid={`link-page-${country.code}-${page.pageNumber}`}
-                                      >
-                                        <img 
-                                          src={page.imageUrl} 
-                                          alt={`Strana ${page.pageNumber}`}
-                                          className="w-full h-full object-cover object-top"
-                                        />
-                                        <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] text-center">
-                                          {page.pageNumber}
-                                        </span>
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              <p className="text-[10px] text-muted-foreground">
-                                URL pre vloženie do HTML editora: Kliknite na obrázok, skopírujte URL z prehliadača
-                              </p>
-                            </div>
-                          )}
                         </div>
                       );
                     })}

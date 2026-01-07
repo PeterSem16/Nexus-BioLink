@@ -2010,7 +2010,9 @@ export default function ContractsPage() {
                                   extractedFields: data.extractedFields || [],
                                   sourceDocxPath: data.sourceDocxPath || prev.sourceDocxPath
                                 }));
-                                toast({ title: "Dokument uložený", description: `Nájdených ${data.extractedFields?.length || 0} premenných` });
+                                // Refresh preview after saving
+                                setTemplatePreviewPdfUrl(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/preview?t=${Date.now()}`);
+                                toast({ title: "Dokument uložený", description: `Nájdených ${data.extractedFields?.length || 0} premenných. Náhľad aktualizovaný.` });
                               }
                             } catch (error) {
                               toast({ title: "Chyba pri ukladaní", variant: "destructive" });
@@ -2214,6 +2216,31 @@ export default function ContractsPage() {
                       </div>
                     </ScrollArea>
                   </div>
+                </div>
+              )}
+              
+              {templateForm.loadedFromCategory && templatePreviewPdfUrl && (
+                <div className="shrink-0 border rounded-md overflow-hidden">
+                  <div className="p-3 bg-muted/50 flex items-center justify-between gap-2">
+                    <h3 className="font-medium text-sm flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Náhľad dokumentu
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setTemplatePreviewPdfUrl(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/preview?t=${Date.now()}`)}
+                      data-testid="button-refresh-preview"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Obnoviť náhľad
+                    </Button>
+                  </div>
+                  <iframe 
+                    src={templatePreviewPdfUrl} 
+                    className="w-full h-64 border-0"
+                    title="Náhľad šablóny"
+                  />
                 </div>
               )}
             </div>

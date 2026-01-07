@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Download, Sparkles, Variable, RefreshCw } from "lucide-react";
+import { Loader2, Save, Download, Sparkles, Variable, RefreshCw, ExternalLink } from "lucide-react";
 import { VariableBrowser } from "./variable-browser";
 import {
   Dialog,
@@ -391,17 +391,31 @@ export function SuperDocEditor({
       <div className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900">
         {useFallback ? (
           <div className="p-4">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 mb-4">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                SuperDoc editor nie je dostupný v tomto prostredí (vyžaduje cross-origin izoláciu). 
-                Používa sa HTML náhľad - pre plnú editáciu otvorte aplikáciu v samostatnom okne.
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4 mb-4">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
+                SuperDoc editor vyžaduje otvorenie aplikácie v samostatnom okne (nie v iframe náhľade).
               </p>
+              <Button
+                onClick={() => window.open(window.location.href, '_blank')}
+                className="gap-2"
+                data-testid="button-open-new-tab"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Otvoriť v novom tabe pre plnú editáciu
+              </Button>
             </div>
-            <div 
-              className="bg-white dark:bg-gray-800 p-6 rounded-md shadow-sm prose dark:prose-invert max-w-none"
-              style={{ minHeight: "600px" }}
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
-            />
+            {htmlContent ? (
+              <div 
+                className="bg-white dark:bg-gray-800 p-6 rounded-md shadow-sm prose dark:prose-invert max-w-none"
+                style={{ minHeight: "600px" }}
+                dangerouslySetInnerHTML={{ __html: htmlContent }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Načítavam náhľad...
+              </div>
+            )}
           </div>
         ) : (
           <div

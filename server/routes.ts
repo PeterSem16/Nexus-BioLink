@@ -8092,6 +8092,133 @@ Odpovedz v JSON formáte:
     }
   });
   
+  // Get raw text content from DOCX for editing
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/text", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template || !template.sourceDocxPath) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "DOCX file not found" });
+      }
+      
+      // Extract text using mammoth
+      const result = await mammoth.extractRawText({ path: fullPath });
+      
+      // Find placeholders
+      const placeholderRegex = /\{\{([^}]+)\}\}/g;
+      const foundPlaceholders: string[] = [];
+      let match;
+      while ((match = placeholderRegex.exec(result.value)) !== null) {
+        if (!foundPlaceholders.includes(match[1])) {
+          foundPlaceholders.push(match[1]);
+        }
+      }
+      
+      res.json({
+        text: result.value,
+        extractedFields: foundPlaceholders
+      });
+    } catch (error) {
+      console.error("Error extracting DOCX text:", error);
+      res.status(500).json({ error: "Failed to extract text" });
+    }
+  });
+  
+  // Update DOCX with modified text (save back to file)
+  app.post("/api/contracts/categories/:categoryId/default-templates/:countryCode/update-text", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template || !template.sourceDocxPath) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "DOCX file not found" });
+      }
+      
+      // Read original DOCX
+      const PizZip = (await import("pizzip")).default;
+      const content = fs.readFileSync(fullPath);
+      const zip = new PizZip(content);
+      
+      // Get document.xml
+      const docXml = zip.files["word/document.xml"].asText();
+      
+      // Create simple replacement - find text between <w:t> tags and replace
+      // This is a simple approach - replaces the body content with the new text
+      // Split text into paragraphs
+      const paragraphs = text.split('\n');
+      
+      // Build new document XML with paragraphs
+      let newBodyContent = '';
+      for (const para of paragraphs) {
+        if (para.trim()) {
+          newBodyContent += `<w:p><w:r><w:t>${para.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</w:t></w:r></w:p>`;
+        } else {
+          newBodyContent += '<w:p><w:r><w:t></w:t></w:r></w:p>';
+        }
+      }
+      
+      // Replace body content
+      const bodyStartMatch = docXml.match(/<w:body[^>]*>/);
+      const bodyEndMatch = docXml.match(/<\/w:body>/);
+      
+      if (bodyStartMatch && bodyEndMatch) {
+        const bodyStart = docXml.indexOf(bodyStartMatch[0]) + bodyStartMatch[0].length;
+        const bodyEnd = docXml.indexOf(bodyEndMatch[0]);
+        const newDocXml = docXml.substring(0, bodyStart) + newBodyContent + docXml.substring(bodyEnd);
+        
+        // Save back to zip
+        zip.file("word/document.xml", newDocXml);
+        
+        // Write to file
+        const outputBuffer = zip.generate({ type: "nodebuffer" });
+        fs.writeFileSync(fullPath, outputBuffer);
+        
+        // Find placeholders in new text
+        const placeholderRegex = /\{\{([^}]+)\}\}/g;
+        const foundPlaceholders: string[] = [];
+        let match;
+        while ((match = placeholderRegex.exec(text)) !== null) {
+          if (!foundPlaceholders.includes(match[1])) {
+            foundPlaceholders.push(match[1]);
+          }
+        }
+        
+        res.json({
+          success: true,
+          extractedFields: foundPlaceholders,
+          sourceDocxPath: template.sourceDocxPath
+        });
+      } else {
+        res.status(500).json({ error: "Could not parse DOCX structure" });
+      }
+    } catch (error) {
+      console.error("Error updating DOCX text:", error);
+      res.status(500).json({ error: "Failed to update text" });
+    }
+  });
+  
   // Get DOCX as formatted HTML using mammoth (preserves styling)
   app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/docx-html", requireAuth, async (req, res) => {
     try {

@@ -1051,6 +1051,19 @@ export default function ContractsPage() {
       
       setTemplatePreviewPdfUrl(`/api/contracts/categories/${category.id}/default-templates/${templateForm.countryCode}/preview?t=${Date.now()}`);
       
+      // Load text content for editing
+      try {
+        const textResponse = await fetch(`/api/contracts/categories/${category.id}/default-templates/${templateForm.countryCode}/text`, {
+          credentials: "include"
+        });
+        if (textResponse.ok) {
+          const textData = await textResponse.json();
+          setTemplateForm(prev => ({ ...prev, contentHtml: textData.text || "" }));
+        }
+      } catch (textError) {
+        console.error("Error loading text:", textError);
+      }
+      
       toast({ title: "Šablóna načítaná", description: `Načítaná DOCX šablóna z kategórie "${category.label}"` });
     } catch (error) {
       console.error("Error loading category template:", error);
@@ -1918,52 +1931,112 @@ export default function ContractsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden min-h-0">
+                <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden min-h-0">
                   <div className="flex flex-col overflow-hidden border rounded-md">
                     <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
-                      <h3 className="font-medium text-sm">Globálne premenné INDEXUS</h3>
-                      {templateForm.loadedCategoryId && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/download`, {
-                                credentials: "include"
-                              });
-                              if (!response.ok) throw new Error("Download failed");
-                              const blob = await response.blob();
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `template_${templateForm.category}_${templateForm.countryCode}.docx`;
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            } catch (error) {
-                              toast({ title: "Chyba pri sťahovaní", variant: "destructive" });
-                            }
-                          }}
-                          data-testid="button-download-docx-dialog"
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Stiahnuť DOCX
-                        </Button>
-                      )}
+                      <h3 className="font-medium text-sm">Premenné</h3>
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <VariableBrowser 
+                        onInsertVariable={(variableKey) => {
+                          const textarea = document.getElementById('template-text-editor') as HTMLTextAreaElement;
+                          if (textarea) {
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const text = textarea.value;
+                            const variable = `{{${variableKey}}}`;
+                            const newText = text.substring(0, start) + variable + text.substring(end);
+                            setTemplateForm(prev => ({ ...prev, contentHtml: newText }));
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start + variable.length, start + variable.length);
+                            }, 0);
+                            toast({ title: "Premenná vložená", description: variable });
+                          }
+                        }}
                         onCopyVariable={(variableKey) => {
                           navigator.clipboard.writeText(`{{${variableKey}}}`);
                           toast({
                             title: "Premenná skopírovaná",
-                            description: `{{${variableKey}}} bola skopírovaná do schránky. Vložte ju do DOCX súboru.`
+                            description: `{{${variableKey}}} - vložte do editora`
                           });
                         }}
                       />
                     </div>
-                    <div className="p-3 border-t bg-muted/30 shrink-0">
+                  </div>
+                  
+                  <div className="flex flex-col overflow-hidden border rounded-md">
+                    <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-2 shrink-0">
+                      <h3 className="font-medium text-sm">Editor dokumentu</h3>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!templateForm.loadedCategoryId) return;
+                            try {
+                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/text`, {
+                                credentials: "include"
+                              });
+                              if (response.ok) {
+                                const data = await response.json();
+                                setTemplateForm(prev => ({ ...prev, contentHtml: data.text || "" }));
+                                toast({ title: "Text načítaný" });
+                              }
+                            } catch (error) {
+                              toast({ title: "Chyba pri načítaní textu", variant: "destructive" });
+                            }
+                          }}
+                          data-testid="button-load-text"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={async () => {
+                            if (!templateForm.loadedCategoryId || !templateForm.contentHtml) return;
+                            try {
+                              const response = await fetch(`/api/contracts/categories/${templateForm.loadedCategoryId}/default-templates/${templateForm.countryCode}/update-text`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                                body: JSON.stringify({ text: templateForm.contentHtml })
+                              });
+                              if (response.ok) {
+                                const data = await response.json();
+                                setTemplateForm(prev => ({
+                                  ...prev,
+                                  extractedFields: data.extractedFields || [],
+                                  sourceDocxPath: data.sourceDocxPath || prev.sourceDocxPath
+                                }));
+                                toast({ title: "Dokument uložený", description: `Nájdených ${data.extractedFields?.length || 0} premenných` });
+                              }
+                            } catch (error) {
+                              toast({ title: "Chyba pri ukladaní", variant: "destructive" });
+                            }
+                          }}
+                          disabled={!templateForm.contentHtml}
+                          data-testid="button-save-text"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Uložiť
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-hidden p-2">
+                      <textarea
+                        id="template-text-editor"
+                        className="w-full h-full resize-none border rounded-md p-3 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={templateForm.contentHtml || ""}
+                        onChange={(e) => setTemplateForm(prev => ({ ...prev, contentHtml: e.target.value }))}
+                        placeholder="Kliknite na 'Načítať' pre načítanie textu dokumentu, potom vkladajte premenné kliknutím na ne vľavo..."
+                        data-testid="textarea-template-editor"
+                      />
+                    </div>
+                    <div className="p-2 border-t bg-muted/30 shrink-0">
                       <p className="text-xs text-muted-foreground">
-                        Kliknite na premennú pre skopírovanie. Potom vložte do DOCX v MS Word a nahrajte späť do kategórie.
+                        Kliknite do textu a potom na premennú vľavo pre vloženie. Premenné: {"{{nazov}}"}
                       </p>
                     </div>
                   </div>

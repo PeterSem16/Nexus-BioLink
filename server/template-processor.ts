@@ -499,72 +499,697 @@ export interface DetectedField {
   confidence: number;
 }
 
-// Map of Slovak labels to CRM field placeholders
-const LABEL_TO_PLACEHOLDER: Record<string, string> = {
-  // Customer personal info
-  "pani": "customer.fullName",
-  "pán": "customer.fullName",
-  "meno": "customer.fullName",
-  "meno a priezvisko": "customer.fullName",
-  "klientka": "customer.fullName",
-  "klient": "customer.fullName",
-  "zákazník": "customer.fullName",
-  "objednávateľ": "customer.fullName",
-  "rodička": "customer.fullName",
+// ============================================================================
+// MULTILINGUAL CRM FIELD ONTOLOGY
+// Comprehensive mapping of labels in multiple languages to CRM field placeholders
+// Supported languages: Slovak (SK), Czech (CZ), Hungarian (HU), Romanian (RO), 
+//                      Italian (IT), German (DE), English (EN)
+// ============================================================================
+
+export interface CRMFieldDefinition {
+  id: string;
+  category: "customer" | "father" | "mother" | "child" | "contract" | "company" | "invoice" | "system";
+  description: string;
+  synonyms: {
+    sk: string[];
+    cz: string[];
+    hu: string[];
+    ro: string[];
+    it: string[];
+    de: string[];
+    en: string[];
+  };
+}
+
+export const CRM_FIELD_ONTOLOGY: CRMFieldDefinition[] = [
+  // ===================== CUSTOMER FIELDS =====================
+  {
+    id: "customer.fullName",
+    category: "customer",
+    description: "Full name of the customer/client",
+    synonyms: {
+      sk: ["pani", "pán", "meno", "meno a priezvisko", "klientka", "klient", "zákazník", "zákazníčka", "objednávateľ", "rodička", "objednávateľka", "zmluvná strana"],
+      cz: ["paní", "pan", "jméno", "jméno a příjmení", "klientka", "klient", "zákazník", "zákaznice", "objednatel", "rodička", "smluvní strana"],
+      hu: ["hölgy", "úr", "név", "teljes név", "ügyfél", "megrendelő", "várandós anya", "szerződő fél"],
+      ro: ["doamna", "domnul", "nume", "nume complet", "client", "clientă", "comanditar", "gravidă", "parte contractantă"],
+      it: ["signora", "signor", "nome", "nome e cognome", "cliente", "ordinante", "gestante", "parte contraente"],
+      de: ["frau", "herr", "name", "vollständiger name", "kundin", "kunde", "auftraggeber", "schwangere", "vertragspartei"],
+      en: ["mrs", "mr", "name", "full name", "client", "customer", "orderer", "pregnant woman", "contracting party"]
+    }
+  },
+  {
+    id: "customer.firstName",
+    category: "customer",
+    description: "First/given name of the customer",
+    synonyms: {
+      sk: ["krstné meno", "meno"],
+      cz: ["křestní jméno", "jméno"],
+      hu: ["keresztnév", "utónév"],
+      ro: ["prenume"],
+      it: ["nome di battesimo", "nome"],
+      de: ["vorname"],
+      en: ["first name", "given name"]
+    }
+  },
+  {
+    id: "customer.lastName",
+    category: "customer",
+    description: "Last/family name of the customer",
+    synonyms: {
+      sk: ["priezvisko"],
+      cz: ["příjmení"],
+      hu: ["vezetéknév", "családnév"],
+      ro: ["nume de familie"],
+      it: ["cognome"],
+      de: ["nachname", "familienname"],
+      en: ["last name", "surname", "family name"]
+    }
+  },
+  {
+    id: "customer.maidenName",
+    category: "customer",
+    description: "Maiden name of the customer",
+    synonyms: {
+      sk: ["rodné meno", "rodné priezvisko"],
+      cz: ["rodné jméno", "rodné příjmení"],
+      hu: ["leánykori név"],
+      ro: ["nume de fată"],
+      it: ["nome da nubile"],
+      de: ["mädchenname", "geburtsname"],
+      en: ["maiden name", "birth name"]
+    }
+  },
+  {
+    id: "customer.birthDate",
+    category: "customer",
+    description: "Date of birth of the customer",
+    synonyms: {
+      sk: ["dátum narodenia", "narodená", "narodený", "nar", "nar.", "dátum nar"],
+      cz: ["datum narození", "narozena", "narozen", "nar", "nar."],
+      hu: ["születési dátum", "született", "szül", "szül."],
+      ro: ["data nașterii", "născut", "născută", "data naștere"],
+      it: ["data di nascita", "nato", "nata", "nato il", "nata il"],
+      de: ["geburtsdatum", "geboren", "geb", "geb."],
+      en: ["date of birth", "born", "dob", "birth date"]
+    }
+  },
+  {
+    id: "customer.personalId",
+    category: "customer",
+    description: "National ID / Personal identification number",
+    synonyms: {
+      sk: ["rodné číslo", "rč", "r.č", "r.č."],
+      cz: ["rodné číslo", "rč", "r.č", "r.č."],
+      hu: ["személyi szám", "személyi azonosító", "személyazonosító"],
+      ro: ["cnp", "cod numeric personal"],
+      it: ["codice fiscale", "cf"],
+      de: ["personalausweisnummer", "ausweisnummer", "identifikationsnummer"],
+      en: ["personal id", "national id", "id number", "ssn"]
+    }
+  },
+  {
+    id: "customer.idCardNumber",
+    category: "customer",
+    description: "ID card number",
+    synonyms: {
+      sk: ["číslo občianskeho preukazu", "číslo op", "číslo dokladu"],
+      cz: ["číslo občanského průkazu", "číslo op", "číslo dokladu"],
+      hu: ["személyi igazolvány száma", "igazolványszám"],
+      ro: ["număr carte de identitate", "nr ci"],
+      it: ["numero carta d'identità", "numero ci"],
+      de: ["ausweisnummer", "personalausweisnummer"],
+      en: ["id card number", "identity card number"]
+    }
+  },
+  {
+    id: "customer.permanentAddress",
+    category: "customer",
+    description: "Permanent address of the customer",
+    synonyms: {
+      sk: ["trvalé bydlisko", "trvalý pobyt", "trvale bytom", "adresa", "bydlisko", "adresa trvalého pobytu", "s trvalým pobytom"],
+      cz: ["trvalé bydliště", "trvalý pobyt", "trvale bytem", "adresa", "bydliště", "adresa trvalého pobytu"],
+      hu: ["állandó lakcím", "lakcím", "cím", "lakóhely"],
+      ro: ["adresa permanentă", "domiciliu", "adresa", "reședință"],
+      it: ["indirizzo permanente", "residenza", "indirizzo", "domicilio"],
+      de: ["ständige adresse", "wohnsitz", "adresse", "wohnort", "anschrift"],
+      en: ["permanent address", "address", "residence", "home address"]
+    }
+  },
+  {
+    id: "customer.correspondenceAddress",
+    category: "customer",
+    description: "Correspondence/mailing address",
+    synonyms: {
+      sk: ["korešpondenčná adresa", "doručovacia adresa", "adresa na doručovanie"],
+      cz: ["korespondenční adresa", "doručovací adresa"],
+      hu: ["levelezési cím", "postacím"],
+      ro: ["adresa de corespondență", "adresa poștală"],
+      it: ["indirizzo di corrispondenza", "indirizzo postale"],
+      de: ["korrespondenzadresse", "postadresse", "zustelladresse"],
+      en: ["correspondence address", "mailing address", "postal address"]
+    }
+  },
+  {
+    id: "customer.city",
+    category: "customer",
+    description: "City of residence",
+    synonyms: {
+      sk: ["mesto", "obec"],
+      cz: ["město", "obec"],
+      hu: ["város", "település"],
+      ro: ["oraș", "localitate"],
+      it: ["città", "comune"],
+      de: ["stadt", "ort", "gemeinde"],
+      en: ["city", "town"]
+    }
+  },
+  {
+    id: "customer.postalCode",
+    category: "customer",
+    description: "Postal/ZIP code",
+    synonyms: {
+      sk: ["psč", "poštové smerovacie číslo"],
+      cz: ["psč", "poštovní směrovací číslo"],
+      hu: ["irányítószám"],
+      ro: ["cod poștal"],
+      it: ["cap", "codice postale"],
+      de: ["plz", "postleitzahl"],
+      en: ["postal code", "zip code", "zip"]
+    }
+  },
+  {
+    id: "customer.phone",
+    category: "customer",
+    description: "Phone number",
+    synonyms: {
+      sk: ["telefón", "tel", "tel.", "mobil", "telefónne číslo", "kontaktné číslo"],
+      cz: ["telefon", "tel", "tel.", "mobil", "telefonní číslo"],
+      hu: ["telefon", "tel", "mobil", "telefonszám"],
+      ro: ["telefon", "tel", "mobil", "număr de telefon"],
+      it: ["telefono", "tel", "cellulare", "numero di telefono"],
+      de: ["telefon", "tel", "handy", "telefonnummer", "mobiltelefon"],
+      en: ["phone", "tel", "mobile", "phone number", "cell"]
+    }
+  },
+  {
+    id: "customer.email",
+    category: "customer",
+    description: "Email address",
+    synonyms: {
+      sk: ["email", "e-mail", "emailová adresa", "e-mailová adresa"],
+      cz: ["email", "e-mail", "emailová adresa"],
+      hu: ["email", "e-mail", "e-mail cím"],
+      ro: ["email", "e-mail", "adresa de email"],
+      it: ["email", "e-mail", "indirizzo email"],
+      de: ["email", "e-mail", "e-mail-adresse"],
+      en: ["email", "e-mail", "email address"]
+    }
+  },
+  {
+    id: "customer.bankAccount",
+    category: "customer",
+    description: "Bank account number / IBAN",
+    synonyms: {
+      sk: ["iban", "číslo účtu", "bankový účet", "účet"],
+      cz: ["iban", "číslo účtu", "bankovní účet", "účet"],
+      hu: ["iban", "bankszámlaszám", "számlaszám"],
+      ro: ["iban", "cont bancar", "număr cont"],
+      it: ["iban", "conto bancario", "numero conto"],
+      de: ["iban", "kontonummer", "bankkonto"],
+      en: ["iban", "bank account", "account number"]
+    }
+  },
+  {
+    id: "customer.bankSwift",
+    category: "customer",
+    description: "Bank SWIFT/BIC code",
+    synonyms: {
+      sk: ["swift", "swift kód", "bic"],
+      cz: ["swift", "swift kód", "bic"],
+      hu: ["swift", "swift kód", "bic"],
+      ro: ["swift", "cod swift", "bic"],
+      it: ["swift", "codice swift", "bic"],
+      de: ["swift", "swift-code", "bic"],
+      en: ["swift", "swift code", "bic"]
+    }
+  },
+  // ===================== FATHER FIELDS =====================
+  {
+    id: "father.fullName",
+    category: "father",
+    description: "Full name of the father",
+    synonyms: {
+      sk: ["otec", "otec dieťaťa", "zákonný zástupca - otec", "meno otca"],
+      cz: ["otec", "otec dítěte", "zákonný zástupce - otec", "jméno otce"],
+      hu: ["apa", "gyermek apja", "törvényes képviselő - apa", "apa neve"],
+      ro: ["tată", "tatăl copilului", "reprezentant legal - tată", "numele tatălui"],
+      it: ["padre", "padre del bambino", "rappresentante legale - padre", "nome del padre"],
+      de: ["vater", "vater des kindes", "gesetzlicher vertreter - vater", "name des vaters"],
+      en: ["father", "father of the child", "legal guardian - father", "father's name"]
+    }
+  },
+  {
+    id: "father.birthDate",
+    category: "father",
+    description: "Date of birth of the father",
+    synonyms: {
+      sk: ["dátum narodenia otca", "otec - dátum narodenia", "otec nar"],
+      cz: ["datum narození otce", "otec - datum narození"],
+      hu: ["apa születési dátuma"],
+      ro: ["data nașterii tatălui"],
+      it: ["data di nascita del padre"],
+      de: ["geburtsdatum des vaters"],
+      en: ["father's date of birth", "father dob"]
+    }
+  },
+  {
+    id: "father.personalId",
+    category: "father",
+    description: "Personal ID of the father",
+    synonyms: {
+      sk: ["rodné číslo otca", "otec - rodné číslo", "rč otca"],
+      cz: ["rodné číslo otce", "otec - rodné číslo"],
+      hu: ["apa személyi száma"],
+      ro: ["cnp tată"],
+      it: ["codice fiscale padre"],
+      de: ["personalausweisnummer des vaters"],
+      en: ["father's personal id", "father ssn"]
+    }
+  },
+  {
+    id: "father.permanentAddress",
+    category: "father",
+    description: "Permanent address of the father",
+    synonyms: {
+      sk: ["adresa otca", "bydlisko otca", "trvalý pobyt otca"],
+      cz: ["adresa otce", "bydliště otce", "trvalý pobyt otce"],
+      hu: ["apa címe", "apa lakhelye"],
+      ro: ["adresa tatălui"],
+      it: ["indirizzo del padre"],
+      de: ["adresse des vaters"],
+      en: ["father's address"]
+    }
+  },
+  // ===================== MOTHER FIELDS =====================
+  {
+    id: "mother.fullName",
+    category: "mother",
+    description: "Full name of the mother",
+    synonyms: {
+      sk: ["matka", "matka dieťaťa", "zákonný zástupca - matka", "meno matky"],
+      cz: ["matka", "matka dítěte", "zákonný zástupce - matka", "jméno matky"],
+      hu: ["anya", "gyermek anyja", "törvényes képviselő - anya", "anya neve"],
+      ro: ["mamă", "mama copilului", "reprezentant legal - mamă", "numele mamei"],
+      it: ["madre", "madre del bambino", "rappresentante legale - madre", "nome della madre"],
+      de: ["mutter", "mutter des kindes", "gesetzliche vertreterin - mutter", "name der mutter"],
+      en: ["mother", "mother of the child", "legal guardian - mother", "mother's name"]
+    }
+  },
+  {
+    id: "mother.birthDate",
+    category: "mother",
+    description: "Date of birth of the mother",
+    synonyms: {
+      sk: ["dátum narodenia matky", "matka - dátum narodenia"],
+      cz: ["datum narození matky", "matka - datum narození"],
+      hu: ["anya születési dátuma"],
+      ro: ["data nașterii mamei"],
+      it: ["data di nascita della madre"],
+      de: ["geburtsdatum der mutter"],
+      en: ["mother's date of birth", "mother dob"]
+    }
+  },
+  {
+    id: "mother.personalId",
+    category: "mother",
+    description: "Personal ID of the mother",
+    synonyms: {
+      sk: ["rodné číslo matky", "matka - rodné číslo", "rč matky"],
+      cz: ["rodné číslo matky", "matka - rodné číslo"],
+      hu: ["anya személyi száma"],
+      ro: ["cnp mamă"],
+      it: ["codice fiscale madre"],
+      de: ["personalausweisnummer der mutter"],
+      en: ["mother's personal id", "mother ssn"]
+    }
+  },
+  // ===================== CHILD FIELDS =====================
+  {
+    id: "child.fullName",
+    category: "child",
+    description: "Full name of the child",
+    synonyms: {
+      sk: ["dieťa", "meno dieťaťa", "novorodenec"],
+      cz: ["dítě", "jméno dítěte", "novorozenec"],
+      hu: ["gyermek", "gyermek neve", "újszülött"],
+      ro: ["copil", "numele copilului", "nou-născut"],
+      it: ["bambino", "nome del bambino", "neonato"],
+      de: ["kind", "name des kindes", "neugeborenes"],
+      en: ["child", "child's name", "newborn", "baby"]
+    }
+  },
+  {
+    id: "child.birthDate",
+    category: "child",
+    description: "Date of birth of the child",
+    synonyms: {
+      sk: ["dátum narodenia dieťaťa", "narodené dňa", "dátum pôrodu"],
+      cz: ["datum narození dítěte", "datum porodu"],
+      hu: ["gyermek születési dátuma", "születési dátum"],
+      ro: ["data nașterii copilului", "data naștere"],
+      it: ["data di nascita del bambino", "data di nascita"],
+      de: ["geburtsdatum des kindes", "geburtstermin"],
+      en: ["child's date of birth", "date of birth", "birth date"]
+    }
+  },
+  {
+    id: "child.birthPlace",
+    category: "child",
+    description: "Place of birth of the child",
+    synonyms: {
+      sk: ["miesto narodenia", "narodené v", "miesto pôrodu", "pôrodnica"],
+      cz: ["místo narození", "porodnice"],
+      hu: ["születési hely", "szülészet"],
+      ro: ["locul nașterii", "maternitate"],
+      it: ["luogo di nascita", "ospedale"],
+      de: ["geburtsort", "geburtsklinik"],
+      en: ["place of birth", "birthplace", "hospital"]
+    }
+  },
+  {
+    id: "child.expectedBirthDate",
+    category: "child",
+    description: "Expected date of birth",
+    synonyms: {
+      sk: ["predpokladaný dátum pôrodu", "očakávaný dátum narodenia", "termín pôrodu"],
+      cz: ["předpokládaný termín porodu", "očekávaný datum narození"],
+      hu: ["várható szülés dátuma", "szülés időpontja"],
+      ro: ["data estimată a nașterii", "termen naștere"],
+      it: ["data prevista di nascita", "data presunta parto"],
+      de: ["voraussichtlicher geburtstermin", "errechneter termin"],
+      en: ["expected date of birth", "due date", "expected delivery date"]
+    }
+  },
+  // ===================== CONTRACT FIELDS =====================
+  {
+    id: "contract.number",
+    category: "contract",
+    description: "Contract number",
+    synonyms: {
+      sk: ["číslo zmluvy", "zmluva č", "č. zmluvy", "zmluva číslo"],
+      cz: ["číslo smlouvy", "smlouva č", "č. smlouvy"],
+      hu: ["szerződésszám", "szerződés száma"],
+      ro: ["număr contract", "contract nr"],
+      it: ["numero contratto", "contratto n"],
+      de: ["vertragsnummer", "vertrag nr"],
+      en: ["contract number", "contract no", "agreement number"]
+    }
+  },
+  {
+    id: "contract.date",
+    category: "contract",
+    description: "Date of the contract",
+    synonyms: {
+      sk: ["dátum", "dňa", "v bratislave dňa", "uzatvorené dňa", "podpísané dňa"],
+      cz: ["datum", "dne", "v praze dne", "uzavřeno dne"],
+      hu: ["dátum", "keltezés", "aláírás napja"],
+      ro: ["data", "la data de", "semnat la"],
+      it: ["data", "in data", "firmato il"],
+      de: ["datum", "am", "unterschrieben am"],
+      en: ["date", "on", "signed on", "dated"]
+    }
+  },
+  {
+    id: "contract.validFrom",
+    category: "contract",
+    description: "Contract valid from date",
+    synonyms: {
+      sk: ["platnosť od", "platná od", "účinnosť od"],
+      cz: ["platnost od", "platná od", "účinnost od"],
+      hu: ["érvényes ettől", "hatályos ettől"],
+      ro: ["valabil de la", "în vigoare de la"],
+      it: ["valido dal", "in vigore dal"],
+      de: ["gültig ab", "gültig von"],
+      en: ["valid from", "effective from"]
+    }
+  },
+  {
+    id: "contract.validTo",
+    category: "contract",
+    description: "Contract valid until date",
+    synonyms: {
+      sk: ["platnosť do", "platná do", "účinnosť do"],
+      cz: ["platnost do", "platná do", "účinnost do"],
+      hu: ["érvényes eddig", "hatályos eddig"],
+      ro: ["valabil până la", "în vigoare până la"],
+      it: ["valido fino al", "in vigore fino al"],
+      de: ["gültig bis"],
+      en: ["valid until", "valid to", "effective until"]
+    }
+  },
+  {
+    id: "contract.totalAmount",
+    category: "contract",
+    description: "Total contract amount",
+    synonyms: {
+      sk: ["celková suma", "suma", "celková cena", "cena spolu"],
+      cz: ["celková částka", "částka", "celková cena", "cena celkem"],
+      hu: ["összesen", "teljes összeg", "végösszeg"],
+      ro: ["suma totală", "total", "preț total"],
+      it: ["importo totale", "totale", "prezzo totale"],
+      de: ["gesamtbetrag", "gesamtsumme", "gesamtpreis"],
+      en: ["total amount", "total", "total price"]
+    }
+  },
+  // ===================== COMPANY/BILLING FIELDS =====================
+  {
+    id: "company.name",
+    category: "company",
+    description: "Company/provider name",
+    synonyms: {
+      sk: ["spoločnosť", "poskytovateľ", "dodávateľ", "obchodné meno"],
+      cz: ["společnost", "poskytovatel", "dodavatel", "obchodní jméno"],
+      hu: ["cég", "szolgáltató", "cégnév"],
+      ro: ["societate", "furnizor", "nume companie"],
+      it: ["società", "fornitore", "ragione sociale"],
+      de: ["gesellschaft", "unternehmen", "anbieter", "firmenname"],
+      en: ["company", "provider", "supplier", "company name"]
+    }
+  },
+  {
+    id: "company.identificationNumber",
+    category: "company",
+    description: "Company identification number (IČO)",
+    synonyms: {
+      sk: ["ičo", "ič", "identifikačné číslo", "ičo spoločnosti"],
+      cz: ["ičo", "ič", "identifikační číslo"],
+      hu: ["cégjegyzékszám", "adószám"],
+      ro: ["cui", "cod unic de înregistrare"],
+      it: ["partita iva", "p.iva", "codice fiscale azienda"],
+      de: ["handelsregisternummer", "hrb"],
+      en: ["company id", "registration number", "business id"]
+    }
+  },
+  {
+    id: "company.taxIdentificationNumber",
+    category: "company",
+    description: "Tax identification number (DIČ)",
+    synonyms: {
+      sk: ["dič", "daňové identifikačné číslo"],
+      cz: ["dič", "daňové identifikační číslo"],
+      hu: ["adószám", "adóazonosító"],
+      ro: ["cod fiscal", "cif"],
+      it: ["codice fiscale"],
+      de: ["steuernummer", "steuer-id"],
+      en: ["tax id", "tax number", "tin"]
+    }
+  },
+  {
+    id: "company.vatNumber",
+    category: "company",
+    description: "VAT identification number",
+    synonyms: {
+      sk: ["ič dph", "ičdph", "daňové identifikačné číslo pre dph"],
+      cz: ["dič pro dph", "ičdph"],
+      hu: ["áfa szám", "közösségi adószám"],
+      ro: ["cod tva", "număr tva"],
+      it: ["numero partita iva", "partita iva"],
+      de: ["ust-idnr", "umsatzsteuer-identifikationsnummer"],
+      en: ["vat number", "vat id", "vat registration"]
+    }
+  },
+  {
+    id: "company.address",
+    category: "company",
+    description: "Company address",
+    synonyms: {
+      sk: ["sídlo", "sídlo spoločnosti", "adresa spoločnosti"],
+      cz: ["sídlo", "sídlo společnosti", "adresa společnosti"],
+      hu: ["székhely", "cég címe"],
+      ro: ["sediu", "adresa societății"],
+      it: ["sede legale", "indirizzo società"],
+      de: ["firmensitz", "geschäftsadresse"],
+      en: ["registered office", "company address", "business address"]
+    }
+  },
+  {
+    id: "company.bankAccount",
+    category: "company",
+    description: "Company bank account",
+    synonyms: {
+      sk: ["bankový účet spoločnosti", "účet spoločnosti", "iban spoločnosti"],
+      cz: ["bankovní účet společnosti", "účet společnosti"],
+      hu: ["cég bankszámlaszáma"],
+      ro: ["cont bancar societate"],
+      it: ["conto bancario società"],
+      de: ["firmenkonto", "geschäftskonto"],
+      en: ["company bank account", "business account"]
+    }
+  },
+  // ===================== INVOICE FIELDS =====================
+  {
+    id: "invoice.number",
+    category: "invoice",
+    description: "Invoice number",
+    synonyms: {
+      sk: ["číslo faktúry", "faktúra č", "č. faktúry"],
+      cz: ["číslo faktury", "faktura č"],
+      hu: ["számlaszám", "számla száma"],
+      ro: ["număr factură", "factură nr"],
+      it: ["numero fattura", "fattura n"],
+      de: ["rechnungsnummer", "rechnung nr"],
+      en: ["invoice number", "invoice no"]
+    }
+  },
+  {
+    id: "invoice.date",
+    category: "invoice",
+    description: "Invoice date",
+    synonyms: {
+      sk: ["dátum vystavenia", "dátum faktúry"],
+      cz: ["datum vystavení", "datum faktury"],
+      hu: ["számla kelte", "kiállítás dátuma"],
+      ro: ["data emiterii", "data facturii"],
+      it: ["data fattura", "data emissione"],
+      de: ["rechnungsdatum", "ausstellungsdatum"],
+      en: ["invoice date", "date of issue"]
+    }
+  },
+  {
+    id: "invoice.dueDate",
+    category: "invoice",
+    description: "Invoice due date",
+    synonyms: {
+      sk: ["dátum splatnosti", "splatnosť"],
+      cz: ["datum splatnosti", "splatnost"],
+      hu: ["fizetési határidő", "esedékesség"],
+      ro: ["data scadentă", "termen de plată"],
+      it: ["data scadenza", "scadenza"],
+      de: ["fälligkeitsdatum", "zahlbar bis"],
+      en: ["due date", "payment due"]
+    }
+  },
+  {
+    id: "invoice.totalAmount",
+    category: "invoice",
+    description: "Invoice total amount",
+    synonyms: {
+      sk: ["suma na úhradu", "celková suma faktúry", "k úhrade"],
+      cz: ["částka k úhradě", "celková částka faktury"],
+      hu: ["fizetendő összeg", "bruttó összeg"],
+      ro: ["suma de plată", "total de plată"],
+      it: ["importo da pagare", "totale fattura"],
+      de: ["zu zahlender betrag", "rechnungsbetrag"],
+      en: ["amount due", "total to pay", "invoice total"]
+    }
+  },
+  // ===================== SYSTEM FIELDS =====================
+  {
+    id: "today",
+    category: "system",
+    description: "Current date (today)",
+    synonyms: {
+      sk: ["dnešný dátum", "dnes"],
+      cz: ["dnešní datum", "dnes"],
+      hu: ["mai dátum", "ma"],
+      ro: ["data de azi", "astăzi"],
+      it: ["data odierna", "oggi"],
+      de: ["heutiges datum", "heute"],
+      en: ["today's date", "today", "current date"]
+    }
+  },
+  {
+    id: "representative.fullName",
+    category: "customer",
+    description: "Legal representative full name",
+    synonyms: {
+      sk: ["zákonný zástupca", "zástupca", "splnomocnenec", "v zastúpení"],
+      cz: ["zákonný zástupce", "zástupce", "zmocněnec"],
+      hu: ["törvényes képviselő", "képviselő", "meghatalmazott"],
+      ro: ["reprezentant legal", "împuternicit"],
+      it: ["rappresentante legale", "procuratore"],
+      de: ["gesetzlicher vertreter", "bevollmächtigter"],
+      en: ["legal representative", "representative", "authorized person"]
+    }
+  },
+  {
+    id: "service.type",
+    category: "contract",
+    description: "Type of service",
+    synonyms: {
+      sk: ["typ služby", "služba", "balík", "program"],
+      cz: ["typ služby", "služba", "balíček", "program"],
+      hu: ["szolgáltatás típusa", "csomag", "program"],
+      ro: ["tip serviciu", "serviciu", "pachet"],
+      it: ["tipo di servizio", "servizio", "pacchetto"],
+      de: ["dienstleistungsart", "service", "paket"],
+      en: ["service type", "service", "package", "plan"]
+    }
+  },
+];
+
+// Build a flat lookup table for fast matching
+const buildLabelLookup = (): Record<string, string> => {
+  const lookup: Record<string, string> = {};
   
-  // Birth info
-  "dátum narodenia": "customer.birthDate",
-  "narodená": "customer.birthDate",
-  "narodený": "customer.birthDate",
-  "nar": "customer.birthDate",
-  "rodné číslo": "customer.personalId",
-  "rč": "customer.personalId",
-  "r.č": "customer.personalId",
+  for (const field of CRM_FIELD_ONTOLOGY) {
+    for (const lang of Object.keys(field.synonyms) as Array<keyof typeof field.synonyms>) {
+      for (const synonym of field.synonyms[lang]) {
+        const normalized = synonym.toLowerCase().trim();
+        if (!lookup[normalized]) {
+          lookup[normalized] = field.id;
+        }
+      }
+    }
+  }
   
-  // Address
-  "trvalé bydlisko": "customer.permanentAddress",
-  "trvalý pobyt": "customer.permanentAddress",
-  "trvale bytom": "customer.permanentAddress",
-  "adresa": "customer.permanentAddress",
-  "bydlisko": "customer.permanentAddress",
-  "korešpondenčná adresa": "customer.correspondenceAddress",
-  "doručovacia adresa": "customer.correspondenceAddress",
-  
-  // Contact
-  "telefón": "customer.phone",
-  "tel": "customer.phone",
-  "mobil": "customer.phone",
-  "email": "customer.email",
-  "e-mail": "customer.email",
-  
-  // Bank
-  "iban": "customer.IBAN",
-  "číslo účtu": "customer.IBAN",
-  "bankový účet": "customer.IBAN",
-  
-  // Father
-  "otec": "father.fullName",
-  "otec dieťaťa": "father.fullName",
-  "zákonný zástupca - otec": "father.fullName",
-  
-  // Mother  
-  "matka": "mother.fullName",
-  "matka dieťaťa": "mother.fullName",
-  
-  // Contract
-  "číslo zmluvy": "contract.number",
-  "zmluva č": "contract.number",
-  "č. zmluvy": "contract.number",
-  "dátum": "contract.date",
-  "dňa": "contract.date",
-  "v bratislave dňa": "contract.date",
-  
-  // Company
-  "spoločnosť": "company.name",
-  "ičo": "company.identificationNumber",
-  "dič": "company.taxIdentificationNumber",
-  "ič dph": "company.vatNumber",
+  return lookup;
 };
+
+const LABEL_TO_PLACEHOLDER = buildLabelLookup();
+
+// Export for use in AI prompt
+export function getCRMFieldsForAIPrompt(): string {
+  const categories: Record<string, string[]> = {};
+  
+  for (const field of CRM_FIELD_ONTOLOGY) {
+    if (!categories[field.category]) {
+      categories[field.category] = [];
+    }
+    const examples = [
+      ...field.synonyms.sk.slice(0, 2),
+      ...field.synonyms.en.slice(0, 1)
+    ].join(", ");
+    categories[field.category].push(`  - ${field.id}: ${field.description} (${examples})`);
+  }
+  
+  let result = "";
+  for (const [category, fields] of Object.entries(categories)) {
+    result += `\n### ${category.toUpperCase()}:\n${fields.join("\n")}`;
+  }
+  
+  return result;
+}
 
 // Find the placeholder for a given label
 function findPlaceholderForLabel(label: string): string | null {

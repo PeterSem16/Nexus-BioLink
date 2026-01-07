@@ -7364,30 +7364,187 @@ Odpovedz v JSON formáte:
         return res.status(400).json({ error: "Document is too short for analysis" });
       }
       
-      // Use the new fill-field detection - finds dots/underscores and maps them to placeholders
-      const fillFieldReplacements = detectFillFieldReplacements(fullText);
-      console.log(`[Fill-Field] Detection found ${fillFieldReplacements.length} markers:`, 
-        fillFieldReplacements.map(f => `"${f.label}" -> {{${f.placeholder}}}`));
+      // Import the AI prompt helper
+      const { getCRMFieldsForAIPrompt, CRM_FIELD_ONTOLOGY } = await import("./template-processor");
       
-      // If no fill fields found, return early
-      if (fillFieldReplacements.length === 0) {
+      // Get fill-field detection for pattern-based matches
+      const fillFieldReplacements = detectFillFieldReplacements(fullText);
+      console.log(`[Pattern] Detection found ${fillFieldReplacements.length} markers via pattern matching`);
+      
+      // Build CRM fields catalog for AI
+      const crmFieldsCatalog = getCRMFieldsForAIPrompt();
+      
+      // Get document sections for context
+      const lines = fullText.split('\n');
+      const headerSection = lines.slice(0, 50).join('\n');
+      const signatureSection = lines.slice(-60).join('\n');
+      
+      // Build the comprehensive AI prompt for multilingual semantic analysis
+      const aiPrompt = `Si expert na analýzu právnych dokumentov pre cord blood banking spoločnosti INDEXUS. 
+Tvoja úloha je INTELIGENTNE analyzovať text zmluvy a identifikovať VŠETKY miesta, kde sa majú doplniť údaje z CRM systému.
+
+## DOKUMENT NA ANALÝZU:
+
+### HLAVIČKA DOKUMENTU (prvých 50 riadkov):
+${headerSection}
+
+### ZÁVER / PODPISY (posledných 60 riadkov):
+${signatureSection}
+
+## DOSTUPNÉ CRM PREMENNÉ:
+${crmFieldsCatalog}
+
+## PRAVIDLÁ ANALÝZY:
+
+1. **POCHOP KONTEXT** - Keď vidíš "pani:", "Pani:", "klientka:", znamená to meno zákazníčky → customer.fullName
+2. **ROZPOZNAJ JAZYKY** - Dokumenty môžu byť v SK, CZ, HU, RO, IT, DE, EN. Rozpoznaj jazyk a mapuj správne.
+3. **HĽADAJ VZORY**:
+   - Text končiaci dvojbodkou a za ním bodky/podčiarknutia (napr. "Meno: ........")
+   - Prázdne miesta označené bodkami alebo podčiarknutiami
+   - Formálne polia v hlavičke a podpisovej časti
+4. **IDENTIFIKUJ OSOBY**:
+   - Zákazník/klientka/rodička = customer.*
+   - Otec dieťaťa = father.*
+   - Matka = mother.*
+   - Dieťa/novorodenec = child.*
+5. **IDENTIFIKUJ ADRESY** - "trvalé bydlisko", "bytom", "s trvalým pobytom" = customer.permanentAddress
+6. **IDENTIFIKUJ DÁTUMY** - "dátum narodenia", "nar.", "narodená" = customer.birthDate alebo child.birthDate podľa kontextu
+7. **IDENTIFIKUJ IDENTIFIKÁTORY** - "rodné číslo", "RČ", "r.č." = customer.personalId, "IČO" = company.identificationNumber
+8. **IDENTIFIKUJ ZMLUVU** - "číslo zmluvy", "zmluva č." = contract.number, "dňa", "v Bratislave dňa" = contract.date
+
+## FORMÁT VÝSTUPU (JSON):
+{
+  "language": "sk|cz|hu|ro|it|de|en",
+  "documentType": "stručný popis typu dokumentu",
+  "suggestions": [
+    {
+      "label": "presný text etikety z dokumentu (napr. 'pani:', 'Trvalé bydlisko:')",
+      "placeholder": "customer.fullName",
+      "context": "krátky popis kontextu kde sa nachádza",
+      "confidence": 0.95,
+      "lineHint": "prvých 50 znakov riadku pre identifikáciu"
+    }
+  ],
+  "unmatchedLabels": ["zoznam etikiet, ktoré nevedieš namapovať"],
+  "summary": "stručné zhrnutie nájdených polí"
+}
+
+DÔLEŽITÉ: Analyzuj dokument DÔKLADNE. Kvalita je dôležitejšia ako rýchlosť. Nájdi VŠETKY polia, ktoré sa dajú vyplniť z CRM.`;
+
+      console.log("[AI] Starting intelligent document analysis with GPT-4o...");
+      
+      let aiSuggestions: Array<{
+        label: string;
+        placeholder: string;
+        context: string;
+        confidence: number;
+        lineHint: string;
+      }> = [];
+      
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { 
+              role: "system", 
+              content: "Si expert na analýzu právnych dokumentov a zmluv. Rozumieš viacerým jazykom (SK, CZ, HU, RO, IT, DE, EN). Tvoja úloha je identifikovať polia na vyplnenie v dokumentoch a navrhnúť správne CRM premenné. Odpovedaj VÝHRADNE v JSON formáte." 
+            },
+            { role: "user", content: aiPrompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 4000
+        });
+        
+        const content = response.choices[0]?.message?.content;
+        if (content) {
+          const aiResult = JSON.parse(content);
+          aiSuggestions = aiResult.suggestions || [];
+          console.log(`[AI] Analysis complete: ${aiSuggestions.length} suggestions, language: ${aiResult.language}, document: ${aiResult.documentType}`);
+          if (aiResult.unmatchedLabels?.length > 0) {
+            console.log(`[AI] Unmatched labels: ${aiResult.unmatchedLabels.join(', ')}`);
+          }
+        }
+      } catch (aiError) {
+        console.error("[AI] Analysis failed, falling back to pattern detection:", aiError);
+      }
+      
+      // Merge strategy: Pattern detection provides the actual fill markers to replace
+      // AI suggestions are used to ENHANCE/ANNOTATE the pattern results or ADD new fields
+      const finalReplacements: Array<{
+        original: string;
+        placeholder: string;
+        label: string;
+        reason: string;
+        crmField: string;
+        confidence: number;
+      }> = [];
+      const usedLabels = new Set<string>();
+      
+      // Build a lookup from AI suggestions by label
+      const aiSuggestionsByLabel: Record<string, typeof aiSuggestions[0]> = {};
+      for (const suggestion of aiSuggestions) {
+        if (suggestion.confidence >= 0.7) {
+          const normalizedLabel = suggestion.label.toLowerCase().replace(/[:\-–\s]+$/, "").trim();
+          aiSuggestionsByLabel[normalizedLabel] = suggestion;
+        }
+      }
+      
+      // First, process pattern-detected fields (these have the actual fill markers)
+      // Enhance them with AI confidence/context if available
+      for (const field of fillFieldReplacements) {
+        const normalizedLabel = field.label.toLowerCase().replace(/[:\-–\s]+$/, "").trim();
+        const aiMatch = aiSuggestionsByLabel[normalizedLabel];
+        
+        // Use AI's placeholder suggestion if it has higher confidence and is different
+        let placeholder = field.placeholder;
+        let confidence = 0.8;
+        let reason = `Pattern detected: "${field.label}"`;
+        
+        if (aiMatch) {
+          // AI can override the placeholder if it has better understanding
+          if (aiMatch.placeholder && aiMatch.confidence > 0.8) {
+            placeholder = aiMatch.placeholder;
+          }
+          confidence = aiMatch.confidence;
+          reason = aiMatch.context || `AI + Pattern: "${field.label}"`;
+          usedLabels.add(normalizedLabel);
+        }
+        
+        finalReplacements.push({
+          original: field.original,  // CRITICAL: Keep the actual fill marker (dots/underscores)
+          placeholder: placeholder,
+          label: field.label,
+          reason: reason,
+          crmField: placeholder,
+          confidence: confidence
+        });
+      }
+      
+      // Add any AI suggestions that weren't matched by pattern detection
+      // These might be fields without visible fill markers but with clear labels
+      for (const suggestion of aiSuggestions) {
+        if (suggestion.confidence >= 0.85) {
+          const normalizedLabel = suggestion.label.toLowerCase().replace(/[:\-–\s]+$/, "").trim();
+          if (!usedLabels.has(normalizedLabel)) {
+            // This AI suggestion wasn't covered by pattern detection
+            // Log it but don't add to replacements (no fill marker to replace)
+            console.log(`[AI] Additional field detected without fill marker: "${suggestion.label}" -> ${suggestion.placeholder}`);
+          }
+        }
+      }
+      
+      console.log(`[AI] Final: ${finalReplacements.length} replacements (${fillFieldReplacements.length} patterns, ${aiSuggestions.length} AI annotations)`);
+      
+      if (finalReplacements.length === 0) {
         return res.json({
           success: true,
-          message: "Neboli nájdené žiadne polia na vyplnenie (bodky, podčiarknutia)",
+          message: "Neboli nájdené žiadne polia na vyplnenie",
           replacements: [],
           modifiedDocxPath: null,
           suggestedMappings: {}
         });
       }
-      
-      // Convert to the format expected by insertPlaceholdersIntoDocx
-      const finalReplacements = fillFieldReplacements.map(f => ({
-        original: f.original,
-        placeholder: f.placeholder,
-        label: f.label,
-        reason: `Nahradené bodky/podčiarknutia za "${f.label}"`,
-        crmField: f.placeholder
-      }));
       
       const outputFilename = `template-ai-${Date.now()}.docx`;
       const outputPath = path.join(process.cwd(), "uploads/contract-pdfs", outputFilename);
@@ -7428,9 +7585,13 @@ Odpovedz v JSON formáte:
         })
       });
       
+      // Count AI-enhanced vs pure pattern detections
+      const aiEnhancedCount = finalReplacements.filter(r => r.reason && r.reason.includes('AI')).length;
+      const purePatternCount = finalReplacements.length - aiEnhancedCount;
+      
       res.json({
         success: true,
-        message: `Vložených ${finalReplacements.length} premenných (nahradené bodky/podčiarknutia)`,
+        message: `Nájdených ${finalReplacements.length} polí (${aiEnhancedCount} AI vylepšené, ${purePatternCount} vzorová detekcia)`,
         replacements: finalReplacements,
         suggestedMappings,
         modifiedDocxPath: relativeDocxPath,
@@ -7439,8 +7600,8 @@ Odpovedz v JSON formáte:
         sampleData: SAMPLE_DATA
       });
     } catch (error) {
-      console.error("Fill-field placeholder insertion error:", error);
-      res.status(500).json({ error: "Placeholder insertion failed: " + (error as Error).message });
+      console.error("AI placeholder insertion error:", error);
+      res.status(500).json({ error: "AI placeholder insertion failed: " + (error as Error).message });
     }
   });
   

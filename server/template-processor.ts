@@ -1709,7 +1709,7 @@ export const SAMPLE_DATA: Record<string, string> = {
 
 export async function insertPlaceholdersIntoDocx(
   docxPath: string,
-  replacements: Array<{ original: string; placeholder: string; label?: string }>,
+  replacements: Array<{ original: string; placeholder: string; label?: string; lineIndex?: number }>,
   outputPath: string
 ): Promise<string> {
   try {
@@ -1723,61 +1723,86 @@ export async function insertPlaceholdersIntoDocx(
     
     let xmlContent = documentXml.asText();
     
-    // First pass: Replace fill markers (dots/underscores) based on nearby labels
-    // Pattern matches sequences of dots or underscores that are likely fill fields
-    const fillMarkerPatterns = [
-      // Match dots/underscores that appear after a label ending with : or space
-      { 
-        // Label followed by dots: "pani: ........"
-        regex: /(<w:t[^>]*>)([^<]*?)([:–\-]\s*)([.]{3,}|[_]{3,}|[…]{2,})(<\/w:t>)/g,
-        labelGroup: 2,
-        separatorGroup: 3,
-        markerGroup: 4
-      },
-      {
-        // Just dots/underscores sequences (standalone)
-        regex: /(<w:t[^>]*>)([.]{3,}|[_]{3,}|[…]{2,})(<\/w:t>)/g,
-        markerGroup: 2
-      }
-    ];
+    // Sort replacements by line index to process in document order
+    const sortedReplacements = [...replacements].sort((a, b) => 
+      (a.lineIndex ?? 9999) - (b.lineIndex ?? 9999)
+    );
     
-    // Track which placeholders we've used
-    const usedPlaceholders = new Set<string>();
+    // Track labels we've successfully matched to avoid double-replacement
+    const usedLabels = new Set<string>();
     let replacementCount = 0;
     
-    // Process replacements from the detection
-    for (const { original, placeholder, label } of replacements) {
+    // Process replacements in line order
+    for (const { original, placeholder, label } of sortedReplacements) {
       if (!original || !placeholder) continue;
-      if (usedPlaceholders.has(placeholder)) continue;
       
       // Escape the original for regex
       const escapedMarker = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      // If we have a label, try to match label + marker pattern
+      // If we have a label, try to match label + marker pattern FIRST
       if (label) {
+        const normalizedLabel = label.toLowerCase().trim();
+        
+        // Skip if we already processed this exact label
+        if (usedLabels.has(normalizedLabel)) {
+          console.log(`[DOCX] Skipping duplicate label "${label}" for ${placeholder}`);
+          continue;
+        }
+        
         const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Pattern: label text, optional XML tags, separator (: -), then the fill marker
+        
+        // Pattern: label text, optional separator (: -), then the fill marker (dots/underscores)
+        // This is more specific - must match the exact label before the dots
         const labelWithMarkerRegex = new RegExp(
-          `(${escapedLabel}[^<]*?[:–\\-]\\s*)(${escapedMarker})`,
+          `(${escapedLabel}[^<]*?[:–\\-]?\\s*)(${escapedMarker})`,
           'i'
         );
         
         if (labelWithMarkerRegex.test(xmlContent)) {
           xmlContent = xmlContent.replace(labelWithMarkerRegex, `$1{{${placeholder}}}`);
-          usedPlaceholders.add(placeholder);
+          usedLabels.add(normalizedLabel);
           replacementCount++;
-          console.log(`[DOCX] Replaced "${original}" after label "${label}" with {{${placeholder}}}`);
+          console.log(`[DOCX] Replaced "${original.substring(0, 15)}..." after label "${label}" with {{${placeholder}}}`);
           continue;
+        }
+        
+        // Try alternative: label might be in separate XML element
+        // Match label in one <w:t> and dots in another nearby
+        const labelOnlyRegex = new RegExp(`<w:t[^>]*>${escapedLabel}[^<]*</w:t>`, 'i');
+        if (labelOnlyRegex.test(xmlContent)) {
+          // Found the label - now find the next dots sequence after it
+          const labelMatch = xmlContent.match(labelOnlyRegex);
+          if (labelMatch && labelMatch.index !== undefined) {
+            const afterLabel = xmlContent.substring(labelMatch.index + labelMatch[0].length);
+            const dotsInNextElement = afterLabel.match(/^[^<]*(<[^>]+>)*[^<]*?([.]{3,}|[_]{3,}|[…]{2,})/);
+            
+            if (dotsInNextElement) {
+              const dotsMarker = dotsInNextElement[2];
+              const fullPattern = new RegExp(
+                `(${escapedLabel}[^<]*</w:t>[^]*?)(${dotsMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
+                'i'
+              );
+              
+              if (fullPattern.test(xmlContent)) {
+                xmlContent = xmlContent.replace(fullPattern, `$1{{${placeholder}}}`);
+                usedLabels.add(normalizedLabel);
+                replacementCount++;
+                console.log(`[DOCX] Replaced dots after separate label "${label}" with {{${placeholder}}}`);
+                continue;
+              }
+            }
+          }
         }
       }
       
-      // Fallback: just replace the first occurrence of the marker
-      const simpleMarkerRegex = new RegExp(escapedMarker);
-      if (simpleMarkerRegex.test(xmlContent)) {
-        xmlContent = xmlContent.replace(simpleMarkerRegex, `{{${placeholder}}}`);
-        usedPlaceholders.add(placeholder);
-        replacementCount++;
-        console.log(`[DOCX] Replaced "${original.substring(0, 20)}..." with {{${placeholder}}}`);
+      // Only use fallback if no label was provided
+      if (!label) {
+        const simpleMarkerRegex = new RegExp(escapedMarker);
+        if (simpleMarkerRegex.test(xmlContent)) {
+          xmlContent = xmlContent.replace(simpleMarkerRegex, `{{${placeholder}}}`);
+          replacementCount++;
+          console.log(`[DOCX] Replaced "${original.substring(0, 20)}..." with {{${placeholder}}} (no label)`);
+        }
       }
     }
     

@@ -499,6 +499,165 @@ export interface DetectedField {
   confidence: number;
 }
 
+// Map of Slovak labels to CRM field placeholders
+const LABEL_TO_PLACEHOLDER: Record<string, string> = {
+  // Customer personal info
+  "pani": "customer.fullName",
+  "pán": "customer.fullName",
+  "meno": "customer.fullName",
+  "meno a priezvisko": "customer.fullName",
+  "klientka": "customer.fullName",
+  "klient": "customer.fullName",
+  "zákazník": "customer.fullName",
+  "objednávateľ": "customer.fullName",
+  "rodička": "customer.fullName",
+  
+  // Birth info
+  "dátum narodenia": "customer.birthDate",
+  "narodená": "customer.birthDate",
+  "narodený": "customer.birthDate",
+  "nar": "customer.birthDate",
+  "rodné číslo": "customer.personalId",
+  "rč": "customer.personalId",
+  "r.č": "customer.personalId",
+  
+  // Address
+  "trvalé bydlisko": "customer.permanentAddress",
+  "trvalý pobyt": "customer.permanentAddress",
+  "trvale bytom": "customer.permanentAddress",
+  "adresa": "customer.permanentAddress",
+  "bydlisko": "customer.permanentAddress",
+  "korešpondenčná adresa": "customer.correspondenceAddress",
+  "doručovacia adresa": "customer.correspondenceAddress",
+  
+  // Contact
+  "telefón": "customer.phone",
+  "tel": "customer.phone",
+  "mobil": "customer.phone",
+  "email": "customer.email",
+  "e-mail": "customer.email",
+  
+  // Bank
+  "iban": "customer.IBAN",
+  "číslo účtu": "customer.IBAN",
+  "bankový účet": "customer.IBAN",
+  
+  // Father
+  "otec": "father.fullName",
+  "otec dieťaťa": "father.fullName",
+  "zákonný zástupca - otec": "father.fullName",
+  
+  // Mother  
+  "matka": "mother.fullName",
+  "matka dieťaťa": "mother.fullName",
+  
+  // Contract
+  "číslo zmluvy": "contract.number",
+  "zmluva č": "contract.number",
+  "č. zmluvy": "contract.number",
+  "dátum": "contract.date",
+  "dňa": "contract.date",
+  "v bratislave dňa": "contract.date",
+  
+  // Company
+  "spoločnosť": "company.name",
+  "ičo": "company.identificationNumber",
+  "dič": "company.taxIdentificationNumber",
+  "ič dph": "company.vatNumber",
+};
+
+// Find the placeholder for a given label
+function findPlaceholderForLabel(label: string): string | null {
+  const normalizedLabel = label.toLowerCase().replace(/[:\-–\s]+$/, "").trim();
+  
+  // Try exact match first
+  if (LABEL_TO_PLACEHOLDER[normalizedLabel]) {
+    return LABEL_TO_PLACEHOLDER[normalizedLabel];
+  }
+  
+  // Try partial match
+  for (const [key, placeholder] of Object.entries(LABEL_TO_PLACEHOLDER)) {
+    if (normalizedLabel.includes(key) || key.includes(normalizedLabel)) {
+      return placeholder;
+    }
+  }
+  
+  return null;
+}
+
+export interface FillFieldReplacement {
+  original: string;      // The fill marker (dots/underscores) to replace
+  placeholder: string;   // The CRM field name
+  label: string;         // The label that precedes the fill marker
+  lineIndex: number;     // Line number for reference
+}
+
+// Detect fill-field markers and return replacements where ONLY the markers are replaced
+export function detectFillFieldReplacements(text: string): FillFieldReplacement[] {
+  const replacements: FillFieldReplacement[] = [];
+  const lines = text.split(/\n/);
+  const totalLines = lines.length;
+  
+  const HEADER_SIZE = 40;
+  const SIGNATURE_SIZE = 50;
+  
+  // Pattern to match fill markers: 3+ dots, underscores, or ellipsis
+  const fillMarkerPattern = /([.]{3,}|[_]{3,}|[…]{2,})/g;
+  
+  // Pattern to extract label before fill marker
+  const labelBeforeMarkerPattern = /^(.+?)\s*[:–\-]?\s*([.]{3,}|[_]{3,}|[…]{2,})/;
+  
+  const usedPlaceholders = new Set<string>();
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Only process header, signature, or fill-field lines
+    const isHeader = i < HEADER_SIZE;
+    const isSignature = i >= totalLines - SIGNATURE_SIZE;
+    const hasFillMarker = fillMarkerPattern.test(line);
+    
+    if (!isHeader && !isSignature && !hasFillMarker) {
+      continue;
+    }
+    
+    // Reset regex state
+    fillMarkerPattern.lastIndex = 0;
+    
+    // Find all fill markers on this line
+    let match;
+    while ((match = fillMarkerPattern.exec(line)) !== null) {
+      const fillMarker = match[1];
+      const markerIndex = match.index;
+      
+      // Get the text before this marker to find the label
+      const textBefore = line.substring(0, markerIndex).trim();
+      
+      // Extract the label (last meaningful word/phrase before the marker)
+      const labelMatch = textBefore.match(/([^\n,;()]+?)[:–\-]?\s*$/);
+      const label = labelMatch ? labelMatch[1].trim() : textBefore;
+      
+      if (!label || label.length < 2) continue;
+      
+      // Find the appropriate placeholder for this label
+      const placeholder = findPlaceholderForLabel(label);
+      
+      if (placeholder && !usedPlaceholders.has(placeholder)) {
+        usedPlaceholders.add(placeholder);
+        replacements.push({
+          original: fillMarker,
+          placeholder: placeholder,
+          label: label,
+          lineIndex: i
+        });
+      }
+    }
+  }
+  
+  console.log(`[DOCX] Fill-field detection found ${replacements.length} markers to replace`);
+  return replacements;
+}
+
 export function detectFieldsWithPatterns(text: string): DetectedField[] {
   const detectedFields: DetectedField[] = [];
   const seenOriginals = new Set<string>();
@@ -756,7 +915,7 @@ export const SAMPLE_DATA: Record<string, string> = {
 
 export async function insertPlaceholdersIntoDocx(
   docxPath: string,
-  replacements: Array<{ original: string; placeholder: string }>,
+  replacements: Array<{ original: string; placeholder: string; label?: string }>,
   outputPath: string
 ): Promise<string> {
   try {
@@ -770,18 +929,65 @@ export async function insertPlaceholdersIntoDocx(
     
     let xmlContent = documentXml.asText();
     
-    const sortedReplacements = [...replacements].sort(
-      (a, b) => b.original.length - a.original.length
-    );
+    // First pass: Replace fill markers (dots/underscores) based on nearby labels
+    // Pattern matches sequences of dots or underscores that are likely fill fields
+    const fillMarkerPatterns = [
+      // Match dots/underscores that appear after a label ending with : or space
+      { 
+        // Label followed by dots: "pani: ........"
+        regex: /(<w:t[^>]*>)([^<]*?)([:–\-]\s*)([.]{3,}|[_]{3,}|[…]{2,})(<\/w:t>)/g,
+        labelGroup: 2,
+        separatorGroup: 3,
+        markerGroup: 4
+      },
+      {
+        // Just dots/underscores sequences (standalone)
+        regex: /(<w:t[^>]*>)([.]{3,}|[_]{3,}|[…]{2,})(<\/w:t>)/g,
+        markerGroup: 2
+      }
+    ];
     
-    for (const { original, placeholder } of sortedReplacements) {
-      if (!original || original.length < 2) continue;
+    // Track which placeholders we've used
+    const usedPlaceholders = new Set<string>();
+    let replacementCount = 0;
+    
+    // Process replacements from the detection
+    for (const { original, placeholder, label } of replacements) {
+      if (!original || !placeholder) continue;
+      if (usedPlaceholders.has(placeholder)) continue;
       
-      const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escapedOriginal, 'g');
-      xmlContent = xmlContent.replace(regex, `{{${placeholder}}}`);
+      // Escape the original for regex
+      const escapedMarker = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // If we have a label, try to match label + marker pattern
+      if (label) {
+        const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Pattern: label text, optional XML tags, separator (: -), then the fill marker
+        const labelWithMarkerRegex = new RegExp(
+          `(${escapedLabel}[^<]*?[:–\\-]\\s*)(${escapedMarker})`,
+          'i'
+        );
+        
+        if (labelWithMarkerRegex.test(xmlContent)) {
+          xmlContent = xmlContent.replace(labelWithMarkerRegex, `$1{{${placeholder}}}`);
+          usedPlaceholders.add(placeholder);
+          replacementCount++;
+          console.log(`[DOCX] Replaced "${original}" after label "${label}" with {{${placeholder}}}`);
+          continue;
+        }
+      }
+      
+      // Fallback: just replace the first occurrence of the marker
+      const simpleMarkerRegex = new RegExp(escapedMarker);
+      if (simpleMarkerRegex.test(xmlContent)) {
+        xmlContent = xmlContent.replace(simpleMarkerRegex, `{{${placeholder}}}`);
+        usedPlaceholders.add(placeholder);
+        replacementCount++;
+        console.log(`[DOCX] Replaced "${original.substring(0, 20)}..." with {{${placeholder}}}`);
+      }
     }
     
+    // Cleanup: fix any duplicate or malformed placeholders
     const duplicatePlaceholderRegex = /(\{\{[^}]+\}\})\1+/g;
     xmlContent = xmlContent.replace(duplicatePlaceholderRegex, '$1');
     
@@ -801,7 +1007,7 @@ export async function insertPlaceholdersIntoDocx(
     const outputBuffer = zip.generate({ type: "nodebuffer" });
     fs.writeFileSync(outputPath, outputBuffer);
     
-    console.log(`[DOCX] Inserted ${replacements.length} placeholders, saved to ${outputPath}`);
+    console.log(`[DOCX] Inserted ${replacementCount} placeholders, saved to ${outputPath}`);
     return outputPath;
   } catch (error) {
     console.error("[DOCX] Error inserting placeholders:", error);

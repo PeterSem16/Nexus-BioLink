@@ -7350,7 +7350,7 @@ Odpovedz v JSON formáte:
         extractDocxFullText, 
         insertPlaceholdersIntoDocx, 
         convertDocxToPdf, 
-        detectFieldsWithPatterns,
+        detectFillFieldReplacements,
         extractDocxStructuredContent,
         SAMPLE_DATA
       } = await import("./template-processor");
@@ -7364,248 +7364,30 @@ Odpovedz v JSON formáte:
         return res.status(400).json({ error: "Document is too short for analysis" });
       }
       
-      const patternDetectedFields = detectFieldsWithPatterns(fullText);
-      console.log(`[AI] Pattern detection found ${patternDetectedFields.length} fields:`, 
-        patternDetectedFields.map(f => `${f.placeholder}: "${f.original.substring(0, 30)}..."`));
+      // Use the new fill-field detection - finds dots/underscores and maps them to placeholders
+      const fillFieldReplacements = detectFillFieldReplacements(fullText);
+      console.log(`[Fill-Field] Detection found ${fillFieldReplacements.length} markers:`, 
+        fillFieldReplacements.map(f => `"${f.label}" -> {{${f.placeholder}}}`));
       
-      const crmFieldsTable = `
-| Premenná | Popis | Príklad hodnoty |
-|----------|-------|-----------------|
-| customer.firstName | Krstné meno zákazníka | Jana |
-| customer.lastName | Priezvisko zákazníka | Nováková |
-| customer.fullName | Celé meno zákazníka | Jana Nováková |
-| customer.email | Email zákazníka | jana@example.com |
-| customer.phone | Telefón zákazníka | +421 900 123 456 |
-| customer.birthDate | Dátum narodenia | 15.03.1990 |
-| customer.personalId | Rodné číslo | 900315/1234 |
-| customer.permanentAddress | Trvalá adresa | Hlavná 123, 831 01 Bratislava |
-| customer.correspondenceAddress | Korešpondenčná adresa | Hlavná 123, 831 01 Bratislava |
-| customer.IBAN | Číslo účtu IBAN | SK89 1100 0000 0012 3456 7890 |
-| father.fullName | Meno otca | Peter Novák |
-| father.permanentAddress | Adresa otca | Hlavná 123, 831 01 Bratislava |
-| mother.fullName | Meno matky | Mária Nováková |
-| mother.permanentAddress | Adresa matky | Hlavná 123, 831 01 Bratislava |
-| representative.fullName | Meno zástupcu | Mgr. Martin Kováč |
-| company.name | Názov spoločnosti | Cord Blood Center AG |
-| company.address | Adresa spoločnosti | Bodenhof 4, 6014 Luzern |
-| company.identificationNumber | IČO spoločnosti | CHE-178.669.230 |
-| contract.number | Číslo zmluvy | ZML-2026-0001 |
-| contract.date | Dátum zmluvy | 7.1.2026 |
-| today | Dnešný dátum | 7.1.2026 |
-`;
-
-      const lines = fullText.split('\n');
-      const totalLines = lines.length;
-      
-      const headerLines = lines.slice(0, Math.min(40, totalLines));
-      const signatureLines = lines.slice(Math.max(0, totalLines - 50));
-      
-      const fillFieldLines: string[] = [];
-      const fillFieldRegex = /[\.]{3,}|[_]{3,}|[\…]{2,}|:\s*$/;
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (fillFieldRegex.test(line)) {
-          const contextStart = Math.max(0, i - 1);
-          const contextEnd = Math.min(lines.length, i + 2);
-          fillFieldLines.push(...lines.slice(contextStart, contextEnd));
-        }
-      }
-      
-      const headerSection = headerLines.join('\n');
-      const signatureSection = signatureLines.join('\n');
-      const fillFieldSection = [...new Set(fillFieldLines)].join('\n');
-      
-      console.log(`[AI] Document sections: header=${headerLines.length} lines, signature=${signatureLines.length} lines, fill-fields=${fillFieldLines.length} lines`);
-      
-      const prompt = `Si expert na analýzu právnych dokumentov pre cord blood banky. Tvoja úloha je KONZERVATÍVNE identifikovať len polia, ktoré sú JASNE OZNAČENÉ PRE VYPLNENIE.
-
-## ZAMERANIE - Hľadaj len v týchto sekciách:
-
-### HLAVIČKA DOKUMENTU (prvých 40 riadkov):
-${headerSection}
-
-### ZÁVER / PODPISY (posledných 50 riadkov):
-${signatureSection}
-
-### RIADKY S VYPLŇOVACÍMI ZNAKMI (............, _______, atď.):
-${fillFieldSection}
-
-## DOSTUPNÉ CRM PREMENNÉ:
-${crmFieldsTable}
-
-## KRITICKÉ PRAVIDLÁ - VEĽMI DÔLEŽITÉ:
-
-1. **NAHRÁDZAJ LEN KONKRÉTNE HODNOTY** - mená osôb, adresy, dátumy, rodné čísla
-2. **IGNORUJ NÁZVY POLÍ** - "Klientka:", "Otec:", "Trvalé bydlisko:" sú len návesti, NIE hodnoty na nahradenie
-3. **HĽADAJ VIZUÁLNE OZNAČENIA** - polia označené bodkami (....), podčiarknutím (____) alebo dvojbodkou na konci
-4. **NESAHAJ DO STREDU DOKUMENTU** - text článkov zmluvy NIE JE NA NAHRADENIE
-5. **BUĎ KONZERVATÍVNY** - ak si nie si istý, NEZAHRŇ pole
-6. **MAX 10-15 POLÍ** - zmluva má len niekoľko kľúčových polí na vyplnenie
-
-## ČO NAHRADIŤ:
-- Skutočné mená osôb (nie "Meno a priezvisko")
-- Skutočné adresy (nie "Adresa trvalého pobytu")
-- Skutočné dátumy (nie "Dátum narodenia")
-- Skutočné čísla (rodné číslo, IČO, atď.)
-
-## ČO NENAHRÁDZAŤ:
-- Názvy polí a návesti ("Klientka:", "Otec dieťaťa:")
-- Text článkov zmluvy a právne formulácie
-- Nadpisy a čísla článkov
-- Obecné pokyny a vysvetlenia
-
-## FORMÁT ODPOVEDE (JSON):
-{
-  "replacements": [
-    { "original": "Jana Nováková", "placeholder": "customer.fullName", "reason": "Konkrétne meno pri hlavičke dokumentu" },
-    { "original": "15.03.1990", "placeholder": "customer.birthDate", "reason": "Dátum pri riadku s bodkami" }
-  ],
-  "summary": "Identifikovaných X polí z hlavičky a podpisovej časti"
-}`;
-
-      console.log("[AI] Analyzing document for placeholder insertion...");
-      
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Si expert na analýzu zmlúv a identifikáciu polí pre automatické vyplnenie. Odpovedaj len v JSON formáte." },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2
-      });
-      
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No response from AI");
-      }
-      
-      const aiResult = JSON.parse(content);
-      console.log(`[AI] Raw response: ${aiResult.replacements?.length || 0} replacements`);
-      
-      if (!aiResult.replacements || aiResult.replacements.length === 0) {
+      // If no fill fields found, return early
+      if (fillFieldReplacements.length === 0) {
         return res.json({
           success: true,
-          message: "AI nenašlo žiadne polia na nahradenie",
-          replacements: [],
-          modifiedDocxPath: null
-        });
-      }
-      
-      const allowedPlaceholders = new Set([
-        "customer.firstName", "customer.lastName", "customer.fullName",
-        "customer.email", "customer.phone", "customer.birthDate", "customer.personalId",
-        "customer.permanentAddress", "customer.correspondenceAddress", "customer.IBAN", "customer.SWIFT",
-        "customer.address.street", "customer.address.city", "customer.address.postalCode", "customer.address.country",
-        "father.fullName", "father.permanentAddress", "father.birthDate", "father.personalId",
-        "mother.fullName", "mother.permanentAddress", "mother.birthDate", "mother.personalId",
-        "representative.fullName", "representative.address",
-        "company.name", "company.address", "company.identificationNumber", "company.taxIdentificationNumber", "company.vatNumber",
-        "contract.number", "contract.date", "contract.validFrom", "contract.validTo",
-        "today", "child.fullName", "child.birthDate", "child.birthPlace"
-      ]);
-      
-      const seenOriginals = new Set<string>();
-      const validatedReplacements: Array<{ original: string; placeholder: string; reason: string }> = [];
-      
-      const labelPatterns = [
-        /^(klientka|zákazník|objednávateľ|rodička|matka|otec|dieťa|spoločnosť|poskytovateľ)$/i,
-        /^(meno|priezvisko|adresa|bydlisko|telefón|email|dátum|číslo)$/i,
-        /^(trvalé bydlisko|rodné číslo|dátum narodenia|meno a priezvisko)$/i,
-        /^(zákonný zástupca|zmluva|podpis|číslo zmluvy)$/i,
-      ];
-      
-      const isLabelNotValue = (text: string): boolean => {
-        const trimmed = text.trim().toLowerCase();
-        if (trimmed.endsWith(':')) return true;
-        for (const pattern of labelPatterns) {
-          if (pattern.test(trimmed)) return true;
-        }
-        return false;
-      };
-      
-      const headerAndSignatureText = (headerSection + '\n' + signatureSection + '\n' + fillFieldSection).toLowerCase();
-      
-      for (const r of aiResult.replacements) {
-        if (!r.original || !r.placeholder) continue;
-        
-        const original = String(r.original).trim();
-        const placeholder = String(r.placeholder).trim();
-        
-        if (original.length < 2) continue;
-        
-        if (!allowedPlaceholders.has(placeholder)) {
-          console.log(`[AI] Skipping invalid placeholder: ${placeholder}`);
-          continue;
-        }
-        
-        if (seenOriginals.has(original.toLowerCase())) {
-          console.log(`[AI] Skipping duplicate original: "${original}"`);
-          continue;
-        }
-        
-        if (original.includes("{{") || original.includes("}}")) {
-          console.log(`[AI] Skipping already-templated text: "${original}"`);
-          continue;
-        }
-        
-        if (isLabelNotValue(original)) {
-          console.log(`[AI] Skipping label (not value): "${original}"`);
-          continue;
-        }
-        
-        if (!headerAndSignatureText.includes(original.toLowerCase())) {
-          console.log(`[AI] Skipping text not in allowed sections: "${original}"`);
-          continue;
-        }
-        
-        seenOriginals.add(original.toLowerCase());
-        validatedReplacements.push({
-          original,
-          placeholder,
-          reason: r.reason || ""
-        });
-      }
-      
-      console.log(`[AI] After AI validation: ${validatedReplacements.length} valid replacements`);
-      
-      const finalReplacements: Array<{ original: string; placeholder: string; reason: string; crmField: string }> = [];
-      const usedOriginals = new Set<string>();
-      
-      for (const field of patternDetectedFields) {
-        if (!usedOriginals.has(field.original.toLowerCase())) {
-          usedOriginals.add(field.original.toLowerCase());
-          finalReplacements.push({
-            original: field.original,
-            placeholder: field.placeholder,
-            reason: field.label,
-            crmField: field.placeholder
-          });
-        }
-      }
-      
-      for (const r of validatedReplacements) {
-        if (!usedOriginals.has(r.original.toLowerCase())) {
-          usedOriginals.add(r.original.toLowerCase());
-          finalReplacements.push({
-            ...r,
-            crmField: r.placeholder
-          });
-        }
-      }
-      
-      console.log(`[AI] Final merged replacements: ${finalReplacements.length} (${patternDetectedFields.length} from patterns, ${validatedReplacements.length} from AI)`);
-      
-      if (finalReplacements.length === 0) {
-        return res.json({
-          success: true,
-          message: "AI nenašlo žiadne polia na nahradenie",
+          message: "Neboli nájdené žiadne polia na vyplnenie (bodky, podčiarknutia)",
           replacements: [],
           modifiedDocxPath: null,
           suggestedMappings: {}
         });
       }
+      
+      // Convert to the format expected by insertPlaceholdersIntoDocx
+      const finalReplacements = fillFieldReplacements.map(f => ({
+        original: f.original,
+        placeholder: f.placeholder,
+        label: f.label,
+        reason: `Nahradené bodky/podčiarknutia za "${f.label}"`,
+        crmField: f.placeholder
+      }));
       
       const outputFilename = `template-ai-${Date.now()}.docx`;
       const outputPath = path.join(process.cwd(), "uploads/contract-pdfs", outputFilename);
@@ -7621,7 +7403,7 @@ ${crmFieldsTable}
       try {
         previewPdfPath = await convertDocxToPdf(outputPath, previewDir);
       } catch (pdfError) {
-        console.warn("[AI] PDF preview generation failed:", pdfError);
+        console.warn("[Fill-Field] PDF preview generation failed:", pdfError);
       }
       
       const relativeDocxPath = `uploads/contract-pdfs/${outputFilename}`;
@@ -7642,15 +7424,13 @@ ${crmFieldsTable}
         conversionMetadata: JSON.stringify({
           aiProcessedAt: new Date().toISOString(),
           replacementsCount: finalReplacements.length,
-          patternDetectedCount: patternDetectedFields.length,
-          aiDetectedCount: validatedReplacements.length,
-          summary: `Nájdených ${finalReplacements.length} polí (${patternDetectedFields.length} automaticky, ${validatedReplacements.length} AI)`
+          summary: `Nájdených ${finalReplacements.length} polí na vyplnenie`
         })
       });
       
       res.json({
         success: true,
-        message: `Vložených ${finalReplacements.length} premenných (${patternDetectedFields.length} automaticky, ${validatedReplacements.length} AI)`,
+        message: `Vložených ${finalReplacements.length} premenných (nahradené bodky/podčiarknutia)`,
         replacements: finalReplacements,
         suggestedMappings,
         modifiedDocxPath: relativeDocxPath,
@@ -7659,8 +7439,8 @@ ${crmFieldsTable}
         sampleData: SAMPLE_DATA
       });
     } catch (error) {
-      console.error("AI placeholder insertion error:", error);
-      res.status(500).json({ error: "AI placeholder insertion failed: " + (error as Error).message });
+      console.error("Fill-field placeholder insertion error:", error);
+      res.status(500).json({ error: "Placeholder insertion failed: " + (error as Error).message });
     }
   });
   
@@ -8187,12 +7967,15 @@ ${crmFieldsTable}
         }
       }
       
-      // Update template - set aiProcessed so reset button appears
+      // Update template - set conversionMetadata so reset button appears
       await storage.updateCategoryDefaultTemplate(template.id, {
         sourceDocxPath: relativePath,
         extractedFields: JSON.stringify(foundPlaceholders),
         placeholderMappings: JSON.stringify(mappings),
-        aiProcessedAt: new Date().toISOString()
+        conversionMetadata: JSON.stringify({
+          aiProcessedAt: new Date().toISOString(),
+          manualInsertedPlaceholder: placeholder
+        })
       });
       
       res.json({

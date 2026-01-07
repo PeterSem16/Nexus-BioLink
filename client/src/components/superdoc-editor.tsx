@@ -38,18 +38,43 @@ export function SuperDocEditor({
   const [htmlContent, setHtmlContent] = useState<string>("");
   const { toast } = useToast();
 
+  const extractVariablesFromDocument = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/extract-variables`,
+        { credentials: "include" }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const variables = data.variables || [];
+        setExtractedVariables(variables);
+        onExtractedFieldsChange?.(variables);
+      }
+    } catch (error) {
+      console.error("Error extracting variables:", error);
+    }
+  }, [categoryId, countryCode, onExtractedFieldsChange]);
+
   const loadHtmlFallback = useCallback(async () => {
     try {
+      console.log("Loading HTML fallback for", categoryId, countryCode);
       const response = await fetch(
         `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx-html`,
         { credentials: "include" }
       );
+      console.log("HTML fallback response status:", response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log("HTML fallback data received, html length:", data.html?.length);
         setHtmlContent(data.html || "");
+      } else {
+        console.error("HTML fallback failed:", response.status);
+        setHtmlContent("<p>Nepodarilo sa načítať dokument.</p>");
       }
     } catch (error) {
       console.error("Error loading HTML fallback:", error);
+      setHtmlContent("<p>Chyba pri načítaní dokumentu.</p>");
     }
   }, [categoryId, countryCode]);
 
@@ -137,24 +162,6 @@ export function SuperDocEditor({
       setIsLoading(false);
     }
   }, [categoryId, countryCode, toast, loadHtmlFallback, extractVariablesFromDocument]);
-
-  const extractVariablesFromDocument = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/extract-variables`,
-        { credentials: "include" }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const variables = data.variables || [];
-        setExtractedVariables(variables);
-        onExtractedFieldsChange?.(variables);
-      }
-    } catch (error) {
-      console.error("Error extracting variables:", error);
-    }
-  }, [categoryId, countryCode, onExtractedFieldsChange]);
 
   useEffect(() => {
     loadDocument();

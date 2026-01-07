@@ -7620,6 +7620,96 @@ Odpovedz v JSON formáte:
     }
   });
   
+  // Get DOCX text content for preview (with placeholders visible or replaced with sample data)
+  app.get("/api/contracts/categories/:categoryId/default-templates/:countryCode/docx-preview", requireAuth, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const countryCode = req.params.countryCode.toUpperCase();
+      const withSampleData = req.query.withSampleData === "true";
+      
+      const template = await storage.getCategoryDefaultTemplate(categoryId, countryCode);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      if (!template.sourceDocxPath) {
+        return res.status(404).json({ error: "DOCX template not found" });
+      }
+      
+      const fullPath = path.join(process.cwd(), template.sourceDocxPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "DOCX file not found" });
+      }
+      
+      const { extractDocxFullText } = await import("./template-processor");
+      let text = await extractDocxFullText(fullPath);
+      
+      // Get extracted fields
+      let extractedFields: string[] = [];
+      if (template.extractedFields) {
+        try {
+          extractedFields = typeof template.extractedFields === 'string' 
+            ? JSON.parse(template.extractedFields) 
+            : template.extractedFields;
+        } catch {}
+      }
+      
+      // Sample data for preview
+      const sampleData: Record<string, string> = {
+        "customer.firstName": "Jana",
+        "customer.lastName": "Nováková",
+        "customer.fullName": "Jana Nováková",
+        "customer.email": "jana.novakova@example.com",
+        "customer.phone": "+421 900 123 456",
+        "customer.birthDate": "15.03.1990",
+        "customer.personalId": "900315/1234",
+        "customer.dateOfBirth": "15.03.1990",
+        "customer.permanentAddress": "Hlavná 123, 831 01 Bratislava",
+        "customer.correspondenceAddress": "Korešpondenčná 45, 831 02 Bratislava",
+        "customer.address.street": "Hlavná 123",
+        "customer.address.city": "Bratislava",
+        "customer.address.postalCode": "831 01",
+        "customer.address.country": "Slovensko",
+        "customer.IBAN": "SK89 1100 0000 0012 3456 7890",
+        "customer.SWIFT": "TATRSKBX",
+        "father.fullName": "Peter Novák",
+        "father.permanentAddress": "Hlavná 123, 831 01 Bratislava",
+        "representative.fullName": "Mgr. Martin Kováč",
+        "company.name": "Cord Blood Center AG",
+        "company.address": "Bodenhof 4, 6014 Luzern",
+        "company.identificationNumber": "CHE-178.669.230",
+        "company.taxIdentificationNumber": "2014927",
+        "company.vatNumber": "CHE-178.669.230 MWST",
+        "contract.number": "ZML-2026-0001",
+        "contract.date": new Date().toLocaleDateString("sk-SK"),
+        "today": new Date().toLocaleDateString("sk-SK"),
+      };
+      
+      if (withSampleData) {
+        // Replace placeholders with sample data
+        for (const field of extractedFields) {
+          const regex = new RegExp(`\\{\\{${field.replace(/\./g, '\\.')}\\}\\}`, 'g');
+          const value = sampleData[field] || `[${field}]`;
+          text = text.replace(regex, `**${value}**`);
+        }
+      }
+      
+      res.json({
+        text,
+        extractedFields,
+        placeholderMappings: template.placeholderMappings 
+          ? JSON.parse(template.placeholderMappings) 
+          : {},
+        sampleData: withSampleData ? sampleData : undefined
+      });
+    } catch (error) {
+      console.error("Error serving DOCX preview:", error);
+      res.status(500).json({ error: "Failed to get DOCX preview" });
+    }
+  });
+
   // Generate contract from template for a customer
   app.post("/api/contracts/generate", requireAuth, async (req, res) => {
     try {

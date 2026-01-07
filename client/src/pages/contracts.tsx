@@ -197,6 +197,114 @@ function SortableCategoryRow({
   );
 }
 
+function DocxPreviewContent({ 
+  categoryId, 
+  countryCode, 
+  extractedFields 
+}: { 
+  categoryId: number; 
+  countryCode: string; 
+  extractedFields: string[];
+}) {
+  const [docxText, setDocxText] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchDocxPreview = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx-preview`,
+          { credentials: "include" }
+        );
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch DOCX preview");
+        }
+        
+        const data = await response.json();
+        setDocxText(data.text || "");
+      } catch (err) {
+        console.error("Error fetching DOCX preview:", err);
+        setError("Nepodarilo sa načítať náhľad dokumentu");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDocxPreview();
+  }, [categoryId, countryCode]);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+        <span className="text-muted-foreground">Načítavam dokument...</span>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+        <p>{error}</p>
+      </div>
+    );
+  }
+  
+  if (!docxText) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p>Dokument je prázdny</p>
+      </div>
+    );
+  }
+  
+  const highlightPlaceholders = (text: string) => {
+    const parts: Array<{ type: 'text' | 'placeholder'; content: string }> = [];
+    const regex = /\{\{([^}]+)\}\}/g;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      }
+      parts.push({ type: 'placeholder', content: match[1] });
+      lastIndex = regex.lastIndex;
+    }
+    
+    if (lastIndex < text.length) {
+      parts.push({ type: 'text', content: text.slice(lastIndex) });
+    }
+    
+    return parts;
+  };
+  
+  const parts = highlightPlaceholders(docxText);
+  
+  return (
+    <div className="text-sm leading-relaxed whitespace-pre-wrap font-serif">
+      {parts.map((part, idx) => 
+        part.type === 'placeholder' ? (
+          <span 
+            key={idx} 
+            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded bg-primary/10 text-primary font-mono text-xs border border-primary/20"
+          >
+            {`{{${part.content}}}`}
+          </span>
+        ) : (
+          <span key={idx}>{part.content}</span>
+        )
+      )}
+    </div>
+  );
+}
+
 export default function ContractsPage() {
   const { toast } = useToast();
   const { selectedCountries } = useCountryFilter();
@@ -3894,9 +4002,63 @@ export default function ContractsPage() {
                   
                   {editingTemplateData.extractedFields.length > 0 ? (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4 p-2 bg-muted rounded-md font-medium text-sm">
-                        <div>Pole v šablóne</div>
-                        <div>Údaj zákazníka</div>
+                      <div className="flex items-center justify-between gap-4 p-2 bg-muted rounded-md">
+                        <div className="grid grid-cols-2 gap-4 flex-1 font-medium text-sm">
+                          <div>Pole v šablóne</div>
+                          <div>Údaj zákazníka</div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            setAiMappingInProgress(true);
+                            try {
+                              const response = await fetch("/api/contracts/ai-mapping", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                                body: JSON.stringify({
+                                  extractedFields: editingTemplateData.extractedFields
+                                })
+                              });
+                              
+                              if (!response.ok) {
+                                throw new Error("AI mapping failed");
+                              }
+                              
+                              const result = await response.json();
+                              
+                              if (result.mappings) {
+                                setTemplateMappings(prev => ({ ...prev, ...result.mappings }));
+                                toast({
+                                  title: "AI mapovanie dokončené",
+                                  description: `Namapovaných ${Object.keys(result.mappings).length} polí`
+                                });
+                              }
+                            } catch (error) {
+                              console.error("AI mapping error:", error);
+                              toast({
+                                title: "Chyba pri AI mapovaní",
+                                variant: "destructive"
+                              });
+                            } finally {
+                              setAiMappingInProgress(false);
+                            }
+                          }}
+                          disabled={aiMappingInProgress}
+                          data-testid="button-ai-mapping-category"
+                        >
+                          {aiMappingInProgress ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              AI mapuje...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-1" />
+                              AI Mapovanie
+                            </>
+                          )}
+                        </Button>
                       </div>
                       
                       {editingTemplateData.extractedFields.map((field, idx) => (
@@ -4055,123 +4217,62 @@ export default function ContractsPage() {
                 </TabsContent>
                 
                 <TabsContent value="preview" className="space-y-4">
-                  {(() => {
-                    const mappedCount = editingTemplateData.extractedFields.filter(f => 
-                      templateMappings[f] && templateMappings[f].trim() !== ""
-                    ).length;
-                    const totalCount = editingTemplateData.extractedFields.length;
-                    const mappingProgress = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
-                    
-                    return (
-                      <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-md">
-                        <div className="flex-1">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="font-medium">Stav mapovania</span>
-                            <span className={mappedCount === totalCount ? "text-green-600" : "text-amber-600"}>
-                              {mappedCount} z {totalCount} polí namapovaných ({mappingProgress}%)
-                            </span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full transition-all ${mappedCount === totalCount ? "bg-green-500" : "bg-amber-500"}`}
-                              style={{ width: `${mappingProgress}%` }}
-                            />
-                          </div>
-                        </div>
-                        {mappedCount === totalCount && totalCount > 0 && (
-                          <Badge variant="default" className="bg-green-600">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Kompletné
-                          </Badge>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  
-                  <div className="p-4 bg-muted/50 rounded-md">
-                    <h4 className="font-medium mb-3">Ukážkové údaje zákazníka</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Meno:</span>
-                          <span>Jana Nováková</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Email:</span>
-                          <span>jana.novakova@example.com</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Telefón:</span>
-                          <span>+421 900 123 456</span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Adresa:</span>
-                          <span>Hlavná 123</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Mesto:</span>
-                          <span>Bratislava</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">PSČ:</span>
-                          <span>831 01</span>
-                        </div>
-                      </div>
+                  <div className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-md">
+                    <div className="flex items-center gap-4">
+                      <Badge variant={editingTemplateData.templateType === "docx" ? "default" : "secondary"}>
+                        DOCX náhľad
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {editingTemplateData.extractedFields.length} premenných
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {editingTemplateData.categoryId && editingTemplateData.countryCode && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            window.open(`/api/contracts/categories/${editingTemplateData.categoryId}/templates/${editingTemplateData.countryCode}/download`, '_blank');
+                          }}
+                          data-testid="button-download-docx-preview"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Stiahnuť DOCX
+                        </Button>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="border rounded-md p-4">
-                    <h4 className="font-medium mb-3">Náhľad vyplnených polí</h4>
-                    {editingTemplateData.extractedFields.length > 0 ? (
-                      <div className="space-y-2">
-                        {editingTemplateData.extractedFields.map((field, idx) => {
-                          const mapping = templateMappings[field];
-                          const sampleValues: Record<string, string> = {
-                            firstName: "Jana",
-                            lastName: "Nováková",
-                            fullName: "Jana Nováková",
-                            email: "jana.novakova@example.com",
-                            phone: "+421 900 123 456",
-                            mobile: "+421 900 123 456",
-                            address: "Hlavná 123",
-                            city: "Bratislava",
-                            postalCode: "831 01",
-                            country: "Slovensko",
-                            dateOfBirth: "15.03.1990",
-                            nationalId: "900315/1234",
-                            currentDate: format(new Date(), "d.M.yyyy", { locale: sk }),
-                            contractNumber: "ZML-2026-0001",
-                            bankAccount: "SK89 1100 0000 0012 3456 7890",
-                            bankName: "Tatra banka",
-                          };
-                          const value = mapping ? (sampleValues[mapping] || `[${mapping}]`) : "(nenamapované)";
-                          
-                          return (
-                            <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded">
-                              <Badge variant="outline" className="font-mono text-xs shrink-0">
-                                {editingTemplateData.templateType === "docx" ? `{{${field}}}` : field}
-                              </Badge>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span className={mapping ? "text-foreground" : "text-muted-foreground italic"}>
-                                {value}
-                              </span>
-                            </div>
-                          );
-                        })}
+                  <div className="border rounded-md">
+                    <div className="p-3 border-b bg-muted/30 flex items-center justify-between gap-2">
+                      <h4 className="font-medium text-sm">Text dokumentu s premennými</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          <FileText className="h-3 w-3 mr-1" />
+                          Premenné sú zvýraznené
+                        </Badge>
                       </div>
-                    ) : (
-                      <p className="text-muted-foreground text-center py-4">
-                        Žiadne polia na zobrazenie
-                      </p>
-                    )}
+                    </div>
+                    <ScrollArea className="h-[400px]">
+                      <div className="p-4">
+                        {editingTemplateData.categoryId && editingTemplateData.countryCode ? (
+                          <DocxPreviewContent 
+                            categoryId={editingTemplateData.categoryId} 
+                            countryCode={editingTemplateData.countryCode}
+                            extractedFields={editingTemplateData.extractedFields}
+                          />
+                        ) : (
+                          <p className="text-muted-foreground text-center py-8">
+                            Načítavam náhľad dokumentu...
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
                   </div>
                   
                   <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      <strong>Tip:</strong> Po uložení mapovania môžete generovať zmluvy pre konkrétnych zákazníkov. 
-                      Systém automaticky vyplní všetky namapované polia údajmi zo zákazníckej karty.
+                      <strong>Tip:</strong> Premenné v tvare {"{{...}}"} sa pri generovaní zmluvy nahradia skutočnými údajmi zákazníka.
                     </p>
                   </div>
                   

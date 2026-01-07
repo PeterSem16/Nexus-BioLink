@@ -7351,36 +7351,70 @@ Odpovedz v JSON formáte:
         return res.status(400).json({ error: "Document is too short for analysis" });
       }
       
-      const crmFieldsList = Object.entries(CRM_DATA_FIELDS)
-        .map(([id, label]) => `${id}: ${label}`)
-        .join("\n");
-      
-      const prompt = `Analyzuj tento text zmluvy a nájdi miesta kde by mali byť premenné z CRM systému.
+      const crmFieldsTable = `
+| Premenná | Popis | Príklad hodnoty |
+|----------|-------|-----------------|
+| customer.firstName | Krstné meno zákazníka | Jana |
+| customer.lastName | Priezvisko zákazníka | Nováková |
+| customer.fullName | Celé meno zákazníka | Jana Nováková |
+| customer.email | Email zákazníka | jana@example.com |
+| customer.phone | Telefón zákazníka | +421 900 123 456 |
+| customer.birthDate | Dátum narodenia | 15.03.1990 |
+| customer.personalId | Rodné číslo | 900315/1234 |
+| customer.permanentAddress | Trvalá adresa | Hlavná 123, 831 01 Bratislava |
+| customer.correspondenceAddress | Korešpondenčná adresa | Hlavná 123, 831 01 Bratislava |
+| customer.IBAN | Číslo účtu IBAN | SK89 1100 0000 0012 3456 7890 |
+| father.fullName | Meno otca | Peter Novák |
+| father.permanentAddress | Adresa otca | Hlavná 123, 831 01 Bratislava |
+| mother.fullName | Meno matky | Mária Nováková |
+| mother.permanentAddress | Adresa matky | Hlavná 123, 831 01 Bratislava |
+| representative.fullName | Meno zástupcu | Mgr. Martin Kováč |
+| company.name | Názov spoločnosti | Cord Blood Center AG |
+| company.address | Adresa spoločnosti | Bodenhof 4, 6014 Luzern |
+| company.identificationNumber | IČO spoločnosti | CHE-178.669.230 |
+| contract.number | Číslo zmluvy | ZML-2026-0001 |
+| contract.date | Dátum zmluvy | 7.1.2026 |
+| today | Dnešný dátum | 7.1.2026 |
+`;
 
-TEXT ZMLUVY:
-${fullText.substring(0, 8000)}
+      const prompt = `Si expert na analýzu právnych dokumentov a zmlúv. Analyzuj tento dokument a identifikuj konkrétne textové hodnoty, ktoré by mali byť nahradené premennými zo systému CRM.
 
-DOSTUPNÉ CRM PREMENNÉ:
-${crmFieldsList}
+## TEXT DOKUMENTU:
+${fullText.substring(0, 10000)}
 
-ÚLOHA:
-1. Nájdi v texte konkrétne hodnoty ktoré by mali byť nahradené premennými (mená, adresy, dátumy, čísla zmlúv, atď.)
-2. Pre každú nájdenú hodnotu urči ktorá CRM premenná ju má nahradiť
-3. Vráť zoznam nahradení
+## DOSTUPNÉ CRM PREMENNÉ:
+${crmFieldsTable}
 
-PRAVIDLÁ:
-- Hľadaj skutočné údaje zákazníka (mená ako "Ján Novák", adresy, rodné čísla, dátumy narodenia)
-- Hľadaj údaje spoločnosti (názov, IČO, DIČ, adresa)
-- Hľadaj čísla zmlúv, dátumy podpisu
-- Ignoruj všeobecný právny text
+## TVOJA ÚLOHA:
+1. Pozorne prečítaj celý text dokumentu
+2. Identifikuj KONKRÉTNE hodnoty (mená, adresy, dátumy, čísla), ktoré predstavujú údaje zákazníka, spoločnosti alebo zmluvy
+3. Pre KAŽDÝ výskyt takejto hodnoty urči správnu CRM premennú
 
-Odpovedz v JSON formáte:
+## KRITICKÉ PRAVIDLÁ:
+1. **KAŽDÁ hodnota len RAZ** - Ak sa rovnaká hodnota (napr. "Jana Nováková") objaví v texte viackrát, pridaj ju do replacements len RAZ. Systém nahradí všetky výskyty automaticky.
+2. **NIKDY neopakuj rovnakú premennú za sebou** - V dokumente nemôže byť {{customer.fullName}}{{customer.fullName}}
+3. **Original musí byť PRESNÝ text** z dokumentu - skopíruj presne ako je v texte, vrátane medzier a diakritiky
+4. **Ignoruj právny text** - Nehľadaj premenné vo všeobecných právnych formuláciách
+5. **Použi LEN premenné z tabuľky** - Nevymýšľaj vlastné názvy premenných
+
+## PRÍKLADY SPRÁVNYCH NAHRADENÍ:
+- "Jana Nováková" → customer.fullName (meno zákazníka)
+- "Hlavná 123, 831 01 Bratislava" → customer.permanentAddress (adresa)
+- "15.03.1990" → customer.birthDate (dátum narodenia)
+- "ZML-2026-0001" → contract.number (číslo zmluvy)
+
+## PRÍKLADY NESPRÁVNYCH NAHRADENÍ:
+- NIE: Nahrádzať "Zmluva" alebo "zákazník" (všeobecné slová)
+- NIE: Vymýšľať premenné ako "customer.nationality" (nie je v zozname)
+- NIE: Duplikovať rovnakú hodnotu viackrát
+
+Odpovedz VÝLUČNE v tomto JSON formáte:
 {
   "replacements": [
-    { "original": "Ján Novák", "placeholder": "customer.fullName", "reason": "Meno zákazníka" },
-    { "original": "01.01.2024", "placeholder": "contract.date", "reason": "Dátum zmluvy" }
+    { "original": "Jana Nováková", "placeholder": "customer.fullName", "reason": "Celé meno zákazníka" },
+    { "original": "01.01.2026", "placeholder": "contract.date", "reason": "Dátum podpisu zmluvy" }
   ],
-  "summary": "Nájdených X polí na nahradenie"
+  "summary": "Identifikovaných X unikátnych polí na nahradenie"
 }`;
 
       console.log("[AI] Analyzing document for placeholder insertion...");
@@ -7401,7 +7435,7 @@ Odpovedz v JSON formáte:
       }
       
       const aiResult = JSON.parse(content);
-      console.log(`[AI] Found ${aiResult.replacements?.length || 0} replacements`);
+      console.log(`[AI] Raw response: ${aiResult.replacements?.length || 0} replacements`);
       
       if (!aiResult.replacements || aiResult.replacements.length === 0) {
         return res.json({
@@ -7411,6 +7445,64 @@ Odpovedz v JSON formáte:
           modifiedDocxPath: null
         });
       }
+      
+      const allowedPlaceholders = new Set([
+        "customer.firstName", "customer.lastName", "customer.fullName",
+        "customer.email", "customer.phone", "customer.birthDate", "customer.personalId",
+        "customer.permanentAddress", "customer.correspondenceAddress", "customer.IBAN", "customer.SWIFT",
+        "customer.address.street", "customer.address.city", "customer.address.postalCode", "customer.address.country",
+        "father.fullName", "father.permanentAddress", "father.birthDate", "father.personalId",
+        "mother.fullName", "mother.permanentAddress", "mother.birthDate", "mother.personalId",
+        "representative.fullName", "representative.address",
+        "company.name", "company.address", "company.identificationNumber", "company.taxIdentificationNumber", "company.vatNumber",
+        "contract.number", "contract.date", "contract.validFrom", "contract.validTo",
+        "today", "child.fullName", "child.birthDate", "child.birthPlace"
+      ]);
+      
+      const seenOriginals = new Set<string>();
+      const seenPlaceholders = new Set<string>();
+      const validatedReplacements: Array<{ original: string; placeholder: string; reason: string }> = [];
+      
+      for (const r of aiResult.replacements) {
+        if (!r.original || !r.placeholder) continue;
+        
+        const original = String(r.original).trim();
+        const placeholder = String(r.placeholder).trim();
+        
+        if (original.length < 2) continue;
+        
+        if (!allowedPlaceholders.has(placeholder)) {
+          console.log(`[AI] Skipping invalid placeholder: ${placeholder}`);
+          continue;
+        }
+        
+        if (seenOriginals.has(original)) {
+          console.log(`[AI] Skipping duplicate original: "${original}"`);
+          continue;
+        }
+        
+        if (seenPlaceholders.has(placeholder)) {
+          console.log(`[AI] Skipping duplicate placeholder: ${placeholder}`);
+          continue;
+        }
+        
+        if (original.includes("{{") || original.includes("}}")) {
+          console.log(`[AI] Skipping already-templated text: "${original}"`);
+          continue;
+        }
+        
+        seenOriginals.add(original);
+        seenPlaceholders.add(placeholder);
+        validatedReplacements.push({
+          original,
+          placeholder,
+          reason: r.reason || ""
+        });
+      }
+      
+      console.log(`[AI] After validation: ${validatedReplacements.length} valid replacements`);
+      
+      aiResult.replacements = validatedReplacements;
       
       const outputFilename = `template-ai-${Date.now()}.docx`;
       const outputPath = path.join(process.cwd(), "uploads/contract-pdfs", outputFilename);

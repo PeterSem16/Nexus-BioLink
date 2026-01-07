@@ -411,11 +411,26 @@ export async function insertPlaceholdersIntoDocx(
     
     let xmlContent = documentXml.asText();
     
-    for (const { original, placeholder } of replacements) {
+    const sortedReplacements = [...replacements].sort(
+      (a, b) => b.original.length - a.original.length
+    );
+    
+    for (const { original, placeholder } of sortedReplacements) {
+      if (!original || original.length < 2) continue;
+      
       const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escapedOriginal, 'g');
       xmlContent = xmlContent.replace(regex, `{{${placeholder}}}`);
     }
+    
+    const duplicatePlaceholderRegex = /(\{\{[^}]+\}\})\1+/g;
+    xmlContent = xmlContent.replace(duplicatePlaceholderRegex, '$1');
+    
+    const mismatchedBracesRegex = /\{\{\{+|\}\}\}+/g;
+    xmlContent = xmlContent.replace(mismatchedBracesRegex, (match) => {
+      if (match.startsWith('{')) return '{{';
+      return '}}';
+    });
     
     zip.file("word/document.xml", xmlContent);
     

@@ -208,7 +208,7 @@ export function VariableBrowser({
         </p>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 h-[400px]">
         <div className="p-2 space-y-1">
           {filteredBlocks.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">

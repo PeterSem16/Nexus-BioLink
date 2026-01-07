@@ -324,7 +324,7 @@ export function SuperDocEditor({
                 SuperDoc editor vyžaduje otvorenie aplikácie v samostatnom okne (nie v iframe náhľade).
               </p>
               <Button
-                onClick={() => window.open(window.location.href, '_blank')}
+                onClick={() => window.open(`/contracts/editor/${categoryId}/${countryCode}`, '_blank')}
                 className="gap-2"
                 data-testid="button-open-new-tab"
               >

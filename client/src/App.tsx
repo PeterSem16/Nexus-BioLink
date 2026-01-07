@@ -131,7 +131,9 @@ function AuthenticatedApp() {
                     <Route path="/campaigns" component={CampaignsPage} />
                     <Route path="/campaigns/:id" component={CampaignDetailPage} />
                     <Route path="/tasks" component={TasksPage} />
-                    <Route path="/contracts/editor/:categoryId/:countryCode" component={TemplateEditorPage} />
+                    <Route path="/contracts/editor/:categoryId/:countryCode">
+                      {(params) => <TemplateEditorPage categoryId={params.categoryId} countryCode={params.countryCode} />}
+                    </Route>
                     <Route path="/contracts" component={ContractsPage} />
                     <Route path="/settings" component={SettingsPage} />
                     <Route path="/configurator" component={ConfiguratorPage} />

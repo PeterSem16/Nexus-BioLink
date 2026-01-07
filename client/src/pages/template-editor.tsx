@@ -1,4 +1,4 @@
-import { useRoute, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -12,11 +12,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-export default function TemplateEditor() {
-  const [, params] = useRoute("/contracts/editor/:categoryId/:countryCode");
+interface TemplateEditorProps {
+  categoryId: string;
+  countryCode: string;
+}
+
+export default function TemplateEditor({ categoryId: categoryIdStr, countryCode }: TemplateEditorProps) {
   const [, setLocation] = useLocation();
-  const categoryId = parseInt(params?.categoryId || "0", 10);
-  const countryCode = params?.countryCode || "SK";
+  const categoryId = parseInt(categoryIdStr || "0", 10);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

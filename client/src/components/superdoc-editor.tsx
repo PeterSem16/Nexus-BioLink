@@ -39,6 +39,20 @@ export function SuperDocEditor({
   const loadDocument = useCallback(async () => {
     setIsLoading(true);
     try {
+      const response = await fetch(
+        `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx`,
+        { credentials: "include" }
+      );
+
+      if (!response.ok) {
+        throw new Error("Nepodarilo sa načítať DOCX súbor");
+      }
+
+      const blob = await response.blob();
+      const file = new File([blob], `template_${countryCode}.docx`, {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      });
+
       if (superDocInstance.current) {
         superDocInstance.current.destroy?.();
         superDocInstance.current = null;
@@ -49,29 +63,21 @@ export function SuperDocEditor({
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         
-        const docUrl = `/api/contracts/categories/${categoryId}/default-templates/${countryCode}/docx`;
-        
         superDocInstance.current = new SuperDoc({
           selector: containerRef.current,
-          document: docUrl,
-          user: {
-            name: "Editor",
-            email: "editor@indexus.sk"
-          },
+          documents: [
+            {
+              id: `template-${categoryId}-${countryCode}`,
+              type: "docx",
+              data: file,
+            }
+          ],
+          documentMode: "editing",
           onReady: () => {
             console.log("SuperDoc ready");
             setIsLoading(false);
             extractVariablesFromDocument();
           },
-          onError: (error: any) => {
-            console.error("SuperDoc error:", error);
-            setIsLoading(false);
-            toast({
-              title: "Chyba SuperDoc",
-              description: "Nepodarilo sa načítať editor",
-              variant: "destructive",
-            });
-          }
         });
       }
     } catch (error: any) {

@@ -9621,6 +9621,161 @@ Odpovedz v JSON formáte:
     }
   });
 
+  // ============================================
+  // VARIABLE REGISTRY ENDPOINTS
+  // ============================================
+
+  // Get full variable registry (blocks with variables and keywords)
+  app.get("/api/variables/registry", requireAuth, async (req, res) => {
+    try {
+      const registry = await storage.getFullVariableRegistry();
+      res.json(registry);
+    } catch (error) {
+      console.error("Error fetching variable registry:", error);
+      res.status(500).json({ error: "Failed to fetch variable registry" });
+    }
+  });
+
+  // Get all variable blocks
+  app.get("/api/variables/blocks", requireAuth, async (req, res) => {
+    try {
+      const blocks = await storage.getAllVariableBlocks();
+      res.json(blocks);
+    } catch (error) {
+      console.error("Error fetching variable blocks:", error);
+      res.status(500).json({ error: "Failed to fetch variable blocks" });
+    }
+  });
+
+  // Create variable block
+  app.post("/api/variables/blocks", requireAuth, async (req, res) => {
+    try {
+      const block = await storage.createVariableBlock(req.body);
+      res.json(block);
+    } catch (error) {
+      console.error("Error creating variable block:", error);
+      res.status(500).json({ error: "Failed to create variable block" });
+    }
+  });
+
+  // Update variable block
+  app.patch("/api/variables/blocks/:id", requireAuth, async (req, res) => {
+    try {
+      const block = await storage.updateVariableBlock(req.params.id, req.body);
+      if (!block) {
+        return res.status(404).json({ error: "Variable block not found" });
+      }
+      res.json(block);
+    } catch (error) {
+      console.error("Error updating variable block:", error);
+      res.status(500).json({ error: "Failed to update variable block" });
+    }
+  });
+
+  // Get all variables
+  app.get("/api/variables", requireAuth, async (req, res) => {
+    try {
+      const { blockId } = req.query;
+      if (blockId) {
+        const variables = await storage.getVariablesByBlock(blockId as string);
+        res.json(variables);
+      } else {
+        const variables = await storage.getAllVariables();
+        res.json(variables);
+      }
+    } catch (error) {
+      console.error("Error fetching variables:", error);
+      res.status(500).json({ error: "Failed to fetch variables" });
+    }
+  });
+
+  // Create variable
+  app.post("/api/variables", requireAuth, async (req, res) => {
+    try {
+      const variable = await storage.createVariable(req.body);
+      res.json(variable);
+    } catch (error) {
+      console.error("Error creating variable:", error);
+      res.status(500).json({ error: "Failed to create variable" });
+    }
+  });
+
+  // Update variable
+  app.patch("/api/variables/:id", requireAuth, async (req, res) => {
+    try {
+      const variable = await storage.updateVariable(req.params.id, req.body);
+      if (!variable) {
+        return res.status(404).json({ error: "Variable not found" });
+      }
+      res.json(variable);
+    } catch (error) {
+      console.error("Error updating variable:", error);
+      res.status(500).json({ error: "Failed to update variable" });
+    }
+  });
+
+  // Delete variable
+  app.delete("/api/variables/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteVariable(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Variable not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting variable:", error);
+      res.status(500).json({ error: "Failed to delete variable" });
+    }
+  });
+
+  // Get keywords for a block
+  app.get("/api/variables/blocks/:blockId/keywords", requireAuth, async (req, res) => {
+    try {
+      const keywords = await storage.getVariableKeywordsByBlock(req.params.blockId);
+      res.json(keywords);
+    } catch (error) {
+      console.error("Error fetching keywords:", error);
+      res.status(500).json({ error: "Failed to fetch keywords" });
+    }
+  });
+
+  // Create keyword
+  app.post("/api/variables/keywords", requireAuth, async (req, res) => {
+    try {
+      const keyword = await storage.createVariableKeyword(req.body);
+      res.json(keyword);
+    } catch (error) {
+      console.error("Error creating keyword:", error);
+      res.status(500).json({ error: "Failed to create keyword" });
+    }
+  });
+
+  // Delete keyword
+  app.delete("/api/variables/keywords/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteVariableKeyword(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Keyword not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting keyword:", error);
+      res.status(500).json({ error: "Failed to delete keyword" });
+    }
+  });
+
+  // Seed variable registry (for initialization)
+  app.post("/api/variables/seed", requireAuth, async (req, res) => {
+    try {
+      const { seedVariableRegistry } = await import("./variable-registry-seed");
+      await seedVariableRegistry();
+      res.json({ success: true, message: "Variable registry seeded successfully" });
+    } catch (error) {
+      console.error("Error seeding variable registry:", error);
+      res.status(500).json({ error: "Failed to seed variable registry" });
+    }
+  });
+
   return httpServer;
 }
 

@@ -80,7 +80,11 @@ import {
   type ContractInstanceProduct, type InsertContractInstanceProduct,
   type ContractParticipant, type InsertContractParticipant,
   type ContractSignatureRequest, type InsertContractSignatureRequest,
-  type ContractAuditLog, type InsertContractAuditLog
+  type ContractAuditLog, type InsertContractAuditLog,
+  variableBlocks, variables, variableKeywords,
+  type VariableBlock, type InsertVariableBlock,
+  type Variable, type InsertVariable,
+  type VariableKeyword, type InsertVariableKeyword
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
@@ -593,6 +597,34 @@ export interface IStorage {
   // Contract Audit Log
   getContractAuditLog(contractId: string): Promise<ContractAuditLog[]>;
   createContractAuditLog(data: InsertContractAuditLog): Promise<ContractAuditLog>;
+
+  // Variable Registry - Blocks
+  getAllVariableBlocks(): Promise<VariableBlock[]>;
+  getVariableBlock(id: string): Promise<VariableBlock | undefined>;
+  getVariableBlockByCode(code: string): Promise<VariableBlock | undefined>;
+  createVariableBlock(data: InsertVariableBlock): Promise<VariableBlock>;
+  updateVariableBlock(id: string, data: Partial<InsertVariableBlock>): Promise<VariableBlock | undefined>;
+  deleteVariableBlock(id: string): Promise<boolean>;
+
+  // Variable Registry - Variables
+  getAllVariables(): Promise<Variable[]>;
+  getVariablesByBlock(blockId: string): Promise<Variable[]>;
+  getVariable(id: string): Promise<Variable | undefined>;
+  getVariableByKey(key: string): Promise<Variable | undefined>;
+  createVariable(data: InsertVariable): Promise<Variable>;
+  updateVariable(id: string, data: Partial<InsertVariable>): Promise<Variable | undefined>;
+  deleteVariable(id: string): Promise<boolean>;
+
+  // Variable Registry - Keywords
+  getAllVariableKeywords(): Promise<VariableKeyword[]>;
+  getVariableKeywordsByBlock(blockId: string): Promise<VariableKeyword[]>;
+  createVariableKeyword(data: InsertVariableKeyword): Promise<VariableKeyword>;
+  deleteVariableKeyword(id: string): Promise<boolean>;
+
+  // Variable Registry - Combined queries
+  getFullVariableRegistry(): Promise<{
+    blocks: (VariableBlock & { variables: Variable[]; keywords: VariableKeyword[] })[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3472,6 +3504,114 @@ export class DatabaseStorage implements IStorage {
   async createContractAuditLog(data: InsertContractAuditLog): Promise<ContractAuditLog> {
     const [log] = await db.insert(contractAuditLog).values(data).returning();
     return log;
+  }
+
+  // Variable Registry - Blocks
+  async getAllVariableBlocks(): Promise<VariableBlock[]> {
+    return db.select().from(variableBlocks).where(eq(variableBlocks.isActive, true)).orderBy(variableBlocks.priority);
+  }
+
+  async getVariableBlock(id: string): Promise<VariableBlock | undefined> {
+    const [block] = await db.select().from(variableBlocks).where(eq(variableBlocks.id, id));
+    return block || undefined;
+  }
+
+  async getVariableBlockByCode(code: string): Promise<VariableBlock | undefined> {
+    const [block] = await db.select().from(variableBlocks).where(eq(variableBlocks.code, code));
+    return block || undefined;
+  }
+
+  async createVariableBlock(data: InsertVariableBlock): Promise<VariableBlock> {
+    const [block] = await db.insert(variableBlocks).values(data).returning();
+    return block;
+  }
+
+  async updateVariableBlock(id: string, data: Partial<InsertVariableBlock>): Promise<VariableBlock | undefined> {
+    const [block] = await db.update(variableBlocks)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(variableBlocks.id, id))
+      .returning();
+    return block || undefined;
+  }
+
+  async deleteVariableBlock(id: string): Promise<boolean> {
+    const result = await db.delete(variableBlocks).where(eq(variableBlocks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Variable Registry - Variables
+  async getAllVariables(): Promise<Variable[]> {
+    return db.select().from(variables).where(eq(variables.isDeprecated, false)).orderBy(variables.priority);
+  }
+
+  async getVariablesByBlock(blockId: string): Promise<Variable[]> {
+    return db.select().from(variables)
+      .where(and(eq(variables.blockId, blockId), eq(variables.isDeprecated, false)))
+      .orderBy(variables.priority);
+  }
+
+  async getVariable(id: string): Promise<Variable | undefined> {
+    const [variable] = await db.select().from(variables).where(eq(variables.id, id));
+    return variable || undefined;
+  }
+
+  async getVariableByKey(key: string): Promise<Variable | undefined> {
+    const [variable] = await db.select().from(variables).where(eq(variables.key, key));
+    return variable || undefined;
+  }
+
+  async createVariable(data: InsertVariable): Promise<Variable> {
+    const [variable] = await db.insert(variables).values(data).returning();
+    return variable;
+  }
+
+  async updateVariable(id: string, data: Partial<InsertVariable>): Promise<Variable | undefined> {
+    const [variable] = await db.update(variables)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(variables.id, id))
+      .returning();
+    return variable || undefined;
+  }
+
+  async deleteVariable(id: string): Promise<boolean> {
+    const result = await db.delete(variables).where(eq(variables.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Variable Registry - Keywords
+  async getAllVariableKeywords(): Promise<VariableKeyword[]> {
+    return db.select().from(variableKeywords);
+  }
+
+  async getVariableKeywordsByBlock(blockId: string): Promise<VariableKeyword[]> {
+    return db.select().from(variableKeywords).where(eq(variableKeywords.blockId, blockId));
+  }
+
+  async createVariableKeyword(data: InsertVariableKeyword): Promise<VariableKeyword> {
+    const [keyword] = await db.insert(variableKeywords).values(data).returning();
+    return keyword;
+  }
+
+  async deleteVariableKeyword(id: string): Promise<boolean> {
+    const result = await db.delete(variableKeywords).where(eq(variableKeywords.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Variable Registry - Combined queries
+  async getFullVariableRegistry(): Promise<{
+    blocks: (VariableBlock & { variables: Variable[]; keywords: VariableKeyword[] })[];
+  }> {
+    const allBlocks = await this.getAllVariableBlocks();
+    const allVariables = await this.getAllVariables();
+    const allKeywords = await this.getAllVariableKeywords();
+
+    const blocks = allBlocks.map(block => ({
+      ...block,
+      variables: allVariables.filter(v => v.blockId === block.id),
+      keywords: allKeywords.filter(k => k.blockId === block.id),
+    }));
+
+    return { blocks };
   }
 }
 

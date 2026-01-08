@@ -660,13 +660,21 @@ export default function ContractsPage() {
   const [previewShowSampleData, setPreviewShowSampleData] = useState(false);
   
   const [contractForm, setContractForm] = useState({
-    templateId: "",
+    categoryId: "",
+    templateVersionId: "",
     customerId: "",
     billingDetailsId: "",
     currency: "EUR",
-    notes: "",
-    selectedProductId: ""
+    notes: ""
   });
+  
+  const [aiRecommendation, setAiRecommendation] = useState<{
+    loading: boolean;
+    content: string | null;
+    error: string | null;
+  }>({ loading: false, content: null, error: null });
+  
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
   const [urlCustomerProcessed, setUrlCustomerProcessed] = useState(false);
   
@@ -851,6 +859,13 @@ export default function ContractsPage() {
       setWizardStep(1);
       resetContractForm();
       toast({ title: "Zmluva vytvorená", description: "Zmluva bola úspešne vytvorená." });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Chyba pri vytváraní zmluvy", 
+        description: error.message || "Nepodarilo sa vytvoriť zmluvu.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -1321,13 +1336,14 @@ export default function ContractsPage() {
 
   const resetContractForm = () => {
     setContractForm({
-      templateId: "",
+      categoryId: "",
+      templateVersionId: "",
       customerId: "",
       billingDetailsId: "",
       currency: "EUR",
-      notes: "",
-      selectedProductId: ""
+      notes: ""
     });
+    setAiRecommendation({ loading: false, content: null, error: null });
   };
 
   const resetCategoryForm = () => {
@@ -3014,9 +3030,9 @@ export default function ContractsPage() {
           <DialogHeader>
             <DialogTitle>Nová zmluva - Krok {wizardStep}/3</DialogTitle>
             <DialogDescription>
-              {wizardStep === 1 && "Vyberte šablónu zmluvy a klienta"}
-              {wizardStep === 2 && "Vyberte fakturačné údaje a produkty"}
-              {wizardStep === 3 && "Skontrolujte a potvrďte zmluvu"}
+              {wizardStep === 1 && "Vyberte typ zmluvy, verziu a klienta"}
+              {wizardStep === 2 && "Vyberte fakturačnú spoločnosť a menu"}
+              {wizardStep === 3 && "Zhrnutie a generovanie zmluvy"}
             </DialogDescription>
           </DialogHeader>
           
@@ -3035,29 +3051,51 @@ export default function ContractsPage() {
             {wizardStep === 1 && (
               <div className="grid gap-4">
                 <div className="space-y-2">
-                  <Label>Šablóna zmluvy</Label>
+                  <Label>Typ zmluvy (kategória)</Label>
                   <Select
-                    value={contractForm.templateId}
-                    onValueChange={(value) => setContractForm({ ...contractForm, templateId: value })}
+                    value={contractForm.categoryId}
+                    onValueChange={(value) => setContractForm({ ...contractForm, categoryId: value, templateVersionId: "" })}
                   >
-                    <SelectTrigger data-testid="select-contract-template">
-                      <SelectValue placeholder="Vyberte šablónu" />
+                    <SelectTrigger data-testid="select-contract-category">
+                      <SelectValue placeholder="Vyberte typ zmluvy" />
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredTemplates.length === 0 ? (
+                      {categories.length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
-                          Žiadne šablóny. Najprv vytvorte šablónu zmluvy.
+                          Žiadne kategórie zmlúv. Najprv vytvorte kategóriu.
                         </div>
                       ) : (
-                        filteredTemplates.map(template => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name} {template.status === "draft" && "(koncept)"}
+                        categories.map(category => (
+                          <SelectItem key={category.id} value={String(category.id)}>
+                            {category.label}
                           </SelectItem>
                         ))
                       )}
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {contractForm.categoryId && (
+                  <div className="space-y-2">
+                    <Label>Verzia šablóny</Label>
+                    <Select
+                      value={contractForm.templateVersionId}
+                      onValueChange={(value) => setContractForm({ ...contractForm, templateVersionId: value })}
+                    >
+                      <SelectTrigger data-testid="select-contract-version">
+                        <SelectValue placeholder="Aktuálna verzia (najnovšia)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="current">Aktuálna verzia (najnovšia)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Môžete vybrať konkrétnu verziu šablóny alebo použiť najnovšiu
+                    </p>
+                  </div>
+                )}
+                
+                <Separator className="my-2" />
                 
                 <div className="space-y-2">
                   <Label>Klient</Label>
@@ -3089,7 +3127,7 @@ export default function ContractsPage() {
                     onValueChange={(value) => setContractForm({ ...contractForm, billingDetailsId: value })}
                   >
                     <SelectTrigger data-testid="select-contract-billing">
-                      <SelectValue placeholder="Vyberte fakturačné údaje" />
+                      <SelectValue placeholder="Vyberte fakturačnú spoločnosť" />
                     </SelectTrigger>
                     <SelectContent>
                       {billingDetails.map(bd => (
@@ -3101,107 +3139,33 @@ export default function ContractsPage() {
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Mena</Label>
-                    <Select
-                      value={contractForm.currency}
-                      onValueChange={(value) => setContractForm({ ...contractForm, currency: value })}
-                    >
-                      <SelectTrigger data-testid="select-contract-currency">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="CZK">CZK</SelectItem>
-                        <SelectItem value="HUF">HUF</SelectItem>
-                        <SelectItem value="RON">RON</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Mena</Label>
+                  <Select
+                    value={contractForm.currency}
+                    onValueChange={(value) => setContractForm({ ...contractForm, currency: value })}
+                  >
+                    <SelectTrigger data-testid="select-contract-currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="CZK">CZK</SelectItem>
+                      <SelectItem value="HUF">HUF</SelectItem>
+                      <SelectItem value="RON">RON</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Poznámky</Label>
+                  <Label>Poznámky (voliteľné)</Label>
                   <Textarea
                     value={contractForm.notes}
                     onChange={(e) => setContractForm({ ...contractForm, notes: e.target.value })}
                     placeholder="Interné poznámky k zmluve..."
                     data-testid="textarea-contract-notes"
                   />
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Výber produktu</Label>
-                  <p className="text-sm text-muted-foreground">Vyberte produkt, ktorý bude označený v zmluve</p>
-                  
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-[#2c3e50] text-white">
-                          <th className="p-2 text-center w-10">X</th>
-                          <th className="p-2 text-left">Typ produktu</th>
-                          <th className="p-2 text-right">Celkom</th>
-                          <th className="p-2 text-center">Platieb</th>
-                          <th className="p-2 text-right">Záloha</th>
-                          <th className="p-2 text-right bg-[#f39c12]">Zostáva</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {PRODUCT_OPTIONS.map((product, index) => (
-                          <tr 
-                            key={product.id}
-                            className={`cursor-pointer transition-colors ${
-                              contractForm.selectedProductId === product.id 
-                                ? "bg-primary/10" 
-                                : index % 2 === 0 ? "bg-muted/30" : "bg-background"
-                            }`}
-                            onClick={() => setContractForm({ ...contractForm, selectedProductId: product.id })}
-                            data-testid={`product-row-${product.id}`}
-                          >
-                            <td className="p-2 text-center">
-                              <div 
-                                className={`w-4 h-4 rounded-full border-2 mx-auto flex items-center justify-center ${
-                                  contractForm.selectedProductId === product.id 
-                                    ? "border-primary bg-primary" 
-                                    : "border-muted-foreground"
-                                }`}
-                              >
-                                {contractForm.selectedProductId === product.id && (
-                                  <div className="w-2 h-2 rounded-full bg-white" />
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2">{product.name}</td>
-                            <td className="p-2 text-right font-medium">{product.total} EUR</td>
-                            <td className="p-2 text-center">{product.payments}</td>
-                            <td className="p-2 text-right">{product.deposit} EUR</td>
-                            <td className="p-2 text-right font-bold bg-yellow-100 dark:bg-yellow-900/30">{product.remaining} EUR</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {contractForm.selectedProductId && (
-                    <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-md border border-yellow-300 dark:border-yellow-700">
-                      <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Vybraný produkt:</p>
-                      {(() => {
-                        const p = PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId);
-                        if (!p) return null;
-                        return (
-                          <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-0.5">
-                            <p>{p.name}</p>
-                            <p>Celková suma: <strong>{p.total} EUR</strong></p>
-                            <p>Záloha: {p.deposit} EUR | Zostávajúca platba: <strong>{p.remaining} EUR</strong></p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -3214,64 +3178,119 @@ export default function ContractsPage() {
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Šablóna:</span>
-                      <span>{templates.find(t => t.id === contractForm.templateId)?.name}</span>
+                      <span className="text-muted-foreground">Typ zmluvy:</span>
+                      <span className="font-medium">{categories.find(c => String(c.id) === contractForm.categoryId)?.label}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Verzia:</span>
+                      <span>{contractForm.templateVersionId === "current" || !contractForm.templateVersionId ? "Aktuálna (najnovšia)" : contractForm.templateVersionId}</span>
+                    </div>
+                    <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Klient:</span>
-                      <span>{getCustomerName(contractForm.customerId)}</span>
+                      <span className="font-medium">{getCustomerName(contractForm.customerId)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fakturácia:</span>
+                      <span className="text-muted-foreground">Fakturačná spoločnosť:</span>
                       <span>{billingDetails.find(b => b.id === contractForm.billingDetailsId)?.companyName}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Mena:</span>
                       <span>{contractForm.currency}</span>
                     </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Produkt:</span>
-                      <span className="font-medium">{PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId)?.name || "-"}</span>
-                    </div>
-                    {contractForm.selectedProductId && (() => {
-                      const p = PRODUCT_OPTIONS.find(p => p.id === contractForm.selectedProductId);
-                      if (!p) return null;
-                      return (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Celková suma:</span>
-                            <span className="font-bold">{p.total} EUR</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Záloha:</span>
-                            <span>{p.deposit} EUR</span>
-                          </div>
-                          <div className="flex justify-between text-yellow-700 dark:text-yellow-300">
-                            <span>Zostávajúca platba:</span>
-                            <span className="font-bold">{p.remaining} EUR</span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                    {contractForm.notes && (
+                      <>
+                        <Separator className="my-2" />
+                        <div>
+                          <span className="text-muted-foreground">Poznámky:</span>
+                          <p className="mt-1 text-sm">{contractForm.notes}</p>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      AI Odporúčanie
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {aiRecommendation.loading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyzujem zmluvu...
+                      </div>
+                    ) : aiRecommendation.content ? (
+                      <div className="text-sm space-y-2">
+                        <p>{aiRecommendation.content}</p>
+                      </div>
+                    ) : aiRecommendation.error ? (
+                      <div className="text-sm text-destructive">{aiRecommendation.error}</div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          AI môže analyzovať zmluvu a poskytnúť právne odporúčania.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            setAiRecommendation({ loading: true, content: null, error: null });
+                            try {
+                              const category = categories.find(c => String(c.id) === contractForm.categoryId);
+                              const customer = customers.find(c => c.id === contractForm.customerId);
+                              const billing = billingDetails.find(b => b.id === contractForm.billingDetailsId);
+                              
+                              const response = await fetch("/api/ai/contract-recommendation", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                                body: JSON.stringify({
+                                  categoryName: category?.label,
+                                  customerName: customer ? `${customer.firstName} ${customer.lastName}` : "",
+                                  customerCountry: customer?.country,
+                                  billingCompany: billing?.companyName,
+                                  currency: contractForm.currency
+                                })
+                              });
+                              
+                              if (!response.ok) throw new Error("Nepodarilo sa získať odporúčanie");
+                              const data = await response.json();
+                              setAiRecommendation({ loading: false, content: data.recommendation, error: null });
+                            } catch (error: any) {
+                              setAiRecommendation({ loading: false, content: null, error: error.message });
+                            }
+                          }}
+                          data-testid="button-get-ai-recommendation"
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Získať AI odporúčanie
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
                   <Shield className="h-5 w-5 text-primary" />
                   <p className="text-sm">
-                    Zmluva bude vygenerovaná s označeným produktom. 
-                    Následne ju môžete odoslať klientovi na podpis.
+                    Po vytvorení zmluvy budete môcť vygenerovať PDF a odoslať ju klientovi na podpis.
                   </p>
                 </div>
               </div>
             )}
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="gap-2 flex-wrap">
             <Button variant="outline" onClick={() => {
               if (wizardStep > 1) setWizardStep(wizardStep - 1);
-              else setIsContractWizardOpen(false);
+              else {
+                setIsContractWizardOpen(false);
+                setAiRecommendation({ loading: false, content: null, error: null });
+              }
             }}>
               {wizardStep > 1 ? "Späť" : "Zrušiť"}
             </Button>
@@ -3279,8 +3298,8 @@ export default function ContractsPage() {
               <Button 
                 onClick={() => setWizardStep(wizardStep + 1)}
                 disabled={
-                  (wizardStep === 1 && (!contractForm.templateId || !contractForm.customerId)) ||
-                  (wizardStep === 2 && (!contractForm.billingDetailsId || !contractForm.selectedProductId))
+                  (wizardStep === 1 && (!contractForm.categoryId || !contractForm.customerId)) ||
+                  (wizardStep === 2 && !contractForm.billingDetailsId)
                 }
                 data-testid="button-wizard-next"
               >
@@ -3288,13 +3307,25 @@ export default function ContractsPage() {
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
-              <Button 
-                onClick={handleCreateContract}
-                disabled={createContractMutation.isPending}
-                data-testid="button-create-contract"
-              >
-                {createContractMutation.isPending ? "Vytváram..." : "Vytvoriť zmluvu"}
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button 
+                  onClick={handleCreateContract}
+                  disabled={createContractMutation.isPending || isGeneratingPdf}
+                  data-testid="button-create-contract"
+                >
+                  {createContractMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Vytváram...
+                    </>
+                  ) : (
+                    <>
+                      <FileSignature className="h-4 w-4 mr-2" />
+                      Vytvoriť a vygenerovať PDF
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>

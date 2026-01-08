@@ -7344,6 +7344,48 @@ Odpovedz v JSON formáte:
     }
   });
   
+  // AI contract recommendation - provides legal and business recommendations for contract creation
+  app.post("/api/ai/contract-recommendation", requireAuth, async (req, res) => {
+    try {
+      const { categoryName, customerName, customerCountry, billingCompany, currency } = req.body;
+      
+      const prompt = `Si právny asistent pre CRM systém krvnej banky. Analyzuj nasledujúcu zmluvu a poskytni stručné odporúčania.
+
+Typ zmluvy: ${categoryName || "Neurčený"}
+Zákazník: ${customerName || "Neuvedený"}
+Krajina zákazníka: ${customerCountry || "Neuvedená"}
+Fakturačná spoločnosť: ${billingCompany || "Neuvedená"}
+Mena: ${currency || "EUR"}
+
+Poskytni stručné (max 150 slov) odporúčanie ohľadom:
+1. Právnych aspektov zmluvy pre danú krajinu
+2. GDPR a ochrany osobných údajov
+3. Prípadných rizík
+
+Odpovedz v slovenčine, profesionálne a stručne.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Si právny asistent pre oblasť biobankovníctva a uchovávania kmeňových buniek. Poskytuj stručné, praktické rady." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      });
+      
+      const recommendation = response.choices[0]?.message?.content;
+      if (!recommendation) {
+        throw new Error("No response from AI");
+      }
+      
+      res.json({ recommendation });
+    } catch (error) {
+      console.error("AI contract recommendation error:", error);
+      res.status(500).json({ error: "Nepodarilo sa získať AI odporúčanie" });
+    }
+  });
+  
   // AI-powered placeholder insertion - analyzes DOCX and inserts {{placeholders}} into the document
   app.post("/api/contracts/ai-insert-placeholders", requireAuth, async (req, res) => {
     try {
@@ -9164,10 +9206,51 @@ Odpovedz v JSON formáte:
 
   app.post("/api/contracts", requireAuth, async (req, res) => {
     try {
+      const { categoryId, customerId, billingDetailsId, currency, notes, templateVersionId } = req.body;
+      
+      if (!categoryId) {
+        return res.status(400).json({ error: "Vyberte typ zmluvy (kategóriu)" });
+      }
+      
+      if (!customerId) {
+        return res.status(400).json({ error: "Vyberte zákazníka" });
+      }
+      
+      if (!billingDetailsId) {
+        return res.status(400).json({ error: "Vyberte fakturačnú spoločnosť" });
+      }
+      
+      // Get customer to determine country
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(400).json({ error: "Zákazník nebol nájdený" });
+      }
+      
+      const countryCode = customer.country || "SK";
+      
+      // Find template for category and country
+      const categoryDefaultTemplate = await storage.getCategoryDefaultTemplate(parseInt(categoryId), countryCode);
+      if (!categoryDefaultTemplate) {
+        // Get category name for better error message
+        const category = await storage.getContractCategory(parseInt(categoryId));
+        const categoryName = category?.label || categoryId;
+        return res.status(400).json({ 
+          error: `Pre kategóriu "${categoryName}" a krajinu "${countryCode}" neexistuje šablóna zmluvy. Najprv vytvorte šablónu v nastaveniach zmlúv.` 
+        });
+      }
+      
+      // Use the category default template ID as the template reference
+      const templateId = String(categoryDefaultTemplate.id);
+      
       const contractNumber = await storage.getNextContractNumber(req.body.prefix || "ZML");
       
       const data = insertContractInstanceSchema.parse({
-        ...req.body,
+        templateId,
+        templateVersionId: templateVersionId || null,
+        customerId,
+        billingDetailsId,
+        currency: currency || "EUR",
+        notes: notes || null,
         contractNumber,
         createdBy: req.session.user!.id
       });
@@ -9182,7 +9265,7 @@ Odpovedz v JSON formáte:
         actorName: req.session.user!.fullName,
         actorEmail: req.session.user!.email,
         ipAddress: req.ip,
-        details: JSON.stringify({ status: "draft" })
+        details: JSON.stringify({ status: "draft", categoryId: parseInt(categoryId), countryCode })
       });
       
       await logActivity(req.session.user!.id, "create", "contract", contract.id, contract.contractNumber, null, req.ip);

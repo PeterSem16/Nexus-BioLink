@@ -508,7 +508,12 @@ export default function TemplateEditor({ categoryId: categoryIdStr, countryCode 
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        if (value === "history") {
+          loadVersions();
+        }
+      }} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="workflow" data-testid="tab-workflow">
             <FileText className="h-4 w-4 mr-2" />

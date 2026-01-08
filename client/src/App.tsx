@@ -31,6 +31,7 @@ import CampaignDetailPage from "@/pages/campaign-detail";
 import TasksPage from "@/pages/tasks";
 import ContractsPage from "@/pages/contracts";
 import TemplateEditorPage from "@/pages/template-editor";
+import PipelinePage from "@/pages/pipeline";
 import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -130,6 +131,7 @@ function AuthenticatedApp() {
                     <Route path="/collaborators" component={CollaboratorsPage} />
                     <Route path="/campaigns" component={CampaignsPage} />
                     <Route path="/campaigns/:id" component={CampaignDetailPage} />
+                    <Route path="/pipeline" component={PipelinePage} />
                     <Route path="/tasks" component={TasksPage} />
                     <Route path="/contracts/editor/:categoryId/:countryCode">
                       {(params) => <TemplateEditorPage categoryId={params.categoryId} countryCode={params.countryCode} />}

@@ -2999,3 +2999,176 @@ export const CONTRACT_PLACEHOLDERS = {
     { key: "installment.dueDate", label: "Installment Due Date", example: "15.02.2025" },
   ],
 } as const;
+
+// ============================================
+// SALES PIPELINE MODULE (Pipedrive-like)
+// ============================================
+
+// Sales Pipelines - each pipeline represents a sales process
+export const pipelines = pgTable("pipelines", {
+  id: varchar("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  countryCodes: text("country_codes").array(),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPipelineSchema = createInsertSchema(pipelines).omit({ 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertPipeline = z.infer<typeof insertPipelineSchema>;
+export type Pipeline = typeof pipelines.$inferSelect;
+
+// Pipeline Stages - stages within a pipeline (e.g., Lead, Qualified, Proposal, Negotiation, Won, Lost)
+export const pipelineStages = pgTable("pipeline_stages", {
+  id: varchar("id").primaryKey(),
+  pipelineId: varchar("pipeline_id").references(() => pipelines.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 50 }).default("#3b82f6"),
+  order: integer("order").notNull().default(0),
+  probability: integer("probability").default(0), // Default win probability for deals in this stage (0-100)
+  isWonStage: boolean("is_won_stage").default(false),
+  isLostStage: boolean("is_lost_stage").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({ 
+  createdAt: true 
+});
+export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
+export type PipelineStage = typeof pipelineStages.$inferSelect;
+
+// Deals - sales opportunities
+export const deals = pgTable("deals", {
+  id: varchar("id").primaryKey(),
+  title: varchar("title", { length: 500 }).notNull(),
+  pipelineId: varchar("pipeline_id").references(() => pipelines.id).notNull(),
+  stageId: varchar("stage_id").references(() => pipelineStages.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id),
+  campaignId: varchar("campaign_id").references(() => campaigns.id),
+  contractInstanceId: varchar("contract_instance_id").references(() => contractInstances.id),
+  assignedUserId: varchar("assigned_user_id").references(() => users.id),
+  value: decimal("value", { precision: 15, scale: 2 }).default("0"),
+  currency: varchar("currency", { length: 10 }).default("EUR"),
+  probability: integer("probability").default(0), // Win probability (0-100)
+  expectedCloseDate: date("expected_close_date"),
+  actualCloseDate: date("actual_close_date"),
+  status: varchar("status", { length: 50 }).default("open"), // open, won, lost
+  lostReason: text("lost_reason"),
+  source: varchar("source", { length: 255 }), // Lead source
+  countryCode: varchar("country_code", { length: 10 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDealSchema = createInsertSchema(deals).omit({ 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertDeal = z.infer<typeof insertDealSchema>;
+export type Deal = typeof deals.$inferSelect;
+
+// Deal Activities - calls, emails, meetings, tasks
+export const dealActivities = pgTable("deal_activities", {
+  id: varchar("id").primaryKey(),
+  dealId: varchar("deal_id").references(() => deals.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  type: varchar("type", { length: 50 }).notNull(), // call, email, meeting, task, note
+  subject: varchar("subject", { length: 500 }).notNull(),
+  description: text("description"),
+  dueAt: timestamp("due_at"),
+  completedAt: timestamp("completed_at"),
+  outcome: varchar("outcome", { length: 255 }), // For calls: answered, no_answer, busy, etc.
+  duration: integer("duration"), // Duration in minutes
+  isCompleted: boolean("is_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDealActivitySchema = createInsertSchema(dealActivities).omit({ 
+  createdAt: true 
+});
+export type InsertDealActivity = z.infer<typeof insertDealActivitySchema>;
+export type DealActivity = typeof dealActivities.$inferSelect;
+
+// Relations for pipeline module
+export const pipelinesRelations = relations(pipelines, ({ many }) => ({
+  stages: many(pipelineStages),
+  deals: many(deals),
+}));
+
+export const pipelineStagesRelations = relations(pipelineStages, ({ one, many }) => ({
+  pipeline: one(pipelines, {
+    fields: [pipelineStages.pipelineId],
+    references: [pipelines.id],
+  }),
+  deals: many(deals),
+}));
+
+export const dealsRelations = relations(deals, ({ one, many }) => ({
+  pipeline: one(pipelines, {
+    fields: [deals.pipelineId],
+    references: [pipelines.id],
+  }),
+  stage: one(pipelineStages, {
+    fields: [deals.stageId],
+    references: [pipelineStages.id],
+  }),
+  customer: one(customers, {
+    fields: [deals.customerId],
+    references: [customers.id],
+  }),
+  campaign: one(campaigns, {
+    fields: [deals.campaignId],
+    references: [campaigns.id],
+  }),
+  contractInstance: one(contractInstances, {
+    fields: [deals.contractInstanceId],
+    references: [contractInstances.id],
+  }),
+  assignedUser: one(users, {
+    fields: [deals.assignedUserId],
+    references: [users.id],
+  }),
+  activities: many(dealActivities),
+}));
+
+export const dealActivitiesRelations = relations(dealActivities, ({ one }) => ({
+  deal: one(deals, {
+    fields: [dealActivities.dealId],
+    references: [deals.id],
+  }),
+  user: one(users, {
+    fields: [dealActivities.userId],
+    references: [users.id],
+  }),
+}));
+
+// Deal status and activity type constants
+export const DEAL_STATUSES = [
+  { value: "open", label: "Otvorený", labelEn: "Open", color: "blue" },
+  { value: "won", label: "Vyhraný", labelEn: "Won", color: "green" },
+  { value: "lost", label: "Prehraný", labelEn: "Lost", color: "red" },
+] as const;
+
+export const DEAL_ACTIVITY_TYPES = [
+  { value: "call", label: "Hovor", labelEn: "Call", icon: "Phone" },
+  { value: "email", label: "Email", labelEn: "Email", icon: "Mail" },
+  { value: "meeting", label: "Stretnutie", labelEn: "Meeting", icon: "Calendar" },
+  { value: "task", label: "Úloha", labelEn: "Task", icon: "CheckSquare" },
+  { value: "note", label: "Poznámka", labelEn: "Note", icon: "FileText" },
+] as const;
+
+export const DEAL_SOURCES = [
+  { value: "website", label: "Web stránka" },
+  { value: "referral", label: "Odporúčanie" },
+  { value: "campaign", label: "Kampaň" },
+  { value: "cold_call", label: "Studený hovor" },
+  { value: "partner", label: "Partner" },
+  { value: "event", label: "Akcia/Event" },
+  { value: "other", label: "Iné" },
+] as const;

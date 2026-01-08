@@ -10689,6 +10689,357 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
     }
   });
 
+  // ============================================
+  // SALES PIPELINE API (Pipedrive-like)
+  // ============================================
+
+  // Pipelines CRUD
+  app.get("/api/pipelines", requireAuth, async (req, res) => {
+    try {
+      const pipelines = await storage.getAllPipelines();
+      res.json(pipelines);
+    } catch (error) {
+      console.error("Error fetching pipelines:", error);
+      res.status(500).json({ error: "Failed to fetch pipelines" });
+    }
+  });
+
+  app.get("/api/pipelines/:id", requireAuth, async (req, res) => {
+    try {
+      const pipeline = await storage.getPipeline(req.params.id);
+      if (!pipeline) {
+        return res.status(404).json({ error: "Pipeline not found" });
+      }
+      res.json(pipeline);
+    } catch (error) {
+      console.error("Error fetching pipeline:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline" });
+    }
+  });
+
+  app.post("/api/pipelines", requireAuth, async (req, res) => {
+    try {
+      const id = `pipeline_${Date.now()}`;
+      const pipeline = await storage.createPipeline({ ...req.body, id });
+      res.status(201).json(pipeline);
+    } catch (error) {
+      console.error("Error creating pipeline:", error);
+      res.status(500).json({ error: "Failed to create pipeline" });
+    }
+  });
+
+  app.patch("/api/pipelines/:id", requireAuth, async (req, res) => {
+    try {
+      const pipeline = await storage.updatePipeline(req.params.id, req.body);
+      if (!pipeline) {
+        return res.status(404).json({ error: "Pipeline not found" });
+      }
+      res.json(pipeline);
+    } catch (error) {
+      console.error("Error updating pipeline:", error);
+      res.status(500).json({ error: "Failed to update pipeline" });
+    }
+  });
+
+  app.delete("/api/pipelines/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deletePipeline(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Pipeline not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting pipeline:", error);
+      res.status(500).json({ error: "Failed to delete pipeline" });
+    }
+  });
+
+  // Pipeline Stages CRUD
+  app.get("/api/pipelines/:pipelineId/stages", requireAuth, async (req, res) => {
+    try {
+      const stages = await storage.getPipelineStages(req.params.pipelineId);
+      res.json(stages);
+    } catch (error) {
+      console.error("Error fetching pipeline stages:", error);
+      res.status(500).json({ error: "Failed to fetch stages" });
+    }
+  });
+
+  app.post("/api/pipelines/:pipelineId/stages", requireAuth, async (req, res) => {
+    try {
+      const id = `stage_${Date.now()}`;
+      const stage = await storage.createPipelineStage({
+        ...req.body,
+        id,
+        pipelineId: req.params.pipelineId,
+      });
+      res.status(201).json(stage);
+    } catch (error) {
+      console.error("Error creating stage:", error);
+      res.status(500).json({ error: "Failed to create stage" });
+    }
+  });
+
+  app.patch("/api/stages/:id", requireAuth, async (req, res) => {
+    try {
+      const stage = await storage.updatePipelineStage(req.params.id, req.body);
+      if (!stage) {
+        return res.status(404).json({ error: "Stage not found" });
+      }
+      res.json(stage);
+    } catch (error) {
+      console.error("Error updating stage:", error);
+      res.status(500).json({ error: "Failed to update stage" });
+    }
+  });
+
+  app.delete("/api/stages/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deletePipelineStage(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Stage not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting stage:", error);
+      res.status(500).json({ error: "Failed to delete stage" });
+    }
+  });
+
+  app.post("/api/pipelines/:pipelineId/stages/reorder", requireAuth, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      await storage.reorderPipelineStages(req.params.pipelineId, orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering stages:", error);
+      res.status(500).json({ error: "Failed to reorder stages" });
+    }
+  });
+
+  // Deals CRUD
+  app.get("/api/deals", requireAuth, async (req, res) => {
+    try {
+      const { pipelineId, stageId } = req.query;
+      let deals;
+      if (pipelineId) {
+        deals = await storage.getDealsByPipeline(pipelineId as string);
+      } else if (stageId) {
+        deals = await storage.getDealsByStage(stageId as string);
+      } else {
+        deals = await storage.getAllDeals();
+      }
+      res.json(deals);
+    } catch (error) {
+      console.error("Error fetching deals:", error);
+      res.status(500).json({ error: "Failed to fetch deals" });
+    }
+  });
+
+  app.get("/api/deals/:id", requireAuth, async (req, res) => {
+    try {
+      const deal = await storage.getDeal(req.params.id);
+      if (!deal) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      res.json(deal);
+    } catch (error) {
+      console.error("Error fetching deal:", error);
+      res.status(500).json({ error: "Failed to fetch deal" });
+    }
+  });
+
+  app.post("/api/deals", requireAuth, async (req, res) => {
+    try {
+      const id = `deal_${Date.now()}`;
+      const deal = await storage.createDeal({ ...req.body, id });
+      res.status(201).json(deal);
+    } catch (error) {
+      console.error("Error creating deal:", error);
+      res.status(500).json({ error: "Failed to create deal" });
+    }
+  });
+
+  app.patch("/api/deals/:id", requireAuth, async (req, res) => {
+    try {
+      const deal = await storage.updateDeal(req.params.id, req.body);
+      if (!deal) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      res.json(deal);
+    } catch (error) {
+      console.error("Error updating deal:", error);
+      res.status(500).json({ error: "Failed to update deal" });
+    }
+  });
+
+  app.patch("/api/deals/:id/stage", requireAuth, async (req, res) => {
+    try {
+      const { stageId } = req.body;
+      const deal = await storage.moveDealToStage(req.params.id, stageId);
+      if (!deal) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      res.json(deal);
+    } catch (error) {
+      console.error("Error moving deal:", error);
+      res.status(500).json({ error: "Failed to move deal" });
+    }
+  });
+
+  app.delete("/api/deals/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteDeal(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting deal:", error);
+      res.status(500).json({ error: "Failed to delete deal" });
+    }
+  });
+
+  // Deal Activities CRUD
+  app.get("/api/deals/:dealId/activities", requireAuth, async (req, res) => {
+    try {
+      const activities = await storage.getDealActivities(req.params.dealId);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching deal activities:", error);
+      res.status(500).json({ error: "Failed to fetch activities" });
+    }
+  });
+
+  app.post("/api/deals/:dealId/activities", requireAuth, async (req, res) => {
+    try {
+      const id = `activity_${Date.now()}`;
+      const activity = await storage.createDealActivity({
+        ...req.body,
+        id,
+        dealId: req.params.dealId,
+      });
+      res.status(201).json(activity);
+    } catch (error) {
+      console.error("Error creating activity:", error);
+      res.status(500).json({ error: "Failed to create activity" });
+    }
+  });
+
+  app.patch("/api/activities/:id", requireAuth, async (req, res) => {
+    try {
+      const activity = await storage.updateDealActivity(req.params.id, req.body);
+      if (!activity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      res.json(activity);
+    } catch (error) {
+      console.error("Error updating activity:", error);
+      res.status(500).json({ error: "Failed to update activity" });
+    }
+  });
+
+  app.patch("/api/activities/:id/complete", requireAuth, async (req, res) => {
+    try {
+      const activity = await storage.completeDealActivity(req.params.id);
+      if (!activity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      res.json(activity);
+    } catch (error) {
+      console.error("Error completing activity:", error);
+      res.status(500).json({ error: "Failed to complete activity" });
+    }
+  });
+
+  app.delete("/api/activities/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteDealActivity(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting activity:", error);
+      res.status(500).json({ error: "Failed to delete activity" });
+    }
+  });
+
+  // Get full pipeline with stages and deals (for Kanban view)
+  app.get("/api/pipelines/:id/kanban", requireAuth, async (req, res) => {
+    try {
+      const pipeline = await storage.getPipeline(req.params.id);
+      if (!pipeline) {
+        return res.status(404).json({ error: "Pipeline not found" });
+      }
+      const stages = await storage.getPipelineStages(req.params.id);
+      const deals = await storage.getDealsByPipeline(req.params.id);
+      
+      // Group deals by stage
+      const stagesWithDeals = stages.map(stage => ({
+        ...stage,
+        deals: deals.filter(d => d.stageId === stage.id),
+      }));
+      
+      res.json({
+        pipeline,
+        stages: stagesWithDeals,
+      });
+    } catch (error) {
+      console.error("Error fetching kanban data:", error);
+      res.status(500).json({ error: "Failed to fetch kanban data" });
+    }
+  });
+
+  // Initialize default pipeline with stages (for first run)
+  app.post("/api/pipelines/seed-default", requireAuth, async (req, res) => {
+    try {
+      const existingPipelines = await storage.getAllPipelines();
+      if (existingPipelines.length > 0) {
+        return res.json({ message: "Pipelines already exist", pipelines: existingPipelines });
+      }
+
+      const pipelineId = `pipeline_${Date.now()}`;
+      const pipeline = await storage.createPipeline({
+        id: pipelineId,
+        name: "Hlavný predajný proces",
+        description: "Štandardný predajný proces pre cord blood služby",
+        countryCodes: ["SK", "CZ", "HU"],
+        isDefault: true,
+        isActive: true,
+      });
+
+      const defaultStages = [
+        { name: "Lead", color: "#6b7280", probability: 10 },
+        { name: "Kvalifikovaný", color: "#3b82f6", probability: 25 },
+        { name: "Návrh", color: "#8b5cf6", probability: 50 },
+        { name: "Vyjednávanie", color: "#f59e0b", probability: 75 },
+        { name: "Vyhraný", color: "#22c55e", probability: 100, isWonStage: true },
+        { name: "Stratený", color: "#ef4444", probability: 0, isLostStage: true },
+      ];
+
+      const createdStages = [];
+      for (let i = 0; i < defaultStages.length; i++) {
+        const stage = await storage.createPipelineStage({
+          id: `stage_${Date.now()}_${i}`,
+          pipelineId,
+          name: defaultStages[i].name,
+          color: defaultStages[i].color,
+          order: i,
+          probability: defaultStages[i].probability,
+          isWonStage: defaultStages[i].isWonStage || false,
+          isLostStage: defaultStages[i].isLostStage || false,
+        });
+        createdStages.push(stage);
+      }
+
+      res.status(201).json({ pipeline, stages: createdStages });
+    } catch (error) {
+      console.error("Error seeding default pipeline:", error);
+      res.status(500).json({ error: "Failed to seed default pipeline" });
+    }
+  });
+
   return httpServer;
 }
 

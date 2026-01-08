@@ -84,10 +84,15 @@ import {
   variableBlocks, variables, variableKeywords,
   type VariableBlock, type InsertVariableBlock,
   type Variable, type InsertVariable,
-  type VariableKeyword, type InsertVariableKeyword
+  type VariableKeyword, type InsertVariableKeyword,
+  pipelines, pipelineStages, deals, dealActivities,
+  type Pipeline, type InsertPipeline,
+  type PipelineStage, type InsertPipelineStage,
+  type Deal, type InsertDeal,
+  type DealActivity, type InsertDealActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
@@ -627,6 +632,39 @@ export interface IStorage {
   getFullVariableRegistry(): Promise<{
     blocks: (VariableBlock & { variables: Variable[]; keywords: VariableKeyword[] })[];
   }>;
+
+  // Sales Pipeline - Pipelines
+  getAllPipelines(): Promise<Pipeline[]>;
+  getPipeline(id: string): Promise<Pipeline | undefined>;
+  createPipeline(data: InsertPipeline): Promise<Pipeline>;
+  updatePipeline(id: string, data: Partial<InsertPipeline>): Promise<Pipeline | undefined>;
+  deletePipeline(id: string): Promise<boolean>;
+
+  // Sales Pipeline - Stages
+  getPipelineStages(pipelineId: string): Promise<PipelineStage[]>;
+  getPipelineStage(id: string): Promise<PipelineStage | undefined>;
+  createPipelineStage(data: InsertPipelineStage): Promise<PipelineStage>;
+  updatePipelineStage(id: string, data: Partial<InsertPipelineStage>): Promise<PipelineStage | undefined>;
+  deletePipelineStage(id: string): Promise<boolean>;
+  reorderPipelineStages(pipelineId: string, orderedIds: string[]): Promise<void>;
+
+  // Sales Pipeline - Deals
+  getAllDeals(): Promise<Deal[]>;
+  getDealsByPipeline(pipelineId: string): Promise<Deal[]>;
+  getDealsByStage(stageId: string): Promise<Deal[]>;
+  getDeal(id: string): Promise<Deal | undefined>;
+  createDeal(data: InsertDeal): Promise<Deal>;
+  updateDeal(id: string, data: Partial<InsertDeal>): Promise<Deal | undefined>;
+  moveDealToStage(dealId: string, stageId: string): Promise<Deal | undefined>;
+  deleteDeal(id: string): Promise<boolean>;
+
+  // Sales Pipeline - Deal Activities
+  getDealActivities(dealId: string): Promise<DealActivity[]>;
+  getDealActivity(id: string): Promise<DealActivity | undefined>;
+  createDealActivity(data: InsertDealActivity): Promise<DealActivity>;
+  updateDealActivity(id: string, data: Partial<InsertDealActivity>): Promise<DealActivity | undefined>;
+  deleteDealActivity(id: string): Promise<boolean>;
+  completeDealActivity(id: string): Promise<DealActivity | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3628,6 +3666,158 @@ export class DatabaseStorage implements IStorage {
     }));
 
     return { blocks };
+  }
+
+  // Sales Pipeline - Pipelines
+  async getAllPipelines(): Promise<Pipeline[]> {
+    return db.select().from(pipelines).orderBy(pipelines.name);
+  }
+
+  async getPipeline(id: string): Promise<Pipeline | undefined> {
+    const [pipeline] = await db.select().from(pipelines).where(eq(pipelines.id, id));
+    return pipeline || undefined;
+  }
+
+  async createPipeline(data: InsertPipeline): Promise<Pipeline> {
+    const [pipeline] = await db.insert(pipelines).values(data).returning();
+    return pipeline;
+  }
+
+  async updatePipeline(id: string, data: Partial<InsertPipeline>): Promise<Pipeline | undefined> {
+    const [pipeline] = await db.update(pipelines)
+      .set(data)
+      .where(eq(pipelines.id, id))
+      .returning();
+    return pipeline || undefined;
+  }
+
+  async deletePipeline(id: string): Promise<boolean> {
+    const result = await db.delete(pipelines).where(eq(pipelines.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Sales Pipeline - Stages
+  async getPipelineStages(pipelineId: string): Promise<PipelineStage[]> {
+    return db.select().from(pipelineStages)
+      .where(eq(pipelineStages.pipelineId, pipelineId))
+      .orderBy(asc(pipelineStages.order));
+  }
+
+  async getPipelineStage(id: string): Promise<PipelineStage | undefined> {
+    const [stage] = await db.select().from(pipelineStages).where(eq(pipelineStages.id, id));
+    return stage || undefined;
+  }
+
+  async createPipelineStage(data: InsertPipelineStage): Promise<PipelineStage> {
+    const [stage] = await db.insert(pipelineStages).values(data).returning();
+    return stage;
+  }
+
+  async updatePipelineStage(id: string, data: Partial<InsertPipelineStage>): Promise<PipelineStage | undefined> {
+    const [stage] = await db.update(pipelineStages)
+      .set(data)
+      .where(eq(pipelineStages.id, id))
+      .returning();
+    return stage || undefined;
+  }
+
+  async deletePipelineStage(id: string): Promise<boolean> {
+    const result = await db.delete(pipelineStages).where(eq(pipelineStages.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async reorderPipelineStages(pipelineId: string, orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.update(pipelineStages)
+        .set({ order: i })
+        .where(and(eq(pipelineStages.id, orderedIds[i]), eq(pipelineStages.pipelineId, pipelineId)));
+    }
+  }
+
+  // Sales Pipeline - Deals
+  async getAllDeals(): Promise<Deal[]> {
+    return db.select().from(deals).orderBy(desc(deals.createdAt));
+  }
+
+  async getDealsByPipeline(pipelineId: string): Promise<Deal[]> {
+    return db.select().from(deals)
+      .where(eq(deals.pipelineId, pipelineId))
+      .orderBy(desc(deals.createdAt));
+  }
+
+  async getDealsByStage(stageId: string): Promise<Deal[]> {
+    return db.select().from(deals)
+      .where(eq(deals.stageId, stageId))
+      .orderBy(desc(deals.createdAt));
+  }
+
+  async getDeal(id: string): Promise<Deal | undefined> {
+    const [deal] = await db.select().from(deals).where(eq(deals.id, id));
+    return deal || undefined;
+  }
+
+  async createDeal(data: InsertDeal): Promise<Deal> {
+    const [deal] = await db.insert(deals).values(data).returning();
+    return deal;
+  }
+
+  async updateDeal(id: string, data: Partial<InsertDeal>): Promise<Deal | undefined> {
+    const [deal] = await db.update(deals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(deals.id, id))
+      .returning();
+    return deal || undefined;
+  }
+
+  async moveDealToStage(dealId: string, stageId: string): Promise<Deal | undefined> {
+    const [deal] = await db.update(deals)
+      .set({ stageId, updatedAt: new Date() })
+      .where(eq(deals.id, dealId))
+      .returning();
+    return deal || undefined;
+  }
+
+  async deleteDeal(id: string): Promise<boolean> {
+    const result = await db.delete(deals).where(eq(deals.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Sales Pipeline - Deal Activities
+  async getDealActivities(dealId: string): Promise<DealActivity[]> {
+    return db.select().from(dealActivities)
+      .where(eq(dealActivities.dealId, dealId))
+      .orderBy(desc(dealActivities.createdAt));
+  }
+
+  async getDealActivity(id: string): Promise<DealActivity | undefined> {
+    const [activity] = await db.select().from(dealActivities).where(eq(dealActivities.id, id));
+    return activity || undefined;
+  }
+
+  async createDealActivity(data: InsertDealActivity): Promise<DealActivity> {
+    const [activity] = await db.insert(dealActivities).values(data).returning();
+    return activity;
+  }
+
+  async updateDealActivity(id: string, data: Partial<InsertDealActivity>): Promise<DealActivity | undefined> {
+    const [activity] = await db.update(dealActivities)
+      .set(data)
+      .where(eq(dealActivities.id, id))
+      .returning();
+    return activity || undefined;
+  }
+
+  async deleteDealActivity(id: string): Promise<boolean> {
+    const result = await db.delete(dealActivities).where(eq(dealActivities.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async completeDealActivity(id: string): Promise<DealActivity | undefined> {
+    const [activity] = await db.update(dealActivities)
+      .set({ isCompleted: true, completedAt: new Date() })
+      .where(eq(dealActivities.id, id))
+      .returning();
+    return activity || undefined;
   }
 }
 

@@ -17,7 +17,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -218,6 +220,216 @@ function StageColumn({ stage, onAddDeal, customers, users, onSelectDeal }: Stage
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface PipelineReportsProps {
+  stages: StageWithDeals[];
+  pipeline: Pipeline;
+}
+
+function PipelineReports({ stages, pipeline }: PipelineReportsProps) {
+  const parseValue = (value: string | null): number => {
+    if (!value || value.trim() === "") return 0;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const allDeals = stages.flatMap(s => s.deals);
+  const totalDeals = allDeals.length;
+  const totalValue = allDeals.reduce((sum, d) => sum + parseValue(d.value), 0);
+  
+  const weightedValue = allDeals.reduce((sum, d) => {
+    const value = parseValue(d.value);
+    const probability = d.probability || 0;
+    return sum + (value * probability / 100);
+  }, 0);
+
+  const wonDeals = allDeals.filter(d => d.status === "won");
+  const lostDeals = allDeals.filter(d => d.status === "lost");
+  const openDeals = allDeals.filter(d => d.status === "open");
+
+  const wonValue = wonDeals.reduce((sum, d) => sum + parseValue(d.value), 0);
+  
+  const conversionRates: { from: string; to: string; rate: number }[] = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    const currentStage = stages[i];
+    const nextStage = stages[i + 1];
+    const currentCount = currentStage.deals.length;
+    const nextCount = nextStage.deals.length;
+    
+    if (currentCount > 0) {
+      conversionRates.push({
+        from: currentStage.name,
+        to: nextStage.name,
+        rate: (nextCount / currentCount) * 100,
+      });
+    }
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("sk-SK", { style: "currency", currency: "EUR" }).format(value);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Celkom obchodov</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalDeals}</div>
+            <p className="text-xs text-muted-foreground">
+              {openDeals.length} otvorených, {wonDeals.length} vyhraných, {lostDeals.length} stratených
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Celková hodnota</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              Vyhrané: {formatCurrency(wonValue)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Predpoveď tržieb</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(weightedValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              Vážená hodnota podľa pravdepodobnosti
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Úspešnosť</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {(wonDeals.length + lostDeals.length) > 0 
+                ? Math.round((wonDeals.length / (wonDeals.length + lostDeals.length)) * 100) 
+                : 0}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {wonDeals.length} z {wonDeals.length + lostDeals.length} uzavretých
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Obchody podľa fáz</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {stages.map((stage) => {
+              const stageValue = stage.deals.reduce((sum, d) => sum + parseValue(d.value), 0);
+              const percentage = totalDeals > 0 ? (stage.deals.length / totalDeals) * 100 : 0;
+              
+              return (
+                <div key={stage.id} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{stage.name}</span>
+                    <span className="text-muted-foreground">
+                      {stage.deals.length} obchodov · {formatCurrency(stageValue)}
+                    </span>
+                  </div>
+                  <Progress value={percentage} className="h-2" />
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Konverzné pomery</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {conversionRates.length > 0 ? (
+              conversionRates.map((cr, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <Badge variant="secondary" className="text-xs">{cr.from}</Badge>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="secondary" className="text-xs">{cr.to}</Badge>
+                  <span className="ml-auto font-medium">
+                    {Math.round(cr.rate)}%
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Nedostatok dát pre výpočet konverzií</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Predpoveď podľa fáz</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 font-medium">Fáza</th>
+                  <th className="text-right py-2 font-medium">Počet</th>
+                  <th className="text-right py-2 font-medium">Hodnota</th>
+                  <th className="text-right py-2 font-medium">Priem. pravdep.</th>
+                  <th className="text-right py-2 font-medium">Vážená hodnota</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stages.map((stage) => {
+                  const stageValue = stage.deals.reduce((sum, d) => sum + parseValue(d.value), 0);
+                  const avgProbability = stage.deals.length > 0
+                    ? stage.deals.reduce((sum, d) => sum + (d.probability || 0), 0) / stage.deals.length
+                    : 0;
+                  const stageWeighted = stage.deals.reduce((sum, d) => {
+                    const value = parseValue(d.value);
+                    const probability = d.probability || 0;
+                    return sum + (value * probability / 100);
+                  }, 0);
+
+                  return (
+                    <tr key={stage.id} className="border-b last:border-0">
+                      <td className="py-2">{stage.name}</td>
+                      <td className="text-right py-2">{stage.deals.length}</td>
+                      <td className="text-right py-2">{formatCurrency(stageValue)}</td>
+                      <td className="text-right py-2">{Math.round(avgProbability)}%</td>
+                      <td className="text-right py-2 font-medium">{formatCurrency(stageWeighted)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-muted/50 font-medium">
+                  <td className="py-2">Celkom</td>
+                  <td className="text-right py-2">{totalDeals}</td>
+                  <td className="text-right py-2">{formatCurrency(totalValue)}</td>
+                  <td className="text-right py-2">-</td>
+                  <td className="text-right py-2">{formatCurrency(weightedValue)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -565,37 +777,60 @@ export default function PipelinePage() {
         </Button>
       </div>
 
-      {kanbanLoading ? (
-        <div className="flex items-center justify-center flex-1">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <Tabs defaultValue="kanban" className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-4 pt-2 border-b">
+          <TabsList>
+            <TabsTrigger value="kanban" data-testid="tab-kanban">
+              <GripVertical className="h-4 w-4 mr-1" />
+              Kanban
+            </TabsTrigger>
+            <TabsTrigger value="reports" data-testid="tab-reports">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Reporty
+            </TabsTrigger>
+          </TabsList>
         </div>
-      ) : kanbanData ? (
-        <div className="flex-1 overflow-x-auto p-4">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="flex gap-4 h-full">
-              {kanbanData.stages.map((stage) => (
-                <StageColumn 
-                  key={stage.id} 
-                  stage={stage} 
-                  onAddDeal={handleAddDeal}
-                  customers={customers}
-                  users={users}
-                  onSelectDeal={handleSelectDeal}
-                />
-              ))}
-            </div>
 
-            <DragOverlay>
-              {activeDeal ? <DealCard deal={activeDeal} isDragging customers={customers} users={users} onSelect={handleSelectDeal} /> : null}
-            </DragOverlay>
-          </DndContext>
-        </div>
-      ) : null}
+        <TabsContent value="kanban" className="flex-1 overflow-hidden m-0">
+          {kanbanLoading ? (
+            <div className="flex items-center justify-center flex-1 h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : kanbanData ? (
+            <div className="flex-1 overflow-x-auto p-4 h-full">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="flex gap-4 h-full">
+                  {kanbanData.stages.map((stage) => (
+                    <StageColumn 
+                      key={stage.id} 
+                      stage={stage} 
+                      onAddDeal={handleAddDeal}
+                      customers={customers}
+                      users={users}
+                      onSelectDeal={handleSelectDeal}
+                    />
+                  ))}
+                </div>
+
+                <DragOverlay>
+                  {activeDeal ? <DealCard deal={activeDeal} isDragging customers={customers} users={users} onSelect={handleSelectDeal} /> : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="reports" className="flex-1 overflow-auto m-0 p-4">
+          {kanbanData && (
+            <PipelineReports stages={kanbanData.stages} pipeline={kanbanData.pipeline} />
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isNewDealOpen} onOpenChange={setIsNewDealOpen}>
         <DialogContent>

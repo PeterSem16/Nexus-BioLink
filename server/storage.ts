@@ -542,6 +542,7 @@ export interface IStorage {
   // Contract Category Default Templates
   getCategoryDefaultTemplates(categoryId: number): Promise<ContractCategoryDefaultTemplate[]>;
   getCategoryDefaultTemplate(categoryId: number, countryCode: string): Promise<ContractCategoryDefaultTemplate | undefined>;
+  getCategoryDefaultTemplateById(id: number): Promise<ContractCategoryDefaultTemplate | undefined>;
   createCategoryDefaultTemplate(data: InsertContractCategoryDefaultTemplate): Promise<ContractCategoryDefaultTemplate>;
   updateCategoryDefaultTemplate(id: number, data: Partial<InsertContractCategoryDefaultTemplate>): Promise<ContractCategoryDefaultTemplate | undefined>;
   deleteCategoryDefaultTemplate(id: number): Promise<boolean>;
@@ -3243,6 +3244,12 @@ export class DatabaseStorage implements IStorage {
         eq(contractCategoryDefaultTemplates.categoryId, categoryId),
         eq(contractCategoryDefaultTemplates.countryCode, countryCode)
       ));
+    return template || undefined;
+  }
+
+  async getCategoryDefaultTemplateById(id: number): Promise<ContractCategoryDefaultTemplate | undefined> {
+    const [template] = await db.select().from(contractCategoryDefaultTemplates)
+      .where(eq(contractCategoryDefaultTemplates.id, id));
     return template || undefined;
   }
 

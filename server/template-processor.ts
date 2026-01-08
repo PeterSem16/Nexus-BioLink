@@ -218,10 +218,13 @@ export async function extractDocxPlaceholders(docxPath: string): Promise<Templat
 
 export async function fillDocxTemplate(
   docxPath: string,
-  data: Record<string, any>,
+  data: Record<string, string | number | boolean>,
   outputPath: string
 ): Promise<string> {
   try {
+    console.log(`[DOCX Fill] Starting template fill for: ${docxPath}`);
+    console.log(`[DOCX Fill] Data keys:`, Object.keys(data));
+    
     const content = fs.readFileSync(docxPath, "binary");
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, {
@@ -230,7 +233,17 @@ export async function fillDocxTemplate(
       delimiters: { start: "{{", end: "}}" },
     });
 
+    // Log what placeholders the template expects
+    try {
+      const fullText = doc.getFullText();
+      const placeholders = fullText.match(/\{\{[^}]+\}\}/g) || [];
+      console.log(`[DOCX Fill] Template placeholders found:`, placeholders);
+    } catch (textError) {
+      console.log(`[DOCX Fill] Could not extract text for debug`);
+    }
+
     doc.render(data);
+    console.log(`[DOCX Fill] Render completed successfully`);
 
     const buf = doc.getZip().generate({
       type: "nodebuffer",
@@ -309,7 +322,7 @@ export async function convertDocxToPdf(docxPath: string, outputDir: string): Pro
 export async function generateContractFromTemplate(
   templateType: "pdf_form" | "docx",
   sourcePath: string,
-  data: Record<string, any>,
+  data: Record<string, string | number | boolean>,
   outputDir: string,
   contractId: string
 ): Promise<{ pdfPath: string; intermediateDocxPath?: string }> {

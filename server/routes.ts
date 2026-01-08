@@ -9678,55 +9678,60 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
           return d.toLocaleDateString("sk-SK");
         };
         
-        // Build nested context for docxtemplater (uses {{category.field}} format)
-        const docxData = {
-          customer: {
-            fullName: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
-            firstName: customer?.firstName || "",
-            lastName: customer?.lastName || "",
-            email: customer?.email || "",
-            phone: customer?.phone || "",
-            address: customer?.address || "",
-            city: customer?.city || "",
-            postalCode: customer?.postalCode || "",
-            dateOfBirth: formatDate(customer?.dateOfBirth),
-            birthNumber: customer?.nationalId || "",
-            correspondenceAddress: customer?.address || "",
-          },
-          mother: {
-            permanentAddress: customer?.address || "",
-            birthDate: formatDate(customer?.dateOfBirth),
-          },
-          father: {
-            fullName: potentialCase?.fatherFirstName && potentialCase?.fatherLastName
-              ? `${potentialCase.fatherFirstName} ${potentialCase.fatherLastName}`.trim()
-              : fatherParticipant?.fullName || "",
-            firstName: potentialCase?.fatherFirstName || "",
-            lastName: potentialCase?.fatherLastName || "",
-            email: potentialCase?.fatherEmail || "",
-            phone: potentialCase?.fatherPhone || potentialCase?.fatherMobile || "",
-            permanentAddress: potentialCase?.fatherStreet || "",
-          },
-          billing: {
-            companyName: billingDetails?.companyName || "Cord Blood Center AG",
-            ico: billingDetails?.ico || "",
-            dic: billingDetails?.dic || "",
-            vatNumber: billingDetails?.vatNumber || "",
-            address: billingDetails?.address || billingDetails?.residencyStreet || "",
-            city: billingDetails?.city || billingDetails?.residencyCity || "",
-            postalCode: billingDetails?.postalCode || billingDetails?.residencyPostalCode || "",
-            iban: billingDetails?.bankIban || "",
-            swift: billingDetails?.bankSwift || "",
-            bankName: billingDetails?.bankName || "",
-            email: billingDetails?.email || "",
-            phone: billingDetails?.phone || "",
-          },
-          contract: {
-            number: contract.contractNumber,
-            date: new Date().toLocaleDateString("sk-SK"),
-            currency: contract.currency || "EUR",
-          },
+        // Build FLAT context for docxtemplater (uses dot-notation keys like "customer.fullName")
+        // Note: docxtemplater treats {{customer.fullName}} as looking for key "customer.fullName", NOT nested object access
+        console.log("[PDF] Building DOCX data context (flat keys)...");
+        console.log("[PDF] Customer:", customer?.firstName, customer?.lastName);
+        console.log("[PDF] Father from potentialCase:", potentialCase?.fatherFirstName, potentialCase?.fatherLastName);
+        
+        const fatherFullName = potentialCase?.fatherFirstName && potentialCase?.fatherLastName
+          ? `${potentialCase.fatherFirstName} ${potentialCase.fatherLastName}`.trim()
+          : fatherParticipant?.fullName || "";
+        
+        const docxData: Record<string, string> = {
+          // Customer fields
+          "customer.fullName": `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
+          "customer.firstName": customer?.firstName || "",
+          "customer.lastName": customer?.lastName || "",
+          "customer.email": customer?.email || "",
+          "customer.phone": customer?.phone || "",
+          "customer.address": customer?.address || "",
+          "customer.city": customer?.city || "",
+          "customer.postalCode": customer?.postalCode || "",
+          "customer.dateOfBirth": formatDate(customer?.dateOfBirth),
+          "customer.birthNumber": customer?.nationalId || "",
+          "customer.correspondenceAddress": customer?.address || "",
+          // Mother fields (often same as customer for maternity contracts)
+          "mother.permanentAddress": customer?.address || "",
+          "mother.birthDate": formatDate(customer?.dateOfBirth),
+          "mother.fullName": `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
+          // Father fields
+          "father.fullName": fatherFullName,
+          "father.firstName": potentialCase?.fatherFirstName || "",
+          "father.lastName": potentialCase?.fatherLastName || "",
+          "father.email": potentialCase?.fatherEmail || "",
+          "father.phone": potentialCase?.fatherPhone || potentialCase?.fatherMobile || "",
+          "father.permanentAddress": potentialCase?.fatherStreet || "",
+          // Billing/Company fields
+          "billing.companyName": billingDetails?.companyName || "Cord Blood Center AG",
+          "billing.ico": billingDetails?.ico || "",
+          "billing.dic": billingDetails?.dic || "",
+          "billing.vatNumber": billingDetails?.vatNumber || "",
+          "billing.address": billingDetails?.address || billingDetails?.residencyStreet || "",
+          "billing.city": billingDetails?.city || billingDetails?.residencyCity || "",
+          "billing.postalCode": billingDetails?.postalCode || billingDetails?.residencyPostalCode || "",
+          "billing.iban": billingDetails?.bankIban || "",
+          "billing.swift": billingDetails?.bankSwift || "",
+          "billing.bankName": billingDetails?.bankName || "",
+          "billing.email": billingDetails?.email || "",
+          "billing.phone": billingDetails?.phone || "",
+          // Contract fields
+          "contract.number": contract.contractNumber,
+          "contract.date": new Date().toLocaleDateString("sk-SK"),
+          "contract.currency": contract.currency || "EUR",
         };
+        
+        console.log("[PDF] Data keys:", Object.keys(docxData).length);
         
         try {
           const outputDir = path.join(process.cwd(), "uploads", "generated-contracts");

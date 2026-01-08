@@ -3086,6 +3086,9 @@ export const dealActivities = pgTable("deal_activities", {
   outcome: varchar("outcome", { length: 255 }), // For calls: answered, no_answer, busy, etc.
   duration: integer("duration"), // Duration in minutes
   isCompleted: boolean("is_completed").default(false),
+  reminderAt: timestamp("reminder_at"), // When to send reminder
+  reminderSent: boolean("reminder_sent").default(false),
+  priority: varchar("priority", { length: 20 }).default("normal"), // low, normal, high, urgent
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -17,7 +17,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -274,7 +274,7 @@ export default function PipelinePage() {
   });
 
   const createActivityMutation = useMutation({
-    mutationFn: async (data: { type: string; subject: string; description?: string; dueAt?: string }) => {
+    mutationFn: async (data: { type: string; subject: string; description?: string; dueAt?: string; priority?: string; reminderAt?: string }) => {
       if (!selectedDeal) throw new Error("No deal selected");
       return apiRequest("POST", `/api/deals/${selectedDeal.id}/activities`, data);
     },
@@ -431,6 +431,8 @@ export default function PipelinePage() {
       subject: formData.get("subject") as string,
       description: formData.get("description") as string || undefined,
       dueAt: formData.get("dueAt") as string || undefined,
+      priority: formData.get("priority") as string || "normal",
+      reminderAt: formData.get("reminderAt") as string || undefined,
     });
   };
 
@@ -748,51 +750,127 @@ export default function PipelinePage() {
                     Žiadne aktivity
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {dealActivities.map((activity) => (
-                      <div 
-                        key={activity.id}
-                        className={`p-3 border rounded-md ${activity.completedAt ? "bg-muted/30" : ""}`}
-                        data-testid={`activity-${activity.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-xs">
-                                {DEAL_ACTIVITY_TYPES.find(t => t.value === activity.type)?.label || activity.type}
-                              </Badge>
-                              {activity.completedAt && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Dokončené
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="font-medium text-sm">{activity.subject}</p>
-                            {activity.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
-                            )}
-                            {activity.dueAt && (
-                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(activity.dueAt), "d. M. yyyy HH:mm", { locale: sk })}
-                              </p>
-                            )}
-                          </div>
-                          {!activity.completedAt && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => completeActivityMutation.mutate(activity.id)}
-                              disabled={completeActivityMutation.isPending}
-                              data-testid={`button-complete-activity-${activity.id}`}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                  <div className="space-y-4">
+                    {/* Nadchádzajúce aktivity */}
+                    {dealActivities.filter(a => !a.completedAt).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase font-medium mb-2">Nadchádzajúce</p>
+                        <div className="space-y-2">
+                          {dealActivities
+                            .filter(a => !a.completedAt)
+                            .sort((a, b) => {
+                              if (!a.dueAt && !b.dueAt) return 0;
+                              if (!a.dueAt) return 1;
+                              if (!b.dueAt) return -1;
+                              return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+                            })
+                            .map((activity) => {
+                              const priorityColors: Record<string, string> = {
+                                urgent: "border-l-4 border-l-red-500",
+                                high: "border-l-4 border-l-orange-500",
+                                normal: "",
+                                low: "border-l-4 border-l-gray-300",
+                              };
+                              const isOverdue = activity.dueAt && new Date(activity.dueAt) < new Date();
+                              return (
+                                <div 
+                                  key={activity.id}
+                                  className={`p-3 border rounded-md ${priorityColors[activity.priority || "normal"]} ${isOverdue ? "bg-red-50 dark:bg-red-950/20" : ""}`}
+                                  data-testid={`activity-${activity.id}`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        <Badge variant="outline" className="text-xs">
+                                          {DEAL_ACTIVITY_TYPES.find(t => t.value === activity.type)?.label || activity.type}
+                                        </Badge>
+                                        {activity.priority === "urgent" && (
+                                          <Badge variant="destructive" className="text-xs">Urgentné</Badge>
+                                        )}
+                                        {activity.priority === "high" && (
+                                          <Badge className="text-xs bg-orange-500">Vysoká</Badge>
+                                        )}
+                                        {isOverdue && (
+                                          <Badge variant="destructive" className="text-xs">Po termíne</Badge>
+                                        )}
+                                      </div>
+                                      <p className="font-medium text-sm">{activity.subject}</p>
+                                      {activity.description && (
+                                        <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
+                                      )}
+                                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                        {activity.dueAt && (
+                                          <p className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+                                            <Clock className="h-3 w-3" />
+                                            {format(new Date(activity.dueAt), "d. M. yyyy HH:mm", { locale: sk })}
+                                          </p>
+                                        )}
+                                        {activity.reminderAt && (
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Bell className="h-3 w-3" />
+                                            {format(new Date(activity.reminderAt), "d. M. HH:mm", { locale: sk })}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => completeActivityMutation.mutate(activity.id)}
+                                      disabled={completeActivityMutation.isPending}
+                                      data-testid={`button-complete-activity-${activity.id}`}
+                                    >
+                                      <CheckCircle2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                         </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Dokončené aktivity (história) */}
+                    {dealActivities.filter(a => a.completedAt).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase font-medium mb-2">História komunikácie</p>
+                        <div className="space-y-2">
+                          {dealActivities
+                            .filter(a => a.completedAt)
+                            .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
+                            .map((activity) => (
+                              <div 
+                                key={activity.id}
+                                className="p-3 border rounded-md bg-muted/30"
+                                data-testid={`activity-${activity.id}`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {DEAL_ACTIVITY_TYPES.find(t => t.value === activity.type)?.label || activity.type}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(new Date(activity.completedAt!), "d. M. yyyy HH:mm", { locale: sk })}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm">{activity.subject}</p>
+                                    {activity.description && (
+                                      <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
+                                    )}
+                                    {activity.outcome && (
+                                      <p className="text-xs mt-1 text-muted-foreground">
+                                        Výsledok: {activity.outcome}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -850,6 +928,32 @@ export default function PipelinePage() {
                 placeholder="Dodatočné informácie..."
                 data-testid="input-activity-description"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="activity-priority">Priorita</Label>
+                <Select name="priority" defaultValue="normal">
+                  <SelectTrigger data-testid="select-activity-priority">
+                    <SelectValue placeholder="Vyberte prioritu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Nízka</SelectItem>
+                    <SelectItem value="normal">Normálna</SelectItem>
+                    <SelectItem value="high">Vysoká</SelectItem>
+                    <SelectItem value="urgent">Urgentná</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="activity-reminderAt">Pripomienka</Label>
+                <Input 
+                  id="activity-reminderAt" 
+                  name="reminderAt" 
+                  type="datetime-local"
+                  data-testid="input-activity-reminderAt"
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">

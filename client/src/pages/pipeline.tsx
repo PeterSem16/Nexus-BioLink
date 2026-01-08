@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1565,6 +1566,47 @@ export default function PipelinePage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h4 className="font-medium mb-3">Manuál</h4>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="basics">
+                  <AccordionTrigger>Základné pojmy</AccordionTrigger>
+                  <AccordionContent className="text-sm space-y-2">
+                    <p><strong>Pipeline</strong> - Predajný proces s definovanými fázami</p>
+                    <p><strong>Fáza</strong> - Krok v predajnom procese (napr. Nový kontakt, Stretnutie, Ponuka)</p>
+                    <p><strong>Príležitosť</strong> - Konkrétny obchod so zákazníkom</p>
+                    <p><strong>Aktivita</strong> - Úloha spojená s príležitosťou (hovor, email, stretnutie)</p>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="howto">
+                  <AccordionTrigger>Ako začať</AccordionTrigger>
+                  <AccordionContent className="text-sm space-y-2">
+                    <p><strong>1. Vytvorenie Pipeline</strong> - Kliknite na Nový pipeline, zadajte názov a krajiny</p>
+                    <p><strong>2. Pridanie príležitosti</strong> - Kliknite na Nová príležitosť, vyplňte údaje</p>
+                    <p><strong>3. Kanban tabuľa</strong> - Ťahajte karty medzi fázami, kliknite pre detail</p>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="products">
+                  <AccordionTrigger>Produkty a automatizácie</AccordionTrigger>
+                  <AccordionContent className="text-sm space-y-2">
+                    <p>V detaile príležitosti môžete pridávať produkty s cenou a množstvom.</p>
+                    <p>Pre <strong>vyhraté obchody</strong> s produktmi sa zobrazí tlačidlo na automatické vytvorenie zmluvy a faktúry.</p>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="tips">
+                  <AccordionTrigger>Tipy</AccordionTrigger>
+                  <AccordionContent className="text-sm space-y-2">
+                    <p>1. Pravidelne aktualizujte fázy príležitostí</p>
+                    <p>2. Zadávajte realistickú pravdepodobnosť pre lepšie prognózy</p>
+                    <p>3. Používajte aktivity na plánovanie follow-upov</p>
+                    <p>4. Pridávajte poznámky s dôležitými informáciami</p>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
 
             <Separator />

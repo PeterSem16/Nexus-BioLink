@@ -2,11 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Download, Upload, History, FileText, Check, RotateCcw, Sparkles, Variable, RefreshCw, Clock, User } from "lucide-react";
+import { Loader2, Download, Upload, FileText, Sparkles, Variable, RefreshCw } from "lucide-react";
 import { VariableBrowser } from "./variable-browser";
 import {
   Dialog,
@@ -16,30 +13,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-interface TemplateVersion {
-  id: number;
-  categoryId: number;
-  countryCode: string;
-  versionNumber: number;
-  docxFilePath: string;
-  htmlContent: string | null;
-  changeDescription: string | null;
-  createdBy: string | null;
-  createdByName: string | null;
-  createdAt: string;
-}
-
 interface DocxTemplateEditorProps {
   categoryId: number;
   countryCode: string;
@@ -60,14 +33,7 @@ export function DocxTemplateEditor({
   const [isAiInserting, setIsAiInserting] = useState(false);
   const [extractedVariables, setExtractedVariables] = useState<string[]>([]);
   const [htmlContent, setHtmlContent] = useState<string>("");
-  const [versions, setVersions] = useState<TemplateVersion[]>([]);
-  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [activeTab, setActiveTab] = useState("workflow");
-  const [versionDescription, setVersionDescription] = useState("");
-  const [isCreateVersionOpen, setIsCreateVersionOpen] = useState(false);
-  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
-  const [revertVersion, setRevertVersion] = useState<TemplateVersion | null>(null);
-  const [isReverting, setIsReverting] = useState(false);
   const [previewKey, setPreviewKey] = useState(Date.now());
   const { toast } = useToast();
 
@@ -107,31 +73,12 @@ export function DocxTemplateEditor({
     }
   }, [categoryId, countryCode]);
 
-  const loadVersions = useCallback(async () => {
-    setIsLoadingVersions(true);
-    try {
-      const response = await fetch(
-        `/api/contract-categories/${categoryId}/countries/${countryCode}/versions`,
-        { credentials: "include" }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setVersions(data);
-      }
-    } catch (error) {
-      console.error("Error loading versions:", error);
-    } finally {
-      setIsLoadingVersions(false);
-    }
-  }, [categoryId, countryCode]);
-
   const loadDocument = useCallback(async () => {
     setIsLoading(true);
     try {
       await Promise.all([
         loadHtmlFallback(),
-        extractVariablesFromDocument(),
-        loadVersions()
+        extractVariablesFromDocument()
       ]);
     } catch (error: any) {
       console.error("Error loading document:", error);
@@ -139,7 +86,7 @@ export function DocxTemplateEditor({
     } finally {
       setIsLoading(false);
     }
-  }, [loadHtmlFallback, extractVariablesFromDocument, loadVersions]);
+  }, [loadHtmlFallback, extractVariablesFromDocument]);
 
   useEffect(() => {
     loadDocument();
@@ -230,91 +177,6 @@ export function DocxTemplateEditor({
     }
   };
 
-  const handleCreateVersion = async () => {
-    if (!versionDescription.trim()) {
-      toast({
-        title: "Chýba popis",
-        description: "Prosím zadajte popis zmien pre túto verziu.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCreatingVersion(true);
-    try {
-      const response = await fetch(
-        `/api/contract-categories/${categoryId}/countries/${countryCode}/versions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            changeDescription: versionDescription,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Vytvorenie verzie zlyhalo");
-      }
-
-      const newVersion = await response.json();
-      toast({
-        title: "Verzia vytvorená",
-        description: `Verzia ${newVersion.versionNumber} bola úspešne uložená.`,
-      });
-
-      setVersionDescription("");
-      setIsCreateVersionOpen(false);
-      await loadVersions();
-    } catch (error: any) {
-      toast({
-        title: "Chyba pri vytváraní verzie",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingVersion(false);
-    }
-  };
-
-  const handleRevertVersion = async () => {
-    if (!revertVersion) return;
-
-    setIsReverting(true);
-    try {
-      const response = await fetch(
-        `/api/contract-categories/${categoryId}/countries/${countryCode}/versions/${revertVersion.id}/revert`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Obnovenie verzie zlyhalo");
-      }
-
-      toast({
-        title: "Verzia obnovená",
-        description: `Šablóna bola obnovená na verziu ${revertVersion.versionNumber}.`,
-      });
-
-      setRevertVersion(null);
-      await loadDocument();
-    } catch (error: any) {
-      toast({
-        title: "Chyba pri obnovení verzie",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsReverting(false);
-    }
-  };
-
   const handleInsertVariable = (variablePath: string) => {
     const placeholder = `{{${variablePath}}}`;
     toast({ title: `Premenná ${variablePath} skopírovaná`, description: placeholder });
@@ -358,17 +220,6 @@ export function DocxTemplateEditor({
     } finally {
       setIsAiInserting(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString("sk-SK", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (isLoading) {
@@ -429,7 +280,7 @@ export function DocxTemplateEditor({
 
       <div className="flex-1 overflow-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 shrink-0">
+          <TabsList className="grid w-full grid-cols-2 shrink-0">
             <TabsTrigger value="workflow" data-testid="tab-workflow">
               <FileText className="h-4 w-4 mr-2" />
               Úprava
@@ -437,13 +288,6 @@ export function DocxTemplateEditor({
             <TabsTrigger value="preview" data-testid="tab-preview">
               <FileText className="h-4 w-4 mr-2" />
               Náhľad
-            </TabsTrigger>
-            <TabsTrigger value="history" data-testid="tab-history">
-              <History className="h-4 w-4 mr-2" />
-              História
-              {versions.length > 0 && (
-                <Badge variant="secondary" className="ml-2">{versions.length}</Badge>
-              )}
             </TabsTrigger>
           </TabsList>
 
@@ -535,27 +379,6 @@ export function DocxTemplateEditor({
               </Card>
             </div>
 
-            <Card className="mt-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <History className="h-4 w-4" />
-                  Uložiť verziu
-                </CardTitle>
-                <CardDescription>
-                  Pred väčšími zmenami uložte aktuálnu verziu
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateVersionOpen(true)}
-                  data-testid="button-save-version"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Uložiť aktuálnu verziu
-                </Button>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="preview" className="mt-4 flex-1 overflow-auto">
@@ -599,77 +422,6 @@ export function DocxTemplateEditor({
             </div>
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4 flex-1 overflow-auto">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h3 className="font-medium">História verzií</h3>
-                <p className="text-sm text-muted-foreground">
-                  Predchádzajúce verzie s možnosťou obnovenia
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCreateVersionOpen(true)}
-                data-testid="button-create-version"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Uložiť verziu
-              </Button>
-            </div>
-            
-            {isLoadingVersions ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : versions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Zatiaľ neboli vytvorené žiadne verzie</p>
-                <p className="text-sm mt-1">Uložte prvú verziu pre možnosť neskoršieho obnovenia</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[300px]">
-                <div className="space-y-3">
-                  {versions.map((version) => (
-                    <div
-                      key={version.id}
-                      className="flex items-start justify-between gap-4 p-4 rounded-lg border bg-card"
-                      data-testid={`version-item-${version.id}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="secondary">v{version.versionNumber}</Badge>
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(version.createdAt)}
-                          </span>
-                        </div>
-                        {version.changeDescription && (
-                          <p className="text-sm mb-2">{version.changeDescription}</p>
-                        )}
-                        {version.createdByName && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {version.createdByName}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setRevertVersion(version)}
-                        data-testid={`button-revert-${version.id}`}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Obnoviť
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
 
@@ -687,68 +439,6 @@ export function DocxTemplateEditor({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isCreateVersionOpen} onOpenChange={setIsCreateVersionOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Uložiť novú verziu</DialogTitle>
-            <DialogDescription>
-              Uložte aktuálny stav šablóny s popisom zmien.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Popis zmien</label>
-              <Textarea
-                placeholder="Napr. Aktualizované kontaktné údaje..."
-                value={versionDescription}
-                onChange={(e) => setVersionDescription(e.target.value)}
-                className="min-h-[100px]"
-                data-testid="input-version-description"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateVersionOpen(false)}>
-              Zrušiť
-            </Button>
-            <Button
-              onClick={handleCreateVersion}
-              disabled={isCreatingVersion || !versionDescription.trim()}
-              data-testid="button-confirm-save-version"
-            >
-              {isCreatingVersion && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Uložiť verziu
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!revertVersion} onOpenChange={(open) => !open && setRevertVersion(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Obnoviť verziu {revertVersion?.versionNumber}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Aktuálna šablóna bude nahradená vybranou verziou.
-              {revertVersion?.changeDescription && (
-                <span className="block mt-2 font-medium">
-                  Popis: {revertVersion.changeDescription}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRevertVersion}
-              disabled={isReverting}
-              data-testid="button-confirm-revert"
-            >
-              {isReverting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Obnoviť
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

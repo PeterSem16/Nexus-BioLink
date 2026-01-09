@@ -17,7 +17,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,16 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 

@@ -18,7 +18,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users, LayoutGrid, List, Archive, Coins, Globe, UserPlus, Megaphone, Share2, Building, Link2, Star, Facebook, Linkedin } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users, LayoutGrid, List, Archive, Coins, Globe, UserPlus, Megaphone, Share2, Building, Link2, Star, Facebook, Linkedin, Zap, Play, Pause } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Progress } from "@/components/ui/progress";
@@ -52,7 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type Deal, type PipelineStage, type Pipeline, type Customer, type Campaign, type User, type DealActivity, type Product, type DealProduct, type BillingDetails, DEAL_SOURCES, COUNTRIES, DEAL_ACTIVITY_TYPES } from "@shared/schema";
+import { type Deal, type PipelineStage, type Pipeline, type Customer, type Campaign, type User, type DealActivity, type Product, type DealProduct, type BillingDetails, type AutomationRule, DEAL_SOURCES, COUNTRIES, DEAL_ACTIVITY_TYPES, AUTOMATION_TRIGGER_TYPES, AUTOMATION_ACTION_TYPES } from "@shared/schema";
 import {
   Sheet,
   SheetContent,
@@ -841,11 +841,539 @@ function PipelineReports({ stages, pipeline }: PipelineReportsProps) {
   );
 }
 
+// Automations View Component
+interface AutomationsViewProps {
+  pipelineId: string;
+  stages: StageWithDeals[];
+  users: User[];
+}
+
+function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
+  const { toast } = useToast();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; rule: AutomationRule | null }>({ open: false, rule: null });
+
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    triggerType: "deal_created",
+    triggerConfig: {} as Record<string, any>,
+    actionType: "create_activity",
+    actionConfig: {} as Record<string, any>,
+  });
+
+  const { data: automations = [], isLoading, refetch } = useQuery<AutomationRule[]>({
+    queryKey: ["/api/pipelines", pipelineId, "automations"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      return apiRequest("POST", `/api/pipelines/${pipelineId}/automations`, data);
+    },
+    onSuccess: () => {
+      refetch();
+      setIsCreateOpen(false);
+      resetForm();
+      toast({ title: "Automatizácia vytvorená" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa vytvoriť automatizáciu", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
+      return apiRequest("PATCH", `/api/automations/${id}`, data);
+    },
+    onSuccess: () => {
+      refetch();
+      setEditingRule(null);
+      resetForm();
+      toast({ title: "Automatizácia aktualizovaná" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa aktualizovať automatizáciu", variant: "destructive" });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return apiRequest("PATCH", `/api/automations/${id}/toggle`, { isActive });
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Stav automatizácie zmenený" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa zmeniť stav", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/automations/${id}`);
+    },
+    onSuccess: () => {
+      refetch();
+      setDeleteConfirm({ open: false, rule: null });
+      toast({ title: "Automatizácia zmazaná" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa zmazať automatizáciu", variant: "destructive" });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      triggerType: "deal_created",
+      triggerConfig: {},
+      actionType: "create_activity",
+      actionConfig: {},
+    });
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setIsCreateOpen(true);
+  };
+
+  const handleOpenEdit = (rule: AutomationRule) => {
+    setFormData({
+      name: rule.name,
+      description: rule.description || "",
+      triggerType: rule.triggerType,
+      triggerConfig: rule.triggerConfig || {},
+      actionType: rule.actionType,
+      actionConfig: rule.actionConfig || {},
+    });
+    setEditingRule(rule);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingRule) {
+      updateMutation.mutate({ id: editingRule.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const getTriggerLabel = (type: string) => {
+    return AUTOMATION_TRIGGER_TYPES.find(t => t.value === type)?.label || type;
+  };
+
+  const getActionLabel = (type: string) => {
+    return AUTOMATION_ACTION_TYPES.find(a => a.value === type)?.label || type;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-auto p-4">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold">Automatizácie pipeline</h2>
+          <p className="text-sm text-muted-foreground">Nastavte pravidlá pre automatické akcie pri zmenách v deals</p>
+        </div>
+        <Button onClick={handleOpenCreate} data-testid="button-create-automation">
+          <Plus className="h-4 w-4 mr-2" />
+          Nová automatizácia
+        </Button>
+      </div>
+
+      {automations.length === 0 ? (
+        <Card className="py-12">
+          <CardContent className="text-center">
+            <Zap className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <h3 className="text-lg font-medium mb-2">Žiadne automatizácie</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Vytvorte prvú automatizáciu pre tento pipeline
+            </p>
+            <Button onClick={handleOpenCreate} variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Vytvoriť automatizáciu
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {automations.map((rule) => (
+            <Card key={rule.id} className={`transition-opacity ${!rule.isActive ? 'opacity-60' : ''}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium truncate">{rule.name}</h3>
+                      <Badge variant={rule.isActive ? "default" : "secondary"} className="shrink-0">
+                        {rule.isActive ? "Aktívne" : "Neaktívne"}
+                      </Badge>
+                    </div>
+                    {rule.description && (
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{rule.description}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{getTriggerLabel(rule.triggerType)}</span>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{getActionLabel(rule.actionType)}</span>
+                      </div>
+                    </div>
+                    {rule.executionCount !== null && rule.executionCount > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Spustené {rule.executionCount}x
+                        {rule.lastExecutedAt && ` • Naposledy: ${format(new Date(rule.lastExecutedAt), "d.M.yyyy HH:mm", { locale: sk })}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Switch
+                      checked={rule.isActive ?? true}
+                      onCheckedChange={(checked) => toggleMutation.mutate({ id: rule.id, isActive: checked })}
+                      data-testid={`toggle-automation-${rule.id}`}
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" data-testid={`automation-menu-${rule.id}`}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleOpenEdit(rule)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Upraviť
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => setDeleteConfirm({ open: true, rule })}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Zmazať
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={isCreateOpen || !!editingRule} onOpenChange={(open) => {
+        if (!open) {
+          setIsCreateOpen(false);
+          setEditingRule(null);
+          resetForm();
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingRule ? "Upraviť automatizáciu" : "Nová automatizácia"}</DialogTitle>
+            <DialogDescription>
+              Nastavte pravidlo pre automatické akcie
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Názov *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Napr. Notifikácia pri novom deale"
+                required
+                data-testid="input-automation-name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="description">Popis</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Voliteľný popis pravidla"
+                rows={2}
+                data-testid="input-automation-description"
+              />
+            </div>
+
+            <div>
+              <Label>Spúšťač (Trigger)</Label>
+              <Select
+                value={formData.triggerType}
+                onValueChange={(val) => setFormData({ ...formData, triggerType: val, triggerConfig: {} })}
+              >
+                <SelectTrigger data-testid="select-trigger-type">
+                  <SelectValue placeholder="Vyberte spúšťač" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUTOMATION_TRIGGER_TYPES.map((trigger) => (
+                    <SelectItem key={trigger.value} value={trigger.value}>
+                      {trigger.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.triggerType === "stage_changed" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Z fázy</Label>
+                  <Select
+                    value={formData.triggerConfig.fromStageId || "any"}
+                    onValueChange={(val) => setFormData({ 
+                      ...formData, 
+                      triggerConfig: { ...formData.triggerConfig, fromStageId: val === "any" ? undefined : val }
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Akákoľvek" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Akákoľvek</SelectItem>
+                      {stages.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Do fázy</Label>
+                  <Select
+                    value={formData.triggerConfig.toStageId || "any"}
+                    onValueChange={(val) => setFormData({ 
+                      ...formData, 
+                      triggerConfig: { ...formData.triggerConfig, toStageId: val === "any" ? undefined : val }
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Akákoľvek" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Akákoľvek</SelectItem>
+                      {stages.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {formData.triggerType === "deal_rotting" && (
+              <div>
+                <Label>Počet dní neaktivity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.triggerConfig.rottingDays || 7}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    triggerConfig: { ...formData.triggerConfig, rottingDays: parseInt(e.target.value) }
+                  })}
+                  data-testid="input-rotting-days"
+                />
+              </div>
+            )}
+
+            <div>
+              <Label>Akcia</Label>
+              <Select
+                value={formData.actionType}
+                onValueChange={(val) => setFormData({ ...formData, actionType: val, actionConfig: {} })}
+              >
+                <SelectTrigger data-testid="select-action-type">
+                  <SelectValue placeholder="Vyberte akciu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUTOMATION_ACTION_TYPES.map((action) => (
+                    <SelectItem key={action.value} value={action.value}>
+                      {action.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.actionType === "create_activity" && (
+              <div className="space-y-3">
+                <div>
+                  <Label>Typ aktivity</Label>
+                  <Select
+                    value={formData.actionConfig.activityType || "call"}
+                    onValueChange={(val) => setFormData({
+                      ...formData,
+                      actionConfig: { ...formData.actionConfig, activityType: val }
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEAL_ACTIVITY_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Predmet aktivity</Label>
+                  <Input
+                    value={formData.actionConfig.activitySubject || ""}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      actionConfig: { ...formData.actionConfig, activitySubject: e.target.value }
+                    })}
+                    placeholder="Napr. Kontaktovať zákazníka"
+                  />
+                </div>
+                <div>
+                  <Label>Splatnosť (dní od spustenia)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.actionConfig.activityDueDays || 1}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      actionConfig: { ...formData.actionConfig, activityDueDays: parseInt(e.target.value) }
+                    })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {formData.actionType === "assign_owner" && (
+              <div>
+                <Label>Priradiť používateľovi</Label>
+                <Select
+                  value={formData.actionConfig.assignUserId || ""}
+                  onValueChange={(val) => setFormData({
+                    ...formData,
+                    actionConfig: { ...formData.actionConfig, assignUserId: val }
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte používateľa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>{user.fullName || user.username}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {formData.actionType === "move_stage" && (
+              <div>
+                <Label>Presunúť do fázy</Label>
+                <Select
+                  value={formData.actionConfig.targetStageId || ""}
+                  onValueChange={(val) => setFormData({
+                    ...formData,
+                    actionConfig: { ...formData.actionConfig, targetStageId: val }
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte fázu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {formData.actionType === "add_note" && (
+              <div>
+                <Label>Text poznámky</Label>
+                <Textarea
+                  value={formData.actionConfig.noteText || ""}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    actionConfig: { ...formData.actionConfig, noteText: e.target.value }
+                  })}
+                  placeholder="Text poznámky, ktorá sa pridá k dealu"
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCreateOpen(false);
+                  setEditingRule(null);
+                  resetForm();
+                }}
+              >
+                Zrušiť
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending || updateMutation.isPending}
+                data-testid="button-save-automation"
+              >
+                {(createMutation.isPending || updateMutation.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {editingRule ? "Uložiť zmeny" : "Vytvoriť"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirm.open} onOpenChange={(open) => !open && setDeleteConfirm({ open: false, rule: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zmazať automatizáciu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Naozaj chcete zmazať automatizáciu "{deleteConfirm.rule?.name}"? Táto akcia je nevratná.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirm.rule && deleteMutation.mutate(deleteConfirm.rule.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Zmazať
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const { toast } = useToast();
   const { selectedCountries } = useCountryFilter();
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "forecast" | "archive" | "reports">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "forecast" | "archive" | "reports" | "automations">("kanban");
   const [isNewDealOpen, setIsNewDealOpen] = useState(false);
   const [newDealStageId, setNewDealStageId] = useState<string | null>(null);
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
@@ -1347,6 +1875,9 @@ export default function PipelinePage() {
           <ToggleGroupItem value="reports" aria-label="Reporty" data-testid="view-reports" className="px-3">
             <BarChart3 className="h-4 w-4" />
           </ToggleGroupItem>
+          <ToggleGroupItem value="automations" aria-label="Automatizácie" data-testid="view-automations" className="px-3">
+            <Zap className="h-4 w-4" />
+          </ToggleGroupItem>
         </ToggleGroup>
 
         <Button 
@@ -1590,6 +2121,14 @@ export default function PipelinePage() {
               <PipelineReports stages={kanbanData.stages} pipeline={kanbanData.pipeline} />
             )}
           </div>
+        )}
+
+        {viewMode === "automations" && activePipelineId && (
+          <AutomationsView 
+            pipelineId={activePipelineId} 
+            stages={kanbanData?.stages || []}
+            users={users}
+          />
         )}
       </div>
 

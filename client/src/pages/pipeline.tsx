@@ -924,26 +924,37 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
     },
   });
 
+  const [executeResult, setExecuteResult] = useState<{ success: boolean; action: string; details: string } | null>(null);
+
   const executeMutation = useMutation({
     mutationFn: async ({ ruleId, dealId }: { ruleId: string; dealId: string }) => {
       return apiRequest("POST", `/api/automations/${ruleId}/execute`, { dealId });
     },
     onSuccess: (data: any) => {
       refetch();
-      setExecuteDialog({ open: false, rule: null });
-      setSelectedDealId("");
-      toast({ 
-        title: "Automatizácia spustená", 
-        description: data.result?.details || "Akcia bola vykonaná"
+      setExecuteResult({
+        success: true,
+        action: data.result?.action || "unknown",
+        details: data.result?.details || "Akcia bola vykonaná"
       });
     },
     onError: () => {
-      toast({ title: "Chyba", description: "Nepodarilo sa spustiť automatizáciu", variant: "destructive" });
+      setExecuteResult({
+        success: false,
+        action: "error",
+        details: "Nepodarilo sa spustiť automatizáciu"
+      });
     },
   });
 
   const [executeDialog, setExecuteDialog] = useState<{ open: boolean; rule: AutomationRule | null }>({ open: false, rule: null });
   const [selectedDealId, setSelectedDealId] = useState("");
+
+  const closeExecuteDialog = () => {
+    setExecuteDialog({ open: false, rule: null });
+    setSelectedDealId("");
+    setExecuteResult(null);
+  };
 
   // Get all deals from stages for the execute dialog
   const allDeals = stages.flatMap(stage => stage.deals || []);
@@ -1460,57 +1471,88 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
 
       {/* Execute Test Dialog */}
       <Dialog open={executeDialog.open} onOpenChange={(open) => {
-        if (!open) {
-          setExecuteDialog({ open: false, rule: null });
-          setSelectedDealId("");
-        }
+        if (!open) closeExecuteDialog();
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Spustiť test automatizácie</DialogTitle>
             <DialogDescription>
-              Vyberte deal, na ktorom chcete otestovať pravidlo "{executeDialog.rule?.name}"
+              {executeResult 
+                ? "Výsledok spustenia pravidla" 
+                : `Vyberte deal, na ktorom chcete otestovať pravidlo "${executeDialog.rule?.name}"`
+              }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Vyberte deal</Label>
-              <Select value={selectedDealId} onValueChange={setSelectedDealId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vyberte deal na testovanie" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allDeals.map((deal) => (
-                    <SelectItem key={deal.id} value={deal.id}>
-                      {deal.title} - {deal.customerName || "Bez zákazníka"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          
+          {executeResult ? (
+            <div className="space-y-4 py-4">
+              <div className={`p-4 rounded-lg border ${executeResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {executeResult.success ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <X className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  )}
+                  <span className={`font-medium ${executeResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                    {executeResult.success ? "Úspešne vykonané" : "Chyba"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{executeResult.details}</p>
+                {executeResult.success && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Akcia: {getActionLabel(executeResult.action)}
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={closeExecuteDialog}>
+                  Zavrieť
+                </Button>
+              </div>
             </div>
-            {allDeals.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Nie sú k dispozícii žiadne dealy. Najprv vytvorte deal.
-              </p>
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setExecuteDialog({ open: false, rule: null })}>
-              Zrušiť
-            </Button>
-            <Button
-              onClick={() => {
-                if (executeDialog.rule && selectedDealId) {
-                  executeMutation.mutate({ ruleId: executeDialog.rule.id, dealId: selectedDealId });
-                }
-              }}
-              disabled={!selectedDealId || executeMutation.isPending}
-            >
-              {executeMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Play className="h-4 w-4 mr-2" />
-              Spustiť
-            </Button>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label>Vyberte deal</Label>
+                  <Select value={selectedDealId} onValueChange={setSelectedDealId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Vyberte deal na testovanie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allDeals.map((deal) => (
+                        <SelectItem key={deal.id} value={deal.id}>
+                          {deal.title} - {deal.customerName || "Bez zákazníka"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {allDeals.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nie sú k dispozícii žiadne dealy. Najprv vytvorte deal.
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={closeExecuteDialog}>
+                  Zrušiť
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (executeDialog.rule && selectedDealId) {
+                      executeMutation.mutate({ ruleId: executeDialog.rule.id, dealId: selectedDealId });
+                    }
+                  }}
+                  disabled={!selectedDealId || executeMutation.isPending}
+                >
+                  {executeMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Play className="h-4 w-4 mr-2" />
+                  Spustiť
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

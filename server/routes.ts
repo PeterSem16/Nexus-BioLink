@@ -10853,6 +10853,12 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
     try {
       const id = `deal_${Date.now()}`;
       const deal = await storage.createDeal({ ...req.body, id });
+      
+      // Trigger automations for deal_created
+      triggerAutomations("deal_created", deal, req.session?.user?.id).catch(err => 
+        console.error("Automation trigger error:", err)
+      );
+      
       res.status(201).json(deal);
     } catch (error) {
       console.error("Error creating deal:", error);
@@ -10876,10 +10882,18 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
   app.patch("/api/deals/:id/stage", requireAuth, async (req, res) => {
     try {
       const { stageId } = req.body;
+      const oldDeal = await storage.getDeal(req.params.id);
       const deal = await storage.moveDealToStage(req.params.id, stageId);
       if (!deal) {
         return res.status(404).json({ error: "Deal not found" });
       }
+      
+      // Trigger automations for stage_changed
+      triggerAutomations("stage_changed", deal, req.session?.user?.id, {
+        fromStageId: oldDeal?.stageId,
+        toStageId: stageId
+      }).catch(err => console.error("Automation trigger error:", err));
+      
       res.json(deal);
     } catch (error) {
       console.error("Error moving deal:", error);
@@ -11369,5 +11383,49 @@ async function executeAutomationAction(
 
     default:
       return { action: rule.actionType, details: "Neznámy typ akcie" };
+  }
+}
+
+// Trigger automations based on event type
+async function triggerAutomations(
+  triggerType: string,
+  deal: any,
+  userId?: string,
+  context?: { fromStageId?: string; toStageId?: string }
+): Promise<void> {
+  try {
+    // Get pipeline from deal's stage
+    const stage = await storage.getPipelineStage(deal.stageId);
+    if (!stage) return;
+
+    // Get all active automation rules for this pipeline
+    const rules = await storage.getAutomationRulesByPipeline(stage.pipelineId);
+    const activeRules = rules.filter(r => r.isActive && r.triggerType === triggerType);
+
+    for (const rule of activeRules) {
+      let shouldTrigger = true;
+
+      // Check trigger conditions for stage_changed
+      if (triggerType === "stage_changed" && context) {
+        const triggerConfig = rule.triggerConfig || {};
+        if (triggerConfig.fromStageId && triggerConfig.fromStageId !== context.fromStageId) {
+          shouldTrigger = false;
+        }
+        if (triggerConfig.toStageId && triggerConfig.toStageId !== context.toStageId) {
+          shouldTrigger = false;
+        }
+      }
+
+      if (shouldTrigger) {
+        console.log(`[Automation] Triggering rule "${rule.name}" for deal ${deal.id}`);
+        await executeAutomationAction(rule, deal, userId);
+        await storage.updateAutomationRule(rule.id, {
+          executionCount: (rule.executionCount || 0) + 1,
+          lastExecutedAt: new Date(),
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error triggering automations:", error);
   }
 }

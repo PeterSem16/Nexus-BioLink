@@ -778,6 +778,7 @@ export default function PipelinePage() {
     onSuccess: () => {
       refetchPipelines();
       setEditingPipeline(null);
+      setEditPipelineCountries([]);
       toast({ title: "Pipeline aktualizovaný" });
     },
     onError: () => {
@@ -1726,7 +1727,7 @@ export default function PipelinePage() {
       </Dialog>
 
       {/* Edit Pipeline Dialog */}
-      <Dialog open={!!editingPipeline} onOpenChange={(open) => { if (!open) setEditingPipeline(null); }}>
+      <Dialog open={!!editingPipeline} onOpenChange={(open) => { if (!open) { setEditingPipeline(null); setEditPipelineCountries([]); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Upraviť predajný proces</DialogTitle>

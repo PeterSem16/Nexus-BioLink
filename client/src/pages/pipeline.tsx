@@ -202,15 +202,18 @@ function StageColumn({ stage, onAddDeal, customers, users, onSelectDeal, onEditS
     return sum + (deal.value ? parseFloat(deal.value) : 0);
   }, 0);
 
+  const stageColor = stage.color || "#3b82f6";
+  
   return (
     <div 
       ref={setNodeRef}
-      className={`flex flex-col min-w-[280px] max-w-[280px] rounded-lg transition-colors ${isOver ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-muted/30'}`}
+      className={`flex flex-col min-w-[280px] max-w-[280px] rounded-lg transition-colors ${isOver ? 'ring-2 ring-primary' : ''}`}
+      style={{ backgroundColor: `${stageColor}15` }}
       data-testid={`stage-column-${stage.id}`}
     >
       <div 
         className="p-3 border-b flex items-center justify-between"
-        style={{ borderTopColor: stage.color || "#3b82f6", borderTopWidth: "3px" }}
+        style={{ borderTopColor: stageColor, borderTopWidth: "3px", borderBottomColor: `${stageColor}30` }}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">

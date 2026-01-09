@@ -641,6 +641,9 @@ export default function PipelinePage() {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isEditDealOpen, setIsEditDealOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null);
+  const [editPipelineCountries, setEditPipelineCountries] = useState<string[]>([]);
+  const [newPipelineCountries, setNewPipelineCountries] = useState<string[]>(["SK"]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -765,6 +768,20 @@ export default function PipelinePage() {
     },
     onError: () => {
       toast({ title: "Chyba", description: "Nepodarilo sa odstrániť pipeline", variant: "destructive" });
+    },
+  });
+
+  const updatePipelineMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; description?: string; countryCodes: string[] } }) => {
+      return apiRequest("PATCH", `/api/pipelines/${id}`, data);
+    },
+    onSuccess: () => {
+      refetchPipelines();
+      setEditingPipeline(null);
+      toast({ title: "Pipeline aktualizovaný" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa aktualizovať pipeline", variant: "destructive" });
     },
   });
 
@@ -1607,6 +1624,17 @@ export default function PipelinePage() {
                       {pipeline.isDefault && (
                         <Badge variant="outline">Predvolený</Badge>
                       )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingPipeline(pipeline);
+                          setEditPipelineCountries(pipeline.countryCodes || []);
+                        }}
+                        data-testid={`button-edit-pipeline-${pipeline.id}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       {!pipeline.isDefault && (
                         <Button
                           size="icon"
@@ -1638,9 +1666,10 @@ export default function PipelinePage() {
                   createPipelineMutation.mutate({
                     name: formData.get("pipelineName") as string,
                     description: formData.get("pipelineDescription") as string || undefined,
-                    countryCodes: ["SK"],
+                    countryCodes: newPipelineCountries,
                   });
                   (e.target as HTMLFormElement).reset();
+                  setNewPipelineCountries(["SK"]);
                 }}
                 className="space-y-3"
               >
@@ -1663,13 +1692,114 @@ export default function PipelinePage() {
                     data-testid="input-pipeline-description"
                   />
                 </div>
-                <Button type="submit" disabled={createPipelineMutation.isPending}>
+                <div>
+                  <Label>Krajiny</Label>
+                  <div className="flex gap-2 flex-wrap mt-1">
+                    {COUNTRIES.map((country) => (
+                      <Button
+                        key={country.code}
+                        type="button"
+                        size="sm"
+                        variant={newPipelineCountries.includes(country.code) ? "default" : "outline"}
+                        onClick={() => {
+                          if (newPipelineCountries.includes(country.code)) {
+                            setNewPipelineCountries(newPipelineCountries.filter(c => c !== country.code));
+                          } else {
+                            setNewPipelineCountries([...newPipelineCountries, country.code]);
+                          }
+                        }}
+                        data-testid={`button-country-${country.code}`}
+                      >
+                        {country.code}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Button type="submit" disabled={createPipelineMutation.isPending || newPipelineCountries.length === 0}>
                   {createPipelineMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Vytvoriť pipeline
                 </Button>
               </form>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pipeline Dialog */}
+      <Dialog open={!!editingPipeline} onOpenChange={(open) => { if (!open) setEditingPipeline(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upraviť predajný proces</DialogTitle>
+          </DialogHeader>
+          {editingPipeline && (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                updatePipelineMutation.mutate({
+                  id: editingPipeline.id,
+                  data: {
+                    name: formData.get("editPipelineName") as string,
+                    description: formData.get("editPipelineDescription") as string || undefined,
+                    countryCodes: editPipelineCountries.length > 0 ? editPipelineCountries : ["SK"],
+                  },
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="editPipelineName">Názov *</Label>
+                <Input 
+                  id="editPipelineName" 
+                  name="editPipelineName" 
+                  defaultValue={editingPipeline.name}
+                  required
+                  data-testid="input-edit-pipeline-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editPipelineDescription">Popis</Label>
+                <Input 
+                  id="editPipelineDescription" 
+                  name="editPipelineDescription" 
+                  defaultValue={editingPipeline.description || ""}
+                  data-testid="input-edit-pipeline-description"
+                />
+              </div>
+              <div>
+                <Label>Krajiny</Label>
+                <div className="flex gap-2 flex-wrap mt-1">
+                  {COUNTRIES.map((country) => (
+                    <Button
+                      key={country.code}
+                      type="button"
+                      size="sm"
+                      variant={editPipelineCountries.includes(country.code) ? "default" : "outline"}
+                      onClick={() => {
+                        if (editPipelineCountries.includes(country.code)) {
+                          setEditPipelineCountries(editPipelineCountries.filter(c => c !== country.code));
+                        } else {
+                          setEditPipelineCountries([...editPipelineCountries, country.code]);
+                        }
+                      }}
+                      data-testid={`button-edit-country-${country.code}`}
+                    >
+                      {country.code}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setEditingPipeline(null)}>
+                  Zrušiť
+                </Button>
+                <Button type="submit" disabled={updatePipelineMutation.isPending || editPipelineCountries.length === 0}>
+                  {updatePipelineMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Uložiť
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

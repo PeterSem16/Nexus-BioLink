@@ -11455,21 +11455,54 @@ async function triggerCustomerAutomations(
       const customerRules = rules.filter(r => r.isActive && r.triggerType === "customer_updated");
       
       for (const rule of customerRules) {
-        const triggerConfig = rule.triggerConfig || {};
+        const triggerConfig = rule.triggerConfig || {} as any;
         const trackedFields = triggerConfig.trackedFields || [];
         
         // Check if any tracked field was changed
         const matchingFields = changedFields.filter(f => trackedFields.includes(f));
         
         if (matchingFields.length > 0) {
-          console.log(`[Automation] Customer rule "${rule.name}" triggered by fields: ${matchingFields.join(", ")}`);
+          // Check specific value conditions if configured
+          let valueConditionsMet = true;
           
-          // Execute the action with customer context
-          await executeCustomerAutomationAction(rule, customer, pipeline, userId);
-          await storage.updateAutomationRule(rule.id, {
-            executionCount: (rule.executionCount || 0) + 1,
-            lastExecutedAt: new Date(),
-          });
+          // Check status value condition
+          if (matchingFields.includes("status") && triggerConfig.statusValue && triggerConfig.statusValue !== "any") {
+            if (customer.status !== triggerConfig.statusValue) {
+              valueConditionsMet = false;
+              console.log(`[Automation] Rule "${rule.name}" skipped: status "${customer.status}" does not match required "${triggerConfig.statusValue}"`);
+            }
+          }
+          
+          // Check clientStatus value condition
+          if (matchingFields.includes("clientStatus") && triggerConfig.clientStatusValue && triggerConfig.clientStatusValue !== "any") {
+            if (customer.clientStatus !== triggerConfig.clientStatusValue) {
+              valueConditionsMet = false;
+              console.log(`[Automation] Rule "${rule.name}" skipped: clientStatus "${customer.clientStatus}" does not match required "${triggerConfig.clientStatusValue}"`);
+            }
+          }
+          
+          // Check leadScore range condition
+          if (matchingFields.includes("leadScore") && triggerConfig.leadScoreRange && triggerConfig.leadScoreRange !== "any") {
+            const score = customer.leadScore || 0;
+            const [minStr, maxStr] = triggerConfig.leadScoreRange.split("-");
+            const min = parseInt(minStr, 10);
+            const max = parseInt(maxStr, 10);
+            if (score < min || score > max) {
+              valueConditionsMet = false;
+              console.log(`[Automation] Rule "${rule.name}" skipped: leadScore ${score} not in range ${min}-${max}`);
+            }
+          }
+          
+          if (valueConditionsMet) {
+            console.log(`[Automation] Customer rule "${rule.name}" triggered by fields: ${matchingFields.join(", ")}`);
+            
+            // Execute the action with customer context
+            await executeCustomerAutomationAction(rule, customer, pipeline, userId);
+            await storage.updateAutomationRule(rule.id, {
+              executionCount: (rule.executionCount || 0) + 1,
+              lastExecutedAt: new Date(),
+            });
+          }
         }
       }
     }

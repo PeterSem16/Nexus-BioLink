@@ -52,7 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type Deal, type PipelineStage, type Pipeline, type Customer, type Campaign, type User, type DealActivity, type Product, type DealProduct, type BillingDetails, type AutomationRule, DEAL_SOURCES, COUNTRIES, DEAL_ACTIVITY_TYPES, AUTOMATION_TRIGGER_TYPES, AUTOMATION_ACTION_TYPES, CUSTOMER_TRACKED_FIELDS } from "@shared/schema";
+import { type Deal, type PipelineStage, type Pipeline, type Customer, type Campaign, type User, type DealActivity, type Product, type DealProduct, type BillingDetails, type AutomationRule, DEAL_SOURCES, COUNTRIES, DEAL_ACTIVITY_TYPES, AUTOMATION_TRIGGER_TYPES, AUTOMATION_ACTION_TYPES, CUSTOMER_TRACKED_FIELDS, CUSTOMER_STATUS_VALUES, CLIENT_STATUSES, LEAD_SCORE_RANGES } from "@shared/schema";
 import {
   Sheet,
   SheetContent,
@@ -1474,6 +1474,79 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                     </Button>
                   </div>
                 </div>
+
+                {/* Conditional value selectors for specific fields */}
+                {(formData.triggerConfig.trackedFields || []).includes("status") && (
+                  <div className="space-y-2">
+                    <Label>Konkrétny status zákazníka</Label>
+                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status bude mať vybranú hodnotu</p>
+                    <Select
+                      value={(formData.triggerConfig as any).statusValue || ""}
+                      onValueChange={(val) => setFormData({
+                        ...formData,
+                        triggerConfig: { ...formData.triggerConfig, statusValue: val || undefined }
+                      })}
+                    >
+                      <SelectTrigger data-testid="select-status-value">
+                        <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
+                        {CUSTOMER_STATUS_VALUES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(formData.triggerConfig.trackedFields || []).includes("clientStatus") && (
+                  <div className="space-y-2">
+                    <Label>Konkrétny status klienta</Label>
+                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status klienta bude mať vybranú hodnotu</p>
+                    <Select
+                      value={(formData.triggerConfig as any).clientStatusValue || ""}
+                      onValueChange={(val) => setFormData({
+                        ...formData,
+                        triggerConfig: { ...formData.triggerConfig, clientStatusValue: val || undefined }
+                      })}
+                    >
+                      <SelectTrigger data-testid="select-client-status-value">
+                        <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
+                        {CLIENT_STATUSES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(formData.triggerConfig.trackedFields || []).includes("leadScore") && (
+                  <div className="space-y-2">
+                    <Label>Rozsah Lead Score</Label>
+                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak lead score bude v danom rozsahu</p>
+                    <Select
+                      value={(formData.triggerConfig as any).leadScoreRange || ""}
+                      onValueChange={(val) => setFormData({
+                        ...formData,
+                        triggerConfig: { ...formData.triggerConfig, leadScoreRange: val || undefined }
+                      })}
+                    >
+                      <SelectTrigger data-testid="select-lead-score-range">
+                        <SelectValue placeholder="Ľubovoľné skóre (všetky zmeny)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Ľubovoľné (všetky zmeny)</SelectItem>
+                        {LEAD_SCORE_RANGES.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
 

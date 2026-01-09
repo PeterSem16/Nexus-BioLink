@@ -3235,6 +3235,20 @@ export const CUSTOMER_TRACKED_FIELDS = [
   { value: "notes", label: "Poznámky" },
 ] as const;
 
+export const CUSTOMER_STATUS_VALUES = [
+  { value: "active", label: "Aktívny" },
+  { value: "pending", label: "Čakajúci" },
+  { value: "inactive", label: "Neaktívny" },
+] as const;
+
+export const LEAD_SCORE_RANGES = [
+  { value: "0-20", label: "0-20 (Studený)" },
+  { value: "21-40", label: "21-40 (Chladný)" },
+  { value: "41-60", label: "41-60 (Teplý)" },
+  { value: "61-80", label: "61-80 (Horúci)" },
+  { value: "81-100", label: "81-100 (Kvalifikovaný)" },
+] as const;
+
 export const AUTOMATION_ACTION_TYPES = [
   { value: "create_activity", label: "Vytvoriť aktivitu", labelEn: "Create activity", icon: "Calendar" },
   { value: "send_email", label: "Odoslať email", labelEn: "Send email", icon: "Mail" },

@@ -3215,6 +3215,24 @@ export const AUTOMATION_TRIGGER_TYPES = [
   { value: "deal_lost", label: "Deal prehraný", labelEn: "Deal lost", icon: "XCircle" },
   { value: "deal_rotting", label: "Deal neaktívny (rotting)", labelEn: "Deal rotting", icon: "Clock" },
   { value: "activity_completed", label: "Aktivita dokončená", labelEn: "Activity completed", icon: "CheckCircle" },
+  { value: "customer_updated", label: "Zmena údajov zákazníka", labelEn: "Customer data updated", icon: "User" },
+] as const;
+
+export const CUSTOMER_TRACKED_FIELDS = [
+  { value: "firstName", label: "Meno" },
+  { value: "lastName", label: "Priezvisko" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Telefón" },
+  { value: "status", label: "Status" },
+  { value: "clientStatus", label: "Status klienta" },
+  { value: "potentialCase", label: "Potenciál (Case)" },
+  { value: "leadScore", label: "Lead score" },
+  { value: "country", label: "Krajina" },
+  { value: "city", label: "Mesto" },
+  { value: "address", label: "Adresa" },
+  { value: "serviceType", label: "Typ služby" },
+  { value: "expectedDueDate", label: "Očakávaný dátum" },
+  { value: "notes", label: "Poznámky" },
 ] as const;
 
 export const AUTOMATION_ACTION_TYPES = [
@@ -3224,6 +3242,7 @@ export const AUTOMATION_ACTION_TYPES = [
   { value: "update_deal", label: "Aktualizovať deal", labelEn: "Update deal", icon: "Edit" },
   { value: "move_stage", label: "Presunúť do fázy", labelEn: "Move to stage", icon: "ArrowRight" },
   { value: "add_note", label: "Pridať poznámku", labelEn: "Add note", icon: "FileText" },
+  { value: "create_deal", label: "Vytvoriť deal (konverzia)", labelEn: "Create deal (conversion)", icon: "Plus" },
 ] as const;
 
 export const automationRules = pgTable("automation_rules", {
@@ -3239,6 +3258,8 @@ export const automationRules = pgTable("automation_rules", {
     toStageId?: string;
     rottingDays?: number; // For deal_rotting trigger
     activityType?: string; // For activity_completed trigger
+    trackedFields?: string[]; // For customer_updated trigger - which fields to watch
+    fieldConditions?: { field: string; operator: string; value: string }[]; // Optional conditions
   }>(),
   actionType: varchar("action_type", { length: 50 }).notNull(), // create_activity, send_email, assign_owner, update_deal, move_stage, add_note
   actionConfig: jsonb("action_config").$type<{
@@ -3247,11 +3268,15 @@ export const automationRules = pgTable("automation_rules", {
     activityDescription?: string;
     activityDueDays?: number; // Days from now
     emailTemplateId?: string; // For send_email action
+    emailSubject?: string;
+    emailBody?: string;
     assignUserId?: string; // For assign_owner action
     targetStageId?: string; // For move_stage action
     noteText?: string; // For add_note action
     updateField?: string; // For update_deal action
     updateValue?: string;
+    dealStageId?: string; // For create_deal action - target stage for new deal
+    dealTitle?: string; // For create_deal - title template
   }>(),
   executionCount: integer("execution_count").default(0),
   lastExecutedAt: timestamp("last_executed_at"),

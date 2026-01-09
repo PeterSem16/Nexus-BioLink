@@ -1511,17 +1511,18 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
             <DialogTitle>{editingRule ? "Upraviť automatizáciu" : "Nová automatizácia"}</DialogTitle>
             <DialogDescription>
               {wizardStep === 1 && "Krok 1: Vyberte čo spustí automatizáciu"}
-              {wizardStep === 2 && "Krok 2: Vyberte akciu ktorá sa vykoná"}
-              {wizardStep === 3 && "Krok 3: Skontrolujte a uložte"}
+              {wizardStep === 2 && "Krok 2: Nastavte podmienky spúšťača"}
+              {wizardStep === 3 && "Krok 3: Vyberte akciu ktorá sa vykoná"}
+              {wizardStep === 4 && "Krok 4: Skontrolujte a uložte"}
             </DialogDescription>
           </DialogHeader>
 
           {/* Wizard Step Indicator */}
-          <div className="flex items-center justify-center gap-2 py-3 flex-shrink-0">
-            {[1, 2, 3].map((step) => (
+          <div className="flex items-center justify-center gap-1 py-3 flex-shrink-0">
+            {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center">
                 <div 
-                  className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 font-semibold transition-all text-sm sm:text-base ${
+                  className={`flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 font-semibold transition-all text-xs sm:text-sm ${
                     wizardStep === step 
                       ? "bg-primary text-primary-foreground border-primary" 
                       : wizardStep > step 
@@ -1529,22 +1530,23 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                         : "bg-muted text-muted-foreground border-muted-foreground/30"
                   }`}
                 >
-                  {wizardStep > step ? <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" /> : step}
+                  {wizardStep > step ? <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" /> : step}
                 </div>
-                {step < 3 && (
-                  <div className={`w-8 sm:w-16 h-1 mx-1 sm:mx-2 rounded ${wizardStep > step ? "bg-primary/50" : "bg-muted"}`} />
+                {step < 4 && (
+                  <div className={`w-6 sm:w-10 h-0.5 mx-0.5 sm:mx-1 rounded ${wizardStep > step ? "bg-primary/50" : "bg-muted"}`} />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-center gap-4 sm:gap-8 text-xs text-muted-foreground mb-3 flex-shrink-0">
+          <div className="flex justify-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground mb-3 flex-shrink-0">
             <span className={wizardStep === 1 ? "text-primary font-medium" : ""}>Spúšťač</span>
-            <span className={wizardStep === 2 ? "text-primary font-medium" : ""}>Akcia</span>
-            <span className={wizardStep === 3 ? "text-primary font-medium" : ""}>Súhrn</span>
+            <span className={wizardStep === 2 ? "text-primary font-medium" : ""}>Podmienky</span>
+            <span className={wizardStep === 3 ? "text-primary font-medium" : ""}>Akcia</span>
+            <span className={wizardStep === 4 ? "text-primary font-medium" : ""}>Súhrn</span>
           </div>
 
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-1">
-            {/* STEP 1: Trigger */}
+            {/* STEP 1: Trigger Type Selection */}
             {wizardStep === 1 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1576,6 +1578,43 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateOpen(false);
+                      setEditingRule(null);
+                      resetForm();
+                    }}
+                    data-testid="button-wizard-cancel"
+                  >
+                    Zrušiť
+                  </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => setWizardStep(2)}
+                    disabled={!formData.triggerType}
+                    data-testid="button-wizard-next-1"
+                  >
+                    Ďalej
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Trigger Configuration */}
+            {wizardStep === 2 && (
+              <div className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Spúšťač:</span>
+                    <span>{AUTOMATION_TRIGGER_TYPES.find(t => t.value === formData.triggerType)?.label}</span>
+                  </div>
                 </div>
 
                 {formData.triggerType === "stage_changed" && (
@@ -1772,23 +1811,29 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 pt-4">
+                {/* Message when no config needed */}
+                {!["stage_changed", "deal_rotting", "customer_updated"].includes(formData.triggerType) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-primary/50" />
+                    <p className="font-medium">Tento spúšťač nevyžaduje ďalšie nastavenia</p>
+                    <p className="text-sm">Môžete pokračovať na výber akcie</p>
+                  </div>
+                )}
+
+                <div className="flex justify-between gap-2 pt-4">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setIsCreateOpen(false);
-                      setEditingRule(null);
-                      resetForm();
-                    }}
+                    onClick={() => setWizardStep(1)}
+                    data-testid="button-wizard-back-2"
                   >
-                    Zrušiť
+                    <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
+                    Späť
                   </Button>
                   <Button 
                     type="button"
-                    onClick={() => setWizardStep(2)}
-                    disabled={!formData.triggerType}
-                    data-testid="button-wizard-next-1"
+                    onClick={() => setWizardStep(3)}
+                    data-testid="button-wizard-next-2"
                   >
                     Ďalej
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -1797,8 +1842,8 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
               </div>
             )}
 
-            {/* STEP 2: Action */}
-            {wizardStep === 2 && (
+            {/* STEP 3: Action Type Selection */}
+            {wizardStep === 3 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {AUTOMATION_ACTION_TYPES.map((action) => (
@@ -2045,17 +2090,17 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setWizardStep(1)}
-                    data-testid="button-wizard-back-2"
+                    onClick={() => setWizardStep(2)}
+                    data-testid="button-wizard-back-3"
                   >
                     <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
                     Späť
                   </Button>
                   <Button 
                     type="button"
-                    onClick={() => setWizardStep(3)}
+                    onClick={() => setWizardStep(4)}
                     disabled={!formData.actionType}
-                    data-testid="button-wizard-next-2"
+                    data-testid="button-wizard-next-3"
                   >
                     Ďalej
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -2064,8 +2109,8 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
               </div>
             )}
 
-            {/* STEP 3: Summary */}
-            {wizardStep === 3 && (
+            {/* STEP 4: Summary */}
+            {wizardStep === 4 && (
               <div className="space-y-4">
                 <div className="space-y-4">
                   <div>
@@ -2163,8 +2208,8 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setWizardStep(2)}
-                    data-testid="button-wizard-back-3"
+                    onClick={() => setWizardStep(3)}
+                    data-testid="button-wizard-back-4"
                   >
                     <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
                     Späť

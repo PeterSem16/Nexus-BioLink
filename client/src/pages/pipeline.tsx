@@ -924,6 +924,30 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
     },
   });
 
+  const executeMutation = useMutation({
+    mutationFn: async ({ ruleId, dealId }: { ruleId: string; dealId: string }) => {
+      return apiRequest("POST", `/api/automations/${ruleId}/execute`, { dealId });
+    },
+    onSuccess: (data: any) => {
+      refetch();
+      setExecuteDialog({ open: false, rule: null });
+      setSelectedDealId("");
+      toast({ 
+        title: "Automatizácia spustená", 
+        description: data.result?.details || "Akcia bola vykonaná"
+      });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa spustiť automatizáciu", variant: "destructive" });
+    },
+  });
+
+  const [executeDialog, setExecuteDialog] = useState<{ open: boolean; rule: AutomationRule | null }>({ open: false, rule: null });
+  const [selectedDealId, setSelectedDealId] = useState("");
+
+  // Get all deals from stages for the execute dialog
+  const allDeals = stages.flatMap(stage => stage.deals || []);
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -1051,6 +1075,10 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setExecuteDialog({ open: true, rule })}>
+                          <Play className="h-4 w-4 mr-2" />
+                          Spustiť test
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenEdit(rule)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Upraviť
@@ -1429,6 +1457,62 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Execute Test Dialog */}
+      <Dialog open={executeDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setExecuteDialog({ open: false, rule: null });
+          setSelectedDealId("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Spustiť test automatizácie</DialogTitle>
+            <DialogDescription>
+              Vyberte deal, na ktorom chcete otestovať pravidlo "{executeDialog.rule?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Vyberte deal</Label>
+              <Select value={selectedDealId} onValueChange={setSelectedDealId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte deal na testovanie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDeals.map((deal) => (
+                    <SelectItem key={deal.id} value={deal.id}>
+                      {deal.title} - {deal.customerName || "Bez zákazníka"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {allDeals.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nie sú k dispozícii žiadne dealy. Najprv vytvorte deal.
+              </p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setExecuteDialog({ open: false, rule: null })}>
+              Zrušiť
+            </Button>
+            <Button
+              onClick={() => {
+                if (executeDialog.rule && selectedDealId) {
+                  executeMutation.mutate({ ruleId: executeDialog.rule.id, dealId: selectedDealId });
+                }
+              }}
+              disabled={!selectedDealId || executeMutation.isPending}
+            >
+              {executeMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Play className="h-4 w-4 mr-2" />
+              Spustiť
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

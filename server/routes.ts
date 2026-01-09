@@ -11191,6 +11191,40 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
     }
   });
 
+  // Execute automation rule manually (test run)
+  app.post("/api/automations/:id/execute", requireAuth, async (req, res) => {
+    try {
+      const { dealId } = req.body;
+      if (!dealId) {
+        return res.status(400).json({ error: "dealId is required" });
+      }
+
+      const rule = await storage.getAutomationRule(req.params.id);
+      if (!rule) {
+        return res.status(404).json({ error: "Automation rule not found" });
+      }
+
+      const deal = await storage.getDeal(dealId);
+      if (!deal) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+
+      // Execute the action
+      const result = await executeAutomationAction(rule, deal, req.session?.user?.id);
+      
+      // Update execution count
+      await storage.updateAutomationRule(rule.id, {
+        executionCount: (rule.executionCount || 0) + 1,
+        lastExecutedAt: new Date(),
+      });
+
+      res.json({ success: true, result });
+    } catch (error) {
+      console.error("Error executing automation rule:", error);
+      res.status(500).json({ error: "Failed to execute automation rule" });
+    }
+  });
+
   return httpServer;
 }
 
@@ -11252,4 +11286,88 @@ function applyCustomerCriteria(customers: Customer[], criteria: CriteriaGroup[])
   return customers.filter(customer => {
     return criteria.every(group => evaluateGroup(customer, group));
   });
+}
+
+// Automation execution engine
+async function executeAutomationAction(
+  rule: any,
+  deal: any,
+  userId?: string
+): Promise<{ action: string; details: string }> {
+  const actionConfig = rule.actionConfig || {};
+  
+  switch (rule.actionType) {
+    case "create_activity": {
+      const activityType = actionConfig.activityType || "task";
+      const subject = actionConfig.activitySubject || "Automatická úloha";
+      const dueInDays = actionConfig.dueDays || 1;
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + dueInDays);
+      
+      await storage.createDealActivity({
+        dealId: deal.id,
+        type: activityType,
+        subject,
+        dueDate,
+        completed: false,
+        createdBy: userId,
+      });
+      return { action: "create_activity", details: `Vytvorená aktivita: ${subject}` };
+    }
+
+    case "send_email": {
+      const emailSubject = actionConfig.emailSubject || "Automatický email";
+      const emailBody = actionConfig.emailBody || "";
+      // In production, this would send actual email via SendGrid/etc
+      console.log(`[Automation] Would send email to deal ${deal.id}: ${emailSubject}`);
+      return { action: "send_email", details: `Email pripravený: ${emailSubject}` };
+    }
+
+    case "assign_owner": {
+      const assignUserId = actionConfig.assignUserId;
+      if (assignUserId) {
+        await storage.updateDeal(deal.id, { ownerId: assignUserId });
+        return { action: "assign_owner", details: `Deal priradený používateľovi ${assignUserId}` };
+      }
+      return { action: "assign_owner", details: "Nebolo možné priradiť - chýba používateľ" };
+    }
+
+    case "update_deal": {
+      const updateField = actionConfig.updateField;
+      const updateValue = actionConfig.updateValue;
+      if (updateField && updateValue) {
+        const updateData: Record<string, any> = {};
+        if (updateField === "probability") {
+          updateData[updateField] = parseInt(updateValue);
+        } else {
+          updateData[updateField] = updateValue;
+        }
+        await storage.updateDeal(deal.id, updateData);
+        return { action: "update_deal", details: `Aktualizované pole ${updateField} na ${updateValue}` };
+      }
+      return { action: "update_deal", details: "Nebolo možné aktualizovať - chýba konfigurácia" };
+    }
+
+    case "move_stage": {
+      const targetStageId = actionConfig.targetStageId;
+      if (targetStageId) {
+        await storage.updateDeal(deal.id, { stageId: targetStageId });
+        return { action: "move_stage", details: `Deal presunutý do fázy ${targetStageId}` };
+      }
+      return { action: "move_stage", details: "Nebolo možné presunúť - chýba cieľová fáza" };
+    }
+
+    case "add_note": {
+      const noteText = actionConfig.noteText || "Automatická poznámka";
+      await storage.createDealNote({
+        dealId: deal.id,
+        content: noteText,
+        createdBy: userId,
+      });
+      return { action: "add_note", details: `Pridaná poznámka: ${noteText.substring(0, 50)}...` };
+    }
+
+    default:
+      return { action: rule.actionType, details: "Neznámy typ akcie" };
+  }
 }

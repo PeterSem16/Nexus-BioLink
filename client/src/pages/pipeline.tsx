@@ -315,12 +315,15 @@ function StageColumn({ stage, onAddDeal, customers, users, onSelectDeal, onEditS
   return (
     <div 
       ref={setNodeRef}
-      className={`flex flex-col min-w-[280px] max-w-[280px] rounded-lg transition-colors bg-muted/30 ${isOver ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+      className={`flex flex-col min-w-[280px] max-w-[280px] rounded-lg transition-colors ${isOver ? 'ring-2 ring-primary' : ''}`}
+      style={{ 
+        backgroundColor: isOver ? `${stageColor}15` : `${stageColor}10`,
+        borderTop: `3px solid ${stageColor}`
+      }}
       data-testid={`stage-column-${stage.id}`}
     >
       <div 
         className="p-3 border-b flex items-center justify-between"
-        style={{ borderTopColor: stageColor, borderTopWidth: "3px" }}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">

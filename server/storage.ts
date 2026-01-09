@@ -85,12 +85,13 @@ import {
   type VariableBlock, type InsertVariableBlock,
   type Variable, type InsertVariable,
   type VariableKeyword, type InsertVariableKeyword,
-  pipelines, pipelineStages, deals, dealActivities, dealProducts,
+  pipelines, pipelineStages, deals, dealActivities, dealProducts, automationRules,
   type Pipeline, type InsertPipeline,
   type PipelineStage, type InsertPipelineStage,
   type Deal, type InsertDeal,
   type DealActivity, type InsertDealActivity,
-  type DealProduct, type InsertDealProduct
+  type DealProduct, type InsertDealProduct,
+  type AutomationRule, type InsertAutomationRule
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
@@ -675,6 +676,14 @@ export interface IStorage {
   // Sales Pipeline - Automations
   createDealFromCampaign(campaignId: string, contactId: string, customerId: string): Promise<Deal | undefined>;
   handleDealWon(dealId: string): Promise<{ contractId?: string; invoiceId?: string } | undefined>;
+
+  // Automation Rules
+  getAutomationRules(pipelineId: string): Promise<AutomationRule[]>;
+  getAutomationRule(id: string): Promise<AutomationRule | undefined>;
+  createAutomationRule(data: InsertAutomationRule): Promise<AutomationRule>;
+  updateAutomationRule(id: string, data: Partial<InsertAutomationRule>): Promise<AutomationRule | undefined>;
+  deleteAutomationRule(id: string): Promise<boolean>;
+  toggleAutomationRule(id: string, isActive: boolean): Promise<AutomationRule | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3958,6 +3967,47 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  // Automation Rules
+  async getAutomationRules(pipelineId: string): Promise<AutomationRule[]> {
+    return db.select().from(automationRules)
+      .where(eq(automationRules.pipelineId, pipelineId))
+      .orderBy(desc(automationRules.createdAt));
+  }
+
+  async getAutomationRule(id: string): Promise<AutomationRule | undefined> {
+    const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, id));
+    return rule || undefined;
+  }
+
+  async createAutomationRule(data: InsertAutomationRule): Promise<AutomationRule> {
+    const [rule] = await db.insert(automationRules).values({
+      ...data,
+      id: data.id || crypto.randomUUID(),
+    }).returning();
+    return rule;
+  }
+
+  async updateAutomationRule(id: string, data: Partial<InsertAutomationRule>): Promise<AutomationRule | undefined> {
+    const [rule] = await db.update(automationRules)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(automationRules.id, id))
+      .returning();
+    return rule || undefined;
+  }
+
+  async deleteAutomationRule(id: string): Promise<boolean> {
+    const result = await db.delete(automationRules).where(eq(automationRules.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async toggleAutomationRule(id: string, isActive: boolean): Promise<AutomationRule | undefined> {
+    const [rule] = await db.update(automationRules)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(automationRules.id, id))
+      .returning();
+    return rule || undefined;
   }
 }
 

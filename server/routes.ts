@@ -11112,6 +11112,85 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
     }
   });
 
+  // Automation Rules
+  app.get("/api/pipelines/:pipelineId/automations", requireAuth, async (req, res) => {
+    try {
+      const rules = await storage.getAutomationRules(req.params.pipelineId);
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching automation rules:", error);
+      res.status(500).json({ error: "Failed to fetch automation rules" });
+    }
+  });
+
+  app.get("/api/automations/:id", requireAuth, async (req, res) => {
+    try {
+      const rule = await storage.getAutomationRule(req.params.id);
+      if (!rule) {
+        return res.status(404).json({ error: "Automation rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error fetching automation rule:", error);
+      res.status(500).json({ error: "Failed to fetch automation rule" });
+    }
+  });
+
+  app.post("/api/pipelines/:pipelineId/automations", requireAuth, async (req, res) => {
+    try {
+      const rule = await storage.createAutomationRule({
+        ...req.body,
+        id: `auto_${Date.now()}`,
+        pipelineId: req.params.pipelineId,
+        createdBy: (req.user as any)?.id,
+      });
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating automation rule:", error);
+      res.status(500).json({ error: "Failed to create automation rule" });
+    }
+  });
+
+  app.patch("/api/automations/:id", requireAuth, async (req, res) => {
+    try {
+      const rule = await storage.updateAutomationRule(req.params.id, req.body);
+      if (!rule) {
+        return res.status(404).json({ error: "Automation rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error updating automation rule:", error);
+      res.status(500).json({ error: "Failed to update automation rule" });
+    }
+  });
+
+  app.patch("/api/automations/:id/toggle", requireAuth, async (req, res) => {
+    try {
+      const { isActive } = req.body;
+      const rule = await storage.toggleAutomationRule(req.params.id, isActive);
+      if (!rule) {
+        return res.status(404).json({ error: "Automation rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error toggling automation rule:", error);
+      res.status(500).json({ error: "Failed to toggle automation rule" });
+    }
+  });
+
+  app.delete("/api/automations/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteAutomationRule(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Automation rule not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting automation rule:", error);
+      res.status(500).json({ error: "Failed to delete automation rule" });
+    }
+  });
+
   return httpServer;
 }
 

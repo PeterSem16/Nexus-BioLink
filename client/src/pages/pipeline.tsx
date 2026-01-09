@@ -871,6 +871,7 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; rule: AutomationRule | null }>({ open: false, rule: null });
   const [activeTab, setActiveTab] = useState<string>("automations");
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [wizardStep, setWizardStep] = useState(1);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -986,12 +987,18 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
       actionType: "create_activity",
       actionConfig: {},
     });
+    setWizardStep(1);
   };
 
   const handleOpenCreate = () => {
     resetForm();
+    setWizardStep(1);
     setIsCreateOpen(true);
   };
+
+  const canProceedStep1 = formData.triggerType !== "";
+  const canProceedStep2 = formData.actionType !== "";
+  const canSubmit = formData.name.trim() !== "" && canProceedStep1 && canProceedStep2;
 
   const handleOpenEdit = (rule: AutomationRule) => {
     setFormData({
@@ -1296,7 +1303,7 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
       </>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Dialog - Wizard Style */}
       <Dialog open={isCreateOpen || !!editingRule} onOpenChange={(open) => {
         if (!open) {
           setIsCreateOpen(false);
@@ -1304,505 +1311,682 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
           resetForm();
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingRule ? "Upraviť automatizáciu" : "Nová automatizácia"}</DialogTitle>
             <DialogDescription>
-              Nastavte pravidlo pre automatické akcie
+              {wizardStep === 1 && "Krok 1: Vyberte čo spustí automatizáciu"}
+              {wizardStep === 2 && "Krok 2: Vyberte akciu ktorá sa vykoná"}
+              {wizardStep === 3 && "Krok 3: Skontrolujte a uložte"}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Wizard Step Indicator */}
+          <div className="flex items-center justify-center gap-2 py-4">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center">
+                <div 
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold transition-all ${
+                    wizardStep === step 
+                      ? "bg-primary text-primary-foreground border-primary" 
+                      : wizardStep > step 
+                        ? "bg-primary/20 text-primary border-primary/50" 
+                        : "bg-muted text-muted-foreground border-muted-foreground/30"
+                  }`}
+                >
+                  {wizardStep > step ? <CheckCircle2 className="h-5 w-5" /> : step}
+                </div>
+                {step < 3 && (
+                  <div className={`w-16 h-1 mx-2 rounded ${wizardStep > step ? "bg-primary/50" : "bg-muted"}`} />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-8 text-xs text-muted-foreground mb-4">
+            <span className={wizardStep === 1 ? "text-primary font-medium" : ""}>Spúšťač</span>
+            <span className={wizardStep === 2 ? "text-primary font-medium" : ""}>Akcia</span>
+            <span className={wizardStep === 3 ? "text-primary font-medium" : ""}>Súhrn</span>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Názov *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Napr. Notifikácia pri novom deale"
-                required
-                data-testid="input-automation-name"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="description">Popis</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Voliteľný popis pravidla"
-                rows={2}
-                data-testid="input-automation-description"
-              />
-            </div>
-
-            <div>
-              <Label>Spúšťač (Trigger)</Label>
-              <Select
-                value={formData.triggerType}
-                onValueChange={(val) => setFormData({ ...formData, triggerType: val, triggerConfig: {} })}
-              >
-                <SelectTrigger data-testid="select-trigger-type">
-                  <SelectValue placeholder="Vyberte spúšťač" />
-                </SelectTrigger>
-                <SelectContent>
+            {/* STEP 1: Trigger */}
+            {wizardStep === 1 && (
+              <div className="space-y-4 min-h-[300px]">
+                <div className="grid grid-cols-2 gap-3">
                   {AUTOMATION_TRIGGER_TYPES.map((trigger) => (
-                    <SelectItem key={trigger.value} value={trigger.value}>
-                      {trigger.label}
-                    </SelectItem>
+                    <Card
+                      key={trigger.value}
+                      className={`cursor-pointer hover-elevate transition-all ${
+                        formData.triggerType === trigger.value 
+                          ? "ring-2 ring-primary bg-primary/5" 
+                          : ""
+                      }`}
+                      onClick={() => setFormData({ ...formData, triggerType: trigger.value, triggerConfig: {} })}
+                      data-testid={`trigger-card-${trigger.value}`}
+                    >
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                          {trigger.value === "deal_created" && <Plus className="h-5 w-5" />}
+                          {trigger.value === "stage_changed" && <ArrowRight className="h-5 w-5" />}
+                          {trigger.value === "deal_won" && <CheckCircle2 className="h-5 w-5" />}
+                          {trigger.value === "deal_lost" && <X className="h-5 w-5" />}
+                          {trigger.value === "deal_rotting" && <Clock className="h-5 w-5" />}
+                          {trigger.value === "activity_completed" && <Activity className="h-5 w-5" />}
+                          {trigger.value === "customer_updated" && <UserIcon className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{trigger.label}</p>
+                          <p className="text-xs text-muted-foreground">{trigger.labelEn}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </div>
 
-            {formData.triggerType === "stage_changed" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Z fázy</Label>
-                  <Select
-                    value={formData.triggerConfig.fromStageId || "any"}
-                    onValueChange={(val) => setFormData({ 
-                      ...formData, 
-                      triggerConfig: { ...formData.triggerConfig, fromStageId: val === "any" ? undefined : val }
-                    })}
+                {formData.triggerType === "stage_changed" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Z fázy</Label>
+                      <Select
+                        value={formData.triggerConfig.fromStageId || "any"}
+                        onValueChange={(val) => setFormData({ 
+                          ...formData, 
+                          triggerConfig: { ...formData.triggerConfig, fromStageId: val === "any" ? undefined : val }
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Akákoľvek" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Akákoľvek</SelectItem>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Do fázy</Label>
+                      <Select
+                        value={formData.triggerConfig.toStageId || "any"}
+                        onValueChange={(val) => setFormData({ 
+                          ...formData, 
+                          triggerConfig: { ...formData.triggerConfig, toStageId: val === "any" ? undefined : val }
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Akákoľvek" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Akákoľvek</SelectItem>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {formData.triggerType === "deal_rotting" && (
+                  <div>
+                    <Label>Počet dní neaktivity</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formData.triggerConfig.rottingDays || 7}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        triggerConfig: { ...formData.triggerConfig, rottingDays: parseInt(e.target.value) }
+                      })}
+                      data-testid="input-rotting-days"
+                    />
+                  </div>
+                )}
+
+                {formData.triggerType === "customer_updated" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Sledované polia zákazníka</Label>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Vyberte ktoré polia pri zmene spustia automatizáciu
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                        {CUSTOMER_TRACKED_FIELDS.map((field) => {
+                          const trackedFields = formData.triggerConfig.trackedFields || [];
+                          const isChecked = trackedFields.includes(field.value);
+                          return (
+                            <label key={field.value} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const newFields = e.target.checked
+                                    ? [...trackedFields, field.value]
+                                    : trackedFields.filter((f: string) => f !== field.value);
+                                  setFormData({
+                                    ...formData,
+                                    triggerConfig: { ...formData.triggerConfig, trackedFields: newFields }
+                                  });
+                                }}
+                                className="h-4 w-4"
+                                data-testid={`checkbox-field-${field.value}`}
+                              />
+                              <span className="text-sm">{field.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({
+                            ...formData,
+                            triggerConfig: { ...formData.triggerConfig, trackedFields: CUSTOMER_TRACKED_FIELDS.map(f => f.value) }
+                          })}
+                        >
+                          Vybrať všetko
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({
+                            ...formData,
+                            triggerConfig: { ...formData.triggerConfig, trackedFields: [] }
+                          })}
+                        >
+                          Zrušiť výber
+                        </Button>
+                      </div>
+                    </div>
+
+                    {(formData.triggerConfig.trackedFields || []).includes("status") && (
+                      <div className="space-y-2">
+                        <Label>Konkrétny status zákazníka</Label>
+                        <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status bude mať vybranú hodnotu</p>
+                        <Select
+                          value={(formData.triggerConfig as any).statusValue || ""}
+                          onValueChange={(val) => setFormData({
+                            ...formData,
+                            triggerConfig: { ...formData.triggerConfig, statusValue: val || undefined }
+                          })}
+                        >
+                          <SelectTrigger data-testid="select-status-value">
+                            <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
+                            {CUSTOMER_STATUS_VALUES.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {(formData.triggerConfig.trackedFields || []).includes("clientStatus") && (
+                      <div className="space-y-2">
+                        <Label>Konkrétny status klienta</Label>
+                        <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status klienta bude mať vybranú hodnotu</p>
+                        <Select
+                          value={(formData.triggerConfig as any).clientStatusValue || ""}
+                          onValueChange={(val) => setFormData({
+                            ...formData,
+                            triggerConfig: { ...formData.triggerConfig, clientStatusValue: val || undefined }
+                          })}
+                        >
+                          <SelectTrigger data-testid="select-client-status-value">
+                            <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
+                            {CLIENT_STATUSES.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {(formData.triggerConfig.trackedFields || []).includes("leadScore") && (
+                      <div className="space-y-2">
+                        <Label>Rozsah Lead Score</Label>
+                        <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak lead score bude v danom rozsahu</p>
+                        <Select
+                          value={(formData.triggerConfig as any).leadScoreRange || ""}
+                          onValueChange={(val) => setFormData({
+                            ...formData,
+                            triggerConfig: { ...formData.triggerConfig, leadScoreRange: val || undefined }
+                          })}
+                        >
+                          <SelectTrigger data-testid="select-lead-score-range">
+                            <SelectValue placeholder="Ľubovoľné skóre (všetky zmeny)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Ľubovoľné (všetky zmeny)</SelectItem>
+                            {LEAD_SCORE_RANGES.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateOpen(false);
+                      setEditingRule(null);
+                      resetForm();
+                    }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Akákoľvek" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Akákoľvek</SelectItem>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Do fázy</Label>
-                  <Select
-                    value={formData.triggerConfig.toStageId || "any"}
-                    onValueChange={(val) => setFormData({ 
-                      ...formData, 
-                      triggerConfig: { ...formData.triggerConfig, toStageId: val === "any" ? undefined : val }
-                    })}
+                    Zrušiť
+                  </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => setWizardStep(2)}
+                    disabled={!formData.triggerType}
+                    data-testid="button-wizard-next-1"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Akákoľvek" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Akákoľvek</SelectItem>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    Ďalej
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </div>
             )}
 
-            {formData.triggerType === "deal_rotting" && (
-              <div>
-                <Label>Počet dní neaktivity</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.triggerConfig.rottingDays || 7}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    triggerConfig: { ...formData.triggerConfig, rottingDays: parseInt(e.target.value) }
-                  })}
-                  data-testid="input-rotting-days"
-                />
-              </div>
-            )}
-
-            {formData.triggerType === "customer_updated" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Sledované polia zákazníka</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Vyberte ktoré polia pri zmene spustia automatizáciu
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-3">
-                    {CUSTOMER_TRACKED_FIELDS.map((field) => {
-                      const trackedFields = formData.triggerConfig.trackedFields || [];
-                      const isChecked = trackedFields.includes(field.value);
-                      return (
-                        <label key={field.value} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              const newFields = e.target.checked
-                                ? [...trackedFields, field.value]
-                                : trackedFields.filter((f: string) => f !== field.value);
-                              setFormData({
-                                ...formData,
-                                triggerConfig: { ...formData.triggerConfig, trackedFields: newFields }
-                              });
-                            }}
-                            className="h-4 w-4"
-                            data-testid={`checkbox-field-${field.value}`}
-                          />
-                          <span className="text-sm">{field.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFormData({
-                        ...formData,
-                        triggerConfig: { ...formData.triggerConfig, trackedFields: CUSTOMER_TRACKED_FIELDS.map(f => f.value) }
-                      })}
-                    >
-                      Vybrať všetko
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFormData({
-                        ...formData,
-                        triggerConfig: { ...formData.triggerConfig, trackedFields: [] }
-                      })}
-                    >
-                      Zrušiť výber
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Conditional value selectors for specific fields */}
-                {(formData.triggerConfig.trackedFields || []).includes("status") && (
-                  <div className="space-y-2">
-                    <Label>Konkrétny status zákazníka</Label>
-                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status bude mať vybranú hodnotu</p>
-                    <Select
-                      value={(formData.triggerConfig as any).statusValue || ""}
-                      onValueChange={(val) => setFormData({
-                        ...formData,
-                        triggerConfig: { ...formData.triggerConfig, statusValue: val || undefined }
-                      })}
-                    >
-                      <SelectTrigger data-testid="select-status-value">
-                        <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
-                        {CUSTOMER_STATUS_VALUES.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {(formData.triggerConfig.trackedFields || []).includes("clientStatus") && (
-                  <div className="space-y-2">
-                    <Label>Konkrétny status klienta</Label>
-                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak status klienta bude mať vybranú hodnotu</p>
-                    <Select
-                      value={(formData.triggerConfig as any).clientStatusValue || ""}
-                      onValueChange={(val) => setFormData({
-                        ...formData,
-                        triggerConfig: { ...formData.triggerConfig, clientStatusValue: val || undefined }
-                      })}
-                    >
-                      <SelectTrigger data-testid="select-client-status-value">
-                        <SelectValue placeholder="Ľubovoľný status (všetky zmeny)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Ľubovoľný (všetky zmeny)</SelectItem>
-                        {CLIENT_STATUSES.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {(formData.triggerConfig.trackedFields || []).includes("leadScore") && (
-                  <div className="space-y-2">
-                    <Label>Rozsah Lead Score</Label>
-                    <p className="text-xs text-muted-foreground">Automatizácia sa spustí len ak lead score bude v danom rozsahu</p>
-                    <Select
-                      value={(formData.triggerConfig as any).leadScoreRange || ""}
-                      onValueChange={(val) => setFormData({
-                        ...formData,
-                        triggerConfig: { ...formData.triggerConfig, leadScoreRange: val || undefined }
-                      })}
-                    >
-                      <SelectTrigger data-testid="select-lead-score-range">
-                        <SelectValue placeholder="Ľubovoľné skóre (všetky zmeny)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Ľubovoľné (všetky zmeny)</SelectItem>
-                        {LEAD_SCORE_RANGES.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-              <Label>Akcia</Label>
-              <Select
-                value={formData.actionType}
-                onValueChange={(val) => setFormData({ ...formData, actionType: val, actionConfig: {} })}
-              >
-                <SelectTrigger data-testid="select-action-type">
-                  <SelectValue placeholder="Vyberte akciu" />
-                </SelectTrigger>
-                <SelectContent>
+            {/* STEP 2: Action */}
+            {wizardStep === 2 && (
+              <div className="space-y-4 min-h-[300px]">
+                <div className="grid grid-cols-2 gap-3">
                   {AUTOMATION_ACTION_TYPES.map((action) => (
-                    <SelectItem key={action.value} value={action.value}>
-                      {action.label}
-                    </SelectItem>
+                    <Card
+                      key={action.value}
+                      className={`cursor-pointer hover-elevate transition-all ${
+                        formData.actionType === action.value 
+                          ? "ring-2 ring-primary bg-primary/5" 
+                          : ""
+                      }`}
+                      onClick={() => setFormData({ ...formData, actionType: action.value, actionConfig: {} })}
+                      data-testid={`action-card-${action.value}`}
+                    >
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${formData.actionType === action.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                          {action.value === "create_activity" && <Calendar className="h-5 w-5" />}
+                          {action.value === "assign_owner" && <UserIcon className="h-5 w-5" />}
+                          {action.value === "move_stage" && <ArrowRight className="h-5 w-5" />}
+                          {action.value === "add_note" && <FileText className="h-5 w-5" />}
+                          {action.value === "send_email" && <Mail className="h-5 w-5" />}
+                          {action.value === "update_deal" && <Edit className="h-5 w-5" />}
+                          {action.value === "create_deal" && <Plus className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{action.label}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </div>
 
-            {formData.actionType === "create_activity" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Typ aktivity</Label>
-                  <Select
-                    value={formData.actionConfig.activityType || "call"}
-                    onValueChange={(val) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, activityType: val }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEAL_ACTIVITY_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Predmet aktivity</Label>
-                  <Input
-                    value={formData.actionConfig.activitySubject || ""}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, activitySubject: e.target.value }
-                    })}
-                    placeholder="Napr. Kontaktovať zákazníka"
-                  />
-                </div>
-                <div>
-                  <Label>Splatnosť (dní od spustenia)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={formData.actionConfig.activityDueDays || 1}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, activityDueDays: parseInt(e.target.value) }
-                    })}
-                  />
-                </div>
-              </div>
-            )}
-
-            {formData.actionType === "assign_owner" && (
-              <div>
-                <Label>Priradiť používateľovi</Label>
-                <Select
-                  value={formData.actionConfig.assignUserId || ""}
-                  onValueChange={(val) => setFormData({
-                    ...formData,
-                    actionConfig: { ...formData.actionConfig, assignUserId: val }
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte používateľa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>{user.fullName || user.username}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {formData.actionType === "move_stage" && (
-              <div>
-                <Label>Presunúť do fázy</Label>
-                <Select
-                  value={formData.actionConfig.targetStageId || ""}
-                  onValueChange={(val) => setFormData({
-                    ...formData,
-                    actionConfig: { ...formData.actionConfig, targetStageId: val }
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte fázu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map((stage) => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {formData.actionType === "add_note" && (
-              <div>
-                <Label>Text poznámky</Label>
-                <Textarea
-                  value={formData.actionConfig.noteText || ""}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    actionConfig: { ...formData.actionConfig, noteText: e.target.value }
-                  })}
-                  placeholder="Text poznámky, ktorá sa pridá k dealu"
-                  rows={3}
-                />
-              </div>
-            )}
-
-            {formData.actionType === "send_email" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Predmet emailu</Label>
-                  <Input
-                    value={formData.actionConfig.emailSubject || ""}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, emailSubject: e.target.value }
-                    })}
-                    placeholder="Predmet emailovej správy"
-                  />
-                </div>
-                <div>
-                  <Label>Obsah emailu</Label>
-                  <Textarea
-                    value={formData.actionConfig.emailBody || ""}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, emailBody: e.target.value }
-                    })}
-                    placeholder="Text emailovej správy. Môžete použiť {deal_name}, {customer_name} pre personalizáciu."
-                    rows={4}
-                  />
-                </div>
-              </div>
-            )}
-
-            {formData.actionType === "update_deal" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Pole na aktualizáciu</Label>
-                  <Select
-                    value={formData.actionConfig.updateField || ""}
-                    onValueChange={(val) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, updateField: val }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Vyberte pole" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="priority">Priorita</SelectItem>
-                      <SelectItem value="status">Stav</SelectItem>
-                      <SelectItem value="probability">Pravdepodobnosť (%)</SelectItem>
-                      <SelectItem value="tags">Značky</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Nová hodnota</Label>
-                  <Input
-                    value={formData.actionConfig.updateValue || ""}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, updateValue: e.target.value }
-                    })}
-                    placeholder="Zadajte novú hodnotu"
-                  />
-                </div>
-              </div>
-            )}
-
-            {formData.actionType === "create_deal" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Cieľová fáza pre nový deal</Label>
-                  <Select
-                    value={formData.actionConfig.dealStageId || ""}
-                    onValueChange={(val) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, dealStageId: val }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Vyberte fázu (napr. Lead)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Fáza do ktorej sa vytvorí nový deal pri konverzii zákazníka
-                  </p>
-                </div>
-                <div>
-                  <Label>Názov dealu (šablóna)</Label>
-                  <Input
-                    value={formData.actionConfig.dealTitle || "{customer_name} - Konverzia"}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      actionConfig: { ...formData.actionConfig, dealTitle: e.target.value }
-                    })}
-                    placeholder="{customer_name} - Konverzia"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Použite {"{customer_name}"} pre meno zákazníka
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsCreateOpen(false);
-                  setEditingRule(null);
-                  resetForm();
-                }}
-              >
-                Zrušiť
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-save-automation"
-              >
-                {(createMutation.isPending || updateMutation.isPending) && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {formData.actionType === "create_activity" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Typ aktivity</Label>
+                      <Select
+                        value={formData.actionConfig.activityType || "call"}
+                        onValueChange={(val) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, activityType: val }
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEAL_ACTIVITY_TYPES.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Predmet aktivity</Label>
+                      <Input
+                        value={formData.actionConfig.activitySubject || ""}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, activitySubject: e.target.value }
+                        })}
+                        placeholder="Napr. Kontaktovať zákazníka"
+                      />
+                    </div>
+                    <div>
+                      <Label>Splatnosť (dní od spustenia)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={formData.actionConfig.activityDueDays || 1}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, activityDueDays: parseInt(e.target.value) }
+                        })}
+                      />
+                    </div>
+                  </div>
                 )}
-                {editingRule ? "Uložiť zmeny" : "Vytvoriť"}
-              </Button>
-            </div>
+
+                {formData.actionType === "assign_owner" && (
+                  <div>
+                    <Label>Priradiť používateľovi</Label>
+                    <Select
+                      value={formData.actionConfig.assignUserId || ""}
+                      onValueChange={(val) => setFormData({
+                        ...formData,
+                        actionConfig: { ...formData.actionConfig, assignUserId: val }
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte používateľa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>{user.fullName || user.username}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.actionType === "move_stage" && (
+                  <div>
+                    <Label>Presunúť do fázy</Label>
+                    <Select
+                      value={formData.actionConfig.targetStageId || ""}
+                      onValueChange={(val) => setFormData({
+                        ...formData,
+                        actionConfig: { ...formData.actionConfig, targetStageId: val }
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte fázu" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.actionType === "add_note" && (
+                  <div>
+                    <Label>Text poznámky</Label>
+                    <Textarea
+                      value={formData.actionConfig.noteText || ""}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        actionConfig: { ...formData.actionConfig, noteText: e.target.value }
+                      })}
+                      placeholder="Text poznámky, ktorá sa pridá k dealu"
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {formData.actionType === "send_email" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Predmet emailu</Label>
+                      <Input
+                        value={formData.actionConfig.emailSubject || ""}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, emailSubject: e.target.value }
+                        })}
+                        placeholder="Predmet emailovej správy"
+                      />
+                    </div>
+                    <div>
+                      <Label>Obsah emailu</Label>
+                      <Textarea
+                        value={formData.actionConfig.emailBody || ""}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, emailBody: e.target.value }
+                        })}
+                        placeholder="Text emailovej správy. Môžete použiť {deal_name}, {customer_name} pre personalizáciu."
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.actionType === "update_deal" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Pole na aktualizáciu</Label>
+                      <Select
+                        value={formData.actionConfig.updateField || ""}
+                        onValueChange={(val) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, updateField: val }
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte pole" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="priority">Priorita</SelectItem>
+                          <SelectItem value="status">Stav</SelectItem>
+                          <SelectItem value="probability">Pravdepodobnosť (%)</SelectItem>
+                          <SelectItem value="tags">Značky</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Nová hodnota</Label>
+                      <Input
+                        value={formData.actionConfig.updateValue || ""}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, updateValue: e.target.value }
+                        })}
+                        placeholder="Zadajte novú hodnotu"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.actionType === "create_deal" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Cieľová fáza pre nový deal</Label>
+                      <Select
+                        value={formData.actionConfig.dealStageId || ""}
+                        onValueChange={(val) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, dealStageId: val }
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte fázu (napr. Lead)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Fáza do ktorej sa vytvorí nový deal pri konverzii zákazníka
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Názov dealu (šablóna)</Label>
+                      <Input
+                        value={formData.actionConfig.dealTitle || "{customer_name} - Konverzia"}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          actionConfig: { ...formData.actionConfig, dealTitle: e.target.value }
+                        })}
+                        placeholder="{customer_name} - Konverzia"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Použite {"{customer_name}"} pre meno zákazníka
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWizardStep(1)}
+                    data-testid="button-wizard-back-2"
+                  >
+                    <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
+                    Späť
+                  </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => setWizardStep(3)}
+                    disabled={!formData.actionType}
+                    data-testid="button-wizard-next-2"
+                  >
+                    Ďalej
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Summary */}
+            {wizardStep === 3 && (
+              <div className="space-y-4 min-h-[300px]">
+                <div className="space-y-4">
+                  <div>
+                    <Label>Názov automatizácie</Label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Napr. Notifikácia pri novom deale"
+                      data-testid="input-automation-name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Popis (voliteľné)</Label>
+                    <Textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Čo táto automatizácia robí..."
+                      rows={2}
+                      data-testid="input-automation-description"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Súhrn konfigurácie</h4>
+                  
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Zap className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Spúšťač</p>
+                        <p className="text-sm text-muted-foreground">
+                          {AUTOMATION_TRIGGER_TYPES.find(t => t.value === formData.triggerType)?.label || "Nevybraný"}
+                        </p>
+                        {formData.triggerType === "stage_changed" && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Z fázy: {formData.triggerConfig.fromStageId ? stages.find(s => s.id === formData.triggerConfig.fromStageId)?.name : "Akákoľvek"} → 
+                            Do fázy: {formData.triggerConfig.toStageId ? stages.find(s => s.id === formData.triggerConfig.toStageId)?.name : "Akákoľvek"}
+                          </p>
+                        )}
+                        {formData.triggerType === "deal_rotting" && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Po {formData.triggerConfig.rottingDays || 7} dňoch neaktivity
+                          </p>
+                        )}
+                        {formData.triggerType === "customer_updated" && formData.triggerConfig.trackedFields?.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sledované polia: {formData.triggerConfig.trackedFields.map((f: string) => 
+                              CUSTOMER_TRACKED_FIELDS.find(cf => cf.value === f)?.label
+                            ).filter(Boolean).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Play className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Akcia</p>
+                        <p className="text-sm text-muted-foreground">
+                          {AUTOMATION_ACTION_TYPES.find(a => a.value === formData.actionType)?.label || "Nevybraná"}
+                        </p>
+                        {formData.actionType === "create_activity" && formData.actionConfig.activitySubject && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {DEAL_ACTIVITY_TYPES.find(t => t.value === formData.actionConfig.activityType)?.label}: {formData.actionConfig.activitySubject}
+                          </p>
+                        )}
+                        {formData.actionType === "assign_owner" && formData.actionConfig.assignUserId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Priradiť: {users.find(u => u.id === formData.actionConfig.assignUserId)?.fullName}
+                          </p>
+                        )}
+                        {formData.actionType === "move_stage" && formData.actionConfig.targetStageId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Do fázy: {stages.find(s => s.id === formData.actionConfig.targetStageId)?.name}
+                          </p>
+                        )}
+                        {formData.actionType === "create_deal" && formData.actionConfig.dealStageId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Vytvorí deal v: {stages.find(s => s.id === formData.actionConfig.dealStageId)?.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWizardStep(2)}
+                    data-testid="button-wizard-back-3"
+                  >
+                    <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
+                    Späť
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending || updateMutation.isPending || !formData.name}
+                    data-testid="button-save-automation"
+                  >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    {editingRule ? "Uložiť zmeny" : "Vytvoriť"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>

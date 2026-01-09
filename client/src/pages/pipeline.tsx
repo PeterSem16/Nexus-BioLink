@@ -901,6 +901,20 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
     },
   });
 
+  // Dedicated mutation for template instant creation
+  const templateMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      return apiRequest("POST", `/api/pipelines/${pipelineId}/automations`, data);
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Šablóna aktivovaná", description: "Automatizácia bola vytvorená a je aktívna" });
+    },
+    onError: () => {
+      toast({ title: "Chyba", description: "Nepodarilo sa vytvoriť automatizáciu", variant: "destructive" });
+    },
+  });
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
       return apiRequest("PATCH", `/api/automations/${id}`, data);
@@ -1099,71 +1113,252 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
       </div>
 
       {activeTab === "templates" && (
-        <Card className="py-12">
-          <CardContent className="text-center">
+        <div className="space-y-6">
+          <div className="text-center mb-8">
             <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <h3 className="text-lg font-medium mb-2">Šablóny automatizácií</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Predpripravené šablóny pre rýchle nastavenie automatizácií
+            <p className="text-sm text-muted-foreground">
+              Predpripravené šablóny s kompletnými nastaveniami - stačí kliknúť a použiť
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto mt-6">
-              <Card className="hover-elevate cursor-pointer" onClick={() => {
-                setFormData({
-                  name: "Kvalifikácia leadu",
-                  description: "Keď sa zmení lead score, konvertuj zákazníka do dealu",
-                  triggerType: "customer_updated",
-                  triggerConfig: { trackedFields: ["leadScore", "status"] },
-                  actionType: "create_deal",
-                  actionConfig: {},
-                });
-                setActiveTab("automations");
-                handleOpenCreate();
-              }}>
-                <CardContent className="p-4 text-center">
-                  <UserPlus className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-medium text-sm">Kvalifikácia leadu</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Konverzia zákazníka do dealu</p>
-                </CardContent>
-              </Card>
-              <Card className="hover-elevate cursor-pointer" onClick={() => {
-                setFormData({
-                  name: "Uvítací email",
-                  description: "Pri vytvorení nového dealu odošli uvítací email",
-                  triggerType: "deal_created",
-                  triggerConfig: {},
-                  actionType: "send_email",
-                  actionConfig: { emailSubject: "Vitajte!", emailBody: "Ďakujeme za váš záujem." },
-                });
-                setActiveTab("automations");
-                handleOpenCreate();
-              }}>
-                <CardContent className="p-4 text-center">
-                  <Mail className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-medium text-sm">Uvítací email</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Automatický email pre nové dealy</p>
-                </CardContent>
-              </Card>
-              <Card className="hover-elevate cursor-pointer" onClick={() => {
-                setFormData({
-                  name: "Follow-up aktivita",
-                  description: "Vytvor follow-up úlohu pri zmene fázy",
-                  triggerType: "stage_changed",
-                  triggerConfig: {},
-                  actionType: "create_activity",
-                  actionConfig: { activityType: "task", activitySubject: "Follow-up", activityDueDays: 3 },
-                });
-                setActiveTab("automations");
-                handleOpenCreate();
-              }}>
-                <CardContent className="p-4 text-center">
-                  <Calendar className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-medium text-sm">Follow-up aktivita</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Automatická úloha pri zmene fázy</p>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Template 1: Lead Qualification */}
+            <Card className="overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/20 rounded-xl">
+                    <UserPlus className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Kvalifikácia leadu</h4>
+                    <p className="text-xs text-muted-foreground">Automatická konverzia</p>
+                  </div>
+                </div>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Keď lead score zákazníka dosiahne 61-100 bodov, automaticky sa vytvorí nový deal.
+                </p>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Bell className="h-3.5 w-3.5 text-primary" />
+                    <span>Spúšťač: Zmena Lead Score (61-100)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <span>Akcia: Vytvorenie nového dealu</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      const firstStage = stages[0];
+                      if (!firstStage) {
+                        toast({ title: "Chyba", description: "Pipeline nemá žiadne fázy. Najprv vytvorte aspoň jednu fázu.", variant: "destructive" });
+                        return;
+                      }
+                      templateMutation.mutate({
+                        name: "Kvalifikácia leadu",
+                        description: "Automaticky vytvorí deal keď lead score zákazníka dosiahne 61-100 bodov",
+                        triggerType: "customer_updated",
+                        triggerConfig: { trackedFields: ["leadScore"], leadScoreRange: "61-100" },
+                        actionType: "create_deal",
+                        actionConfig: { dealStageId: firstStage.id, dealTitle: "{customer_name} - Kvalifikovaný lead" },
+                      });
+                      setActiveTab("automations");
+                    }}
+                    disabled={templateMutation.isPending}
+                    data-testid="button-use-template-lead"
+                  >
+                    {templateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                    Použiť
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      const firstStage = stages[0];
+                      setFormData({
+                        name: "Kvalifikácia leadu",
+                        description: "Automaticky vytvorí deal keď lead score zákazníka dosiahne 61-100 bodov",
+                        triggerType: "customer_updated",
+                        triggerConfig: { trackedFields: ["leadScore"], leadScoreRange: "61-100" },
+                        actionType: "create_deal",
+                        actionConfig: { dealStageId: firstStage?.id || "", dealTitle: "{customer_name} - Kvalifikovaný lead" },
+                      });
+                      setWizardStep(3);
+                      setActiveTab("automations");
+                      setIsCreateOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Template 2: Welcome Email */}
+            <Card className="overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Mail className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Uvítací email</h4>
+                    <p className="text-xs text-muted-foreground">Nový deal</p>
+                  </div>
+                </div>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Pri vytvorení nového dealu automaticky odošle uvítací email zákazníkovi.
+                </p>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Bell className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Spúšťač: Vytvorenie nového dealu</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Zap className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Akcia: Odoslanie uvítacieho emailu</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      templateMutation.mutate({
+                        name: "Uvítací email",
+                        description: "Pri vytvorení nového dealu automaticky odošle uvítací email",
+                        triggerType: "deal_created",
+                        triggerConfig: {},
+                        actionType: "send_email",
+                        actionConfig: { 
+                          emailSubject: "Vitajte v INDEXUS - Vaša cesta k uchovaniu kmeňových buniek začína",
+                          emailBody: "Vážený/á {customer_name},\n\nĎakujeme za váš záujem o služby INDEXUS. Sme radi, že ste sa rozhodli pre uchovanie kmeňových buniek.\n\nV najbližších dňoch vás bude kontaktovať náš špecialista, ktorý vám zodpovie všetky otázky a prevedie vás celým procesom.\n\nS pozdravom,\nTím INDEXUS"
+                        },
+                      });
+                      setActiveTab("automations");
+                    }}
+                    disabled={templateMutation.isPending}
+                    data-testid="button-use-template-email"
+                  >
+                    {templateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                    Použiť
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setFormData({
+                        name: "Uvítací email",
+                        description: "Pri vytvorení nového dealu automaticky odošle uvítací email",
+                        triggerType: "deal_created",
+                        triggerConfig: {},
+                        actionType: "send_email",
+                        actionConfig: { 
+                          emailSubject: "Vitajte v INDEXUS - Vaša cesta k uchovaniu kmeňových buniek začína",
+                          emailBody: "Vážený/á {customer_name},\n\nĎakujeme za váš záujem o služby INDEXUS. Sme radi, že ste sa rozhodli pre uchovanie kmeňových buniek.\n\nV najbližších dňoch vás bude kontaktovať náš špecialista, ktorý vám zodpovie všetky otázky a prevedie vás celým procesom.\n\nS pozdravom,\nTím INDEXUS"
+                        },
+                      });
+                      setWizardStep(3);
+                      setActiveTab("automations");
+                      setIsCreateOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Template 3: Follow-up Activity */}
+            <Card className="overflow-hidden">
+              <div className="bg-gradient-to-r from-green-500/10 to-green-500/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-green-500/20 rounded-xl">
+                    <Calendar className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Follow-up aktivita</h4>
+                    <p className="text-xs text-muted-foreground">Zmena fázy</p>
+                  </div>
+                </div>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Pri zmene fázy dealu automaticky vytvorí follow-up úlohu na 3 dni.
+                </p>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Bell className="h-3.5 w-3.5 text-green-600" />
+                    <span>Spúšťač: Zmena fázy dealu</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                    <Zap className="h-3.5 w-3.5 text-green-600" />
+                    <span>Akcia: Vytvorenie follow-up úlohy (3 dni)</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      templateMutation.mutate({
+                        name: "Follow-up aktivita",
+                        description: "Pri zmene fázy dealu automaticky vytvorí follow-up úlohu",
+                        triggerType: "stage_changed",
+                        triggerConfig: {},
+                        actionType: "create_activity",
+                        actionConfig: { 
+                          activityType: "task", 
+                          activitySubject: "Follow-up po zmene fázy", 
+                          activityDescription: "Skontrolujte stav dealu a kontaktujte zákazníka ak je potrebné.",
+                          activityDueDays: 3 
+                        },
+                      });
+                      setActiveTab("automations");
+                    }}
+                    disabled={templateMutation.isPending}
+                    data-testid="button-use-template-followup"
+                  >
+                    {templateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                    Použiť
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setFormData({
+                        name: "Follow-up aktivita",
+                        description: "Pri zmene fázy dealu automaticky vytvorí follow-up úlohu",
+                        triggerType: "stage_changed",
+                        triggerConfig: {},
+                        actionType: "create_activity",
+                        actionConfig: { 
+                          activityType: "task", 
+                          activitySubject: "Follow-up po zmene fázy", 
+                          activityDescription: "Skontrolujte stav dealu a kontaktujte zákazníka ak je potrebné.",
+                          activityDueDays: 3 
+                        },
+                      });
+                      setWizardStep(3);
+                      setActiveTab("automations");
+                      setIsCreateOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
 
       {activeTab === "history" && (

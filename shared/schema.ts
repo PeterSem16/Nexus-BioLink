@@ -3203,3 +3203,79 @@ export const dealProductsRelations = relations(dealProducts, ({ one }) => ({
     references: [products.id],
   }),
 }));
+
+// ============================================
+// PIPELINE AUTOMATIONS
+// ============================================
+
+export const AUTOMATION_TRIGGER_TYPES = [
+  { value: "deal_created", label: "Nový deal vytvorený", labelEn: "Deal created", icon: "Plus" },
+  { value: "stage_changed", label: "Zmena fázy", labelEn: "Stage changed", icon: "ArrowRight" },
+  { value: "deal_won", label: "Deal vyhraný", labelEn: "Deal won", icon: "Trophy" },
+  { value: "deal_lost", label: "Deal prehraný", labelEn: "Deal lost", icon: "XCircle" },
+  { value: "deal_rotting", label: "Deal neaktívny (rotting)", labelEn: "Deal rotting", icon: "Clock" },
+  { value: "activity_completed", label: "Aktivita dokončená", labelEn: "Activity completed", icon: "CheckCircle" },
+] as const;
+
+export const AUTOMATION_ACTION_TYPES = [
+  { value: "create_activity", label: "Vytvoriť aktivitu", labelEn: "Create activity", icon: "Calendar" },
+  { value: "send_email", label: "Odoslať email", labelEn: "Send email", icon: "Mail" },
+  { value: "assign_owner", label: "Priradiť vlastníka", labelEn: "Assign owner", icon: "User" },
+  { value: "update_deal", label: "Aktualizovať deal", labelEn: "Update deal", icon: "Edit" },
+  { value: "move_stage", label: "Presunúť do fázy", labelEn: "Move to stage", icon: "ArrowRight" },
+  { value: "add_note", label: "Pridať poznámku", labelEn: "Add note", icon: "FileText" },
+] as const;
+
+export const automationRules = pgTable("automation_rules", {
+  id: varchar("id").primaryKey(),
+  pipelineId: varchar("pipeline_id").references(() => pipelines.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  triggerType: varchar("trigger_type", { length: 50 }).notNull(), // deal_created, stage_changed, deal_won, deal_lost, deal_rotting, activity_completed
+  triggerConfig: jsonb("trigger_config").$type<{
+    stageId?: string; // For stage_changed trigger
+    fromStageId?: string; // For stage transitions
+    toStageId?: string;
+    rottingDays?: number; // For deal_rotting trigger
+    activityType?: string; // For activity_completed trigger
+  }>(),
+  actionType: varchar("action_type", { length: 50 }).notNull(), // create_activity, send_email, assign_owner, update_deal, move_stage, add_note
+  actionConfig: jsonb("action_config").$type<{
+    activityType?: string; // For create_activity action
+    activitySubject?: string;
+    activityDescription?: string;
+    activityDueDays?: number; // Days from now
+    emailTemplateId?: string; // For send_email action
+    assignUserId?: string; // For assign_owner action
+    targetStageId?: string; // For move_stage action
+    noteText?: string; // For add_note action
+    updateField?: string; // For update_deal action
+    updateValue?: string;
+  }>(),
+  executionCount: integer("execution_count").default(0),
+  lastExecutedAt: timestamp("last_executed_at"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAutomationRuleSchema = createInsertSchema(automationRules).omit({ 
+  createdAt: true, 
+  updatedAt: true,
+  executionCount: true,
+  lastExecutedAt: true,
+});
+export type InsertAutomationRule = z.infer<typeof insertAutomationRuleSchema>;
+export type AutomationRule = typeof automationRules.$inferSelect;
+
+export const automationRulesRelations = relations(automationRules, ({ one }) => ({
+  pipeline: one(pipelines, {
+    fields: [automationRules.pipelineId],
+    references: [pipelines.id],
+  }),
+  createdByUser: one(users, {
+    fields: [automationRules.createdBy],
+    references: [users.id],
+  }),
+}));

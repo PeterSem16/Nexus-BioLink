@@ -18,7 +18,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -95,9 +95,11 @@ interface DealCardProps {
   customers: Customer[];
   users: User[];
   onSelect?: (deal: Deal) => void;
+  onScheduleActivity?: (dealId: string) => void;
 }
 
-function DealCard({ deal, isDragging, customers, users, onSelect }: DealCardProps) {
+function DealCard({ deal, isDragging, customers, users, onSelect, onScheduleActivity }: DealCardProps) {
+  const [activitiesOpen, setActivitiesOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -111,6 +113,11 @@ function DealCard({ deal, isDragging, customers, users, onSelect }: DealCardProp
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery<DealActivity[]>({
+    queryKey: ['/api/deals', deal.id, 'activities'],
+    enabled: activitiesOpen,
+  });
 
   const formatCurrency = (value: string | null, currency: string | null) => {
     if (!value) return "-";
@@ -130,19 +137,114 @@ function DealCard({ deal, isDragging, customers, users, onSelect }: DealCardProp
     }
   };
 
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case "call": return <Phone className="h-4 w-4" />;
+      case "meeting": return <Users className="h-4 w-4" />;
+      case "email": return <Mail className="h-4 w-4" />;
+      case "task": return <CheckCircle2 className="h-4 w-4" />;
+      default: return <Calendar className="h-4 w-4" />;
+    }
+  };
+
+  const formatDueDate = (date: Date | string) => {
+    const d = new Date(date);
+    const now = new Date();
+    const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Dnes";
+    if (diffDays === 1) return "Zajtra";
+    if (diffDays < 0) return `Pred ${Math.abs(diffDays)} dňami`;
+    return `O ${diffDays} dní`;
+  };
+
+  const pendingActivities = activities.filter(a => !a.isCompleted);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-card border rounded-md p-3 mb-2 cursor-move hover-elevate"
+      className="bg-card border rounded-md p-3 mb-2 cursor-move hover-elevate relative"
       {...attributes}
       {...listeners}
       onClick={handleClick}
       data-testid={`deal-card-${deal.id}`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="font-medium text-sm line-clamp-2">{deal.title}</h4>
-        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+        <h4 className="font-medium text-sm line-clamp-2 flex-1">{deal.title}</h4>
+        <div className="flex items-center gap-1 shrink-0">
+          <Popover open={activitiesOpen} onOpenChange={setActivitiesOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivitiesOpen(!activitiesOpen);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="w-6 h-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+                data-testid={`button-deal-activities-${deal.id}`}
+              >
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="start" side="right">
+              <div className="p-3 border-b">
+                <h4 className="font-medium text-sm">Aktivity</h4>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {activitiesLoading ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
+                    Načítavam...
+                  </div>
+                ) : pendingActivities.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    Žiadne naplánované aktivity
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {pendingActivities.map((activity) => (
+                      <div key={activity.id} className="p-3 flex items-start gap-3">
+                        <div className="mt-0.5">
+                          <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            {getActivityIcon(activity.type)}
+                            <span className="font-medium text-sm truncate">{activity.subject}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {activity.dueAt && formatDueDate(activity.dueAt)}
+                            {activity.userId && users.find(u => u.id === activity.userId) && (
+                              <> · {users.find(u => u.id === activity.userId)?.fullName}</>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-2 border-t">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivitiesOpen(false);
+                    onScheduleActivity?.(deal.id);
+                  }}
+                  data-testid={`button-schedule-activity-${deal.id}`}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Naplánovať aktivitu
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
       </div>
       
       <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -267,7 +369,7 @@ function StageColumn({ stage, onAddDeal, customers, users, onSelectDeal, onEditS
       <div className="p-2 flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
         <SortableContext items={stage.deals.map(d => d.id)} strategy={verticalListSortingStrategy}>
           {stage.deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} customers={customers} users={users} onSelect={onSelectDeal} />
+            <DealCard key={deal.id} deal={deal} customers={customers} users={users} onSelect={onSelectDeal} onScheduleActivity={() => onSelectDeal(deal)} />
           ))}
         </SortableContext>
         

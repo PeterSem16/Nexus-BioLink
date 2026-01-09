@@ -18,8 +18,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users, LayoutGrid, List, Archive, Coins } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -789,6 +790,7 @@ function PipelineReports({ stages, pipeline }: PipelineReportsProps) {
 export default function PipelinePage() {
   const { toast } = useToast();
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "forecast" | "archive">("kanban");
   const [isNewDealOpen, setIsNewDealOpen] = useState(false);
   const [newDealStageId, setNewDealStageId] = useState<string | null>(null);
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
@@ -1249,16 +1251,25 @@ export default function PipelinePage() {
       />
 
       <div className="flex items-center gap-4 p-4 border-b">
-        <Select value={activePipelineId || ""} onValueChange={setActivePipelineId}>
-          <SelectTrigger className="w-[250px]" data-testid="select-pipeline">
-            <SelectValue placeholder="Vyberte pipeline" />
-          </SelectTrigger>
-          <SelectContent>
-            {pipelines.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ToggleGroup 
+          type="single" 
+          value={viewMode} 
+          onValueChange={(val) => val && setViewMode(val as typeof viewMode)}
+          className="border rounded-md"
+        >
+          <ToggleGroupItem value="kanban" aria-label="Kanban" data-testid="view-kanban" className="px-3">
+            <LayoutGrid className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="list" aria-label="Zoznam" data-testid="view-list" className="px-3">
+            <List className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="forecast" aria-label="Forecast" data-testid="view-forecast" className="px-3">
+            <Coins className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="archive" aria-label="Archív" data-testid="view-archive" className="px-3">
+            <Archive className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
 
         <Button 
           onClick={() => {
@@ -1275,6 +1286,17 @@ export default function PipelinePage() {
         </Button>
 
         <div className="flex-1" />
+
+        <Select value={activePipelineId || ""} onValueChange={setActivePipelineId}>
+          <SelectTrigger className="w-[200px]" data-testid="select-pipeline">
+            <SelectValue placeholder="Vyberte pipeline" />
+          </SelectTrigger>
+          <SelectContent>
+            {pipelines.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Button 
           variant="outline" 
@@ -1296,75 +1318,194 @@ export default function PipelinePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="kanban" className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-4 pt-2 border-b">
-          <TabsList>
-            <TabsTrigger value="kanban" data-testid="tab-kanban">
-              <GripVertical className="h-4 w-4 mr-1" />
-              Kanban
-            </TabsTrigger>
-            <TabsTrigger value="reports" data-testid="tab-reports">
-              <BarChart3 className="h-4 w-4 mr-1" />
-              Reporty
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {viewMode === "kanban" && (
+          <div className="flex-1 overflow-hidden">
+            {kanbanLoading ? (
+              <div className="flex items-center justify-center flex-1 h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : kanbanData ? (
+              <div className="flex-1 overflow-x-auto p-4 h-full">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={pointerWithin}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="flex gap-4 h-full">
+                    {kanbanData.stages.map((stage) => (
+                      <StageColumn 
+                        key={stage.id} 
+                        stage={stage} 
+                        onAddDeal={handleAddDeal}
+                        customers={customers}
+                        users={users}
+                        onSelectDeal={handleSelectDeal}
+                        onEditStage={openEditStage}
+                        onDeleteStage={(stage) => setDeleteStageConfirm({ open: true, stage, hasDeals: stage.deals.length > 0 })}
+                      />
+                    ))}
+                    {activePipelineId && (
+                      <div className="flex flex-col min-w-[200px] items-center justify-start pt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={openNewStage}
+                          className="gap-2"
+                          data-testid="button-add-stage"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Pridať fázu
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
-        <TabsContent value="kanban" className="flex-1 overflow-hidden m-0">
-          {kanbanLoading ? (
-            <div className="flex items-center justify-center flex-1 h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : kanbanData ? (
-            <div className="flex-1 overflow-x-auto p-4 h-full">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={pointerWithin}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="flex gap-4 h-full">
-                  {kanbanData.stages.map((stage) => (
-                    <StageColumn 
-                      key={stage.id} 
-                      stage={stage} 
-                      onAddDeal={handleAddDeal}
-                      customers={customers}
-                      users={users}
-                      onSelectDeal={handleSelectDeal}
-                      onEditStage={openEditStage}
-                      onDeleteStage={(stage) => setDeleteStageConfirm({ open: true, stage, hasDeals: stage.deals.length > 0 })}
-                    />
-                  ))}
-                  {activePipelineId && (
-                    <div className="flex flex-col min-w-[200px] items-center justify-start pt-4">
-                      <Button 
-                        variant="outline" 
-                        onClick={openNewStage}
-                        className="gap-2"
-                        data-testid="button-add-stage"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Pridať fázu
-                      </Button>
-                    </div>
+                  <DragOverlay>
+                    {activeDeal ? <DealCard deal={activeDeal} isDragging customers={customers} users={users} onSelect={handleSelectDeal} /> : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {viewMode === "list" && (
+          <div className="flex-1 overflow-auto p-4">
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="h-10 px-4 text-left text-sm font-medium">Názov</th>
+                    <th className="h-10 px-4 text-right text-sm font-medium">Hodnota</th>
+                    <th className="h-10 px-4 text-left text-sm font-medium">Organizácia</th>
+                    <th className="h-10 px-4 text-left text-sm font-medium">Kontakt</th>
+                    <th className="h-10 px-4 text-left text-sm font-medium">Fáza</th>
+                    <th className="h-10 px-4 text-left text-sm font-medium">Vlastník</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kanbanData?.stages.flatMap(stage => 
+                    stage.deals.map(deal => {
+                      const customer = deal.customerId ? customers.find(c => c.id === deal.customerId) : null;
+                      const user = deal.assignedUserId ? users.find(u => u.id === deal.assignedUserId) : null;
+                      return (
+                        <tr 
+                          key={deal.id} 
+                          className="border-b hover:bg-muted/30 cursor-pointer"
+                          onClick={() => handleSelectDeal(deal)}
+                          data-testid={`list-row-${deal.id}`}
+                        >
+                          <td className="h-12 px-4 text-sm font-medium">{deal.title}</td>
+                          <td className="h-12 px-4 text-sm text-right">
+                            {deal.value ? new Intl.NumberFormat("sk-SK", { style: "currency", currency: deal.currency || "EUR" }).format(parseFloat(deal.value)) : "-"}
+                          </td>
+                          <td className="h-12 px-4 text-sm text-muted-foreground">-</td>
+                          <td className="h-12 px-4 text-sm">{customer ? `${customer.firstName} ${customer.lastName}` : "-"}</td>
+                          <td className="h-12 px-4">
+                            <Badge variant="outline" style={{ borderColor: stage.color || undefined }}>{stage.name}</Badge>
+                          </td>
+                          <td className="h-12 px-4 text-sm">{user?.fullName || user?.username || "-"}</td>
+                        </tr>
+                      );
+                    })
                   )}
+                </tbody>
+              </table>
+              {(!kanbanData || kanbanData.stages.flatMap(s => s.deals).length === 0) && (
+                <div className="p-8 text-center text-muted-foreground">
+                  Žiadne príležitosti
                 </div>
-
-                <DragOverlay>
-                  {activeDeal ? <DealCard deal={activeDeal} isDragging customers={customers} users={users} onSelect={handleSelectDeal} /> : null}
-                </DragOverlay>
-              </DndContext>
+              )}
             </div>
-          ) : null}
-        </TabsContent>
+          </div>
+        )}
 
-        <TabsContent value="reports" className="flex-1 overflow-auto m-0 p-4">
-          {kanbanData && (
-            <PipelineReports stages={kanbanData.stages} pipeline={kanbanData.pipeline} />
-          )}
-        </TabsContent>
-      </Tabs>
+        {viewMode === "forecast" && (
+          <div className="flex-1 overflow-auto p-4">
+            <div className="flex gap-4 overflow-x-auto">
+              {(() => {
+                const now = new Date();
+                const months = [];
+                for (let i = 0; i < 6; i++) {
+                  const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                  months.push(date);
+                }
+                return months.map((month) => {
+                  const monthDeals = kanbanData?.stages.flatMap(s => s.deals).filter(d => {
+                    if (!d.expectedCloseDate) return month.getMonth() === now.getMonth() && month.getFullYear() === now.getFullYear();
+                    const closeDate = new Date(d.expectedCloseDate);
+                    return closeDate.getMonth() === month.getMonth() && closeDate.getFullYear() === month.getFullYear();
+                  }) || [];
+                  const totalValue = monthDeals.reduce((sum, d) => sum + (d.value ? parseFloat(d.value) : 0), 0);
+                  const weightedValue = monthDeals.reduce((sum, d) => {
+                    const prob = d.probability || 0;
+                    return sum + (d.value ? parseFloat(d.value) * (prob / 100) : 0);
+                  }, 0);
+                  
+                  return (
+                    <div key={month.toISOString()} className="min-w-[300px]">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold">{format(month, "MMMM yyyy", { locale: sk })}</h3>
+                        <div className="text-right text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <TrendingUp className="h-3 w-3" />
+                            {new Intl.NumberFormat("sk-SK", { style: "currency", currency: "EUR", notation: "compact" }).format(totalValue)}
+                          </div>
+                          <div className="text-green-600">
+                            +{new Intl.NumberFormat("sk-SK", { style: "currency", currency: "EUR" }).format(weightedValue)}
+                          </div>
+                          <div className="font-medium">
+                            {new Intl.NumberFormat("sk-SK", { style: "currency", currency: "EUR", notation: "compact" }).format(weightedValue)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {monthDeals.map(deal => {
+                          const customer = deal.customerId ? customers.find(c => c.id === deal.customerId) : null;
+                          return (
+                            <Card 
+                              key={deal.id} 
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => handleSelectDeal(deal)}
+                            >
+                              <CardContent className="p-3">
+                                <h4 className="font-medium text-sm">{deal.title}</h4>
+                                <p className="text-xs text-muted-foreground">{customer ? `${customer.firstName} ${customer.lastName}` : "-"}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <UserIcon className="h-3 w-3" />
+                                  <span className="text-sm font-medium">
+                                    {deal.value ? new Intl.NumberFormat("sk-SK", { style: "currency", currency: deal.currency || "EUR" }).format(parseFloat(deal.value)) : "-"}
+                                  </span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        {monthDeals.length === 0 && (
+                          <div className="text-center text-muted-foreground text-sm py-4">
+                            Žiadne príležitosti
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        )}
+
+        {viewMode === "archive" && (
+          <div className="flex-1 overflow-auto p-4">
+            <div className="text-center py-12 text-muted-foreground">
+              <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium mb-2">Archív príležitostí</h3>
+              <p className="text-sm">Tu sa zobrazia uzavreté a zrušené príležitosti</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Dialog open={isNewDealOpen} onOpenChange={setIsNewDealOpen}>
         <DialogContent className="max-w-lg">

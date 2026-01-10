@@ -1555,7 +1555,7 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                   {AUTOMATION_TRIGGER_TYPES.map((trigger) => (
                     <Card
                       key={trigger.value}
-                      className={`cursor-pointer hover-elevate transition-all h-full ${
+                      className={`cursor-pointer hover-elevate transition-all h-full overflow-hidden ${
                         formData.triggerType === trigger.value 
                           ? "ring-2 ring-primary bg-primary/5" 
                           : ""
@@ -1563,8 +1563,8 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                       onClick={() => setFormData({ ...formData, triggerType: trigger.value, triggerConfig: {} })}
                       data-testid={`trigger-card-${trigger.value}`}
                     >
-                      <CardContent className="p-3 flex flex-col items-center text-center gap-2 h-full justify-center">
-                        <div className={`p-3 rounded-full ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <CardContent className="p-3 flex flex-col items-center text-center gap-2 h-full justify-center overflow-hidden">
+                        <div className={`p-3 rounded-full flex-shrink-0 ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                           {trigger.value === "deal_created" && <Plus className="h-5 w-5" />}
                           {trigger.value === "stage_changed" && <ArrowRight className="h-5 w-5" />}
                           {trigger.value === "deal_won" && <CheckCircle2 className="h-5 w-5" />}
@@ -1573,9 +1573,9 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                           {trigger.value === "activity_completed" && <Activity className="h-5 w-5" />}
                           {trigger.value === "customer_updated" && <UserIcon className="h-5 w-5" />}
                         </div>
-                        <div>
-                          <p className="font-medium text-sm leading-tight">{trigger.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{trigger.labelEn}</p>
+                        <div className="w-full overflow-hidden px-1">
+                          <p className="font-medium text-xs leading-tight break-words">{trigger.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{trigger.labelEn}</p>
                         </div>
                       </CardContent>
                     </Card>

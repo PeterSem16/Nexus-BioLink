@@ -81,7 +81,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
-import { DefaultEditor } from "react-simple-wysiwyg";
+import { 
+  Editor, 
+  Toolbar, 
+  BtnBold, 
+  BtnItalic, 
+  BtnUnderline, 
+  BtnStrikeThrough,
+  BtnBulletList, 
+  BtnNumberedList, 
+  BtnLink,
+  BtnUndo, 
+  BtnRedo,
+  BtnStyles,
+  Separator as EditorSeparator
+} from "react-simple-wysiwyg";
 
 interface StageWithDeals extends PipelineStage {
   deals: Deal[];
@@ -1551,7 +1565,7 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
             {wizardStep === 1 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-2">Vyberte udalosť, ktorá spustí automatizáciu:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {AUTOMATION_TRIGGER_TYPES.map((trigger) => (
                     <Card
                       key={trigger.value}
@@ -1563,19 +1577,19 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                       onClick={() => setFormData({ ...formData, triggerType: trigger.value, triggerConfig: {} })}
                       data-testid={`trigger-card-${trigger.value}`}
                     >
-                      <CardContent className="p-3 flex flex-col items-center text-center gap-2 h-full justify-center overflow-hidden">
-                        <div className={`p-3 rounded-full flex-shrink-0 ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                          {trigger.value === "deal_created" && <Plus className="h-5 w-5" />}
-                          {trigger.value === "stage_changed" && <ArrowRight className="h-5 w-5" />}
-                          {trigger.value === "deal_won" && <CheckCircle2 className="h-5 w-5" />}
-                          {trigger.value === "deal_lost" && <X className="h-5 w-5" />}
-                          {trigger.value === "deal_rotting" && <Clock className="h-5 w-5" />}
-                          {trigger.value === "activity_completed" && <Activity className="h-5 w-5" />}
-                          {trigger.value === "customer_updated" && <UserIcon className="h-5 w-5" />}
+                      <CardContent className="p-2 sm:p-3 flex flex-col items-center text-center gap-1.5 h-full justify-center min-w-0">
+                        <div className={`p-2 sm:p-3 rounded-full flex-shrink-0 ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                          {trigger.value === "deal_created" && <Plus className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "stage_changed" && <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "deal_won" && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "deal_lost" && <X className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "deal_rotting" && <Clock className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "activity_completed" && <Activity className="h-4 w-4 sm:h-5 sm:w-5" />}
+                          {trigger.value === "customer_updated" && <UserIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </div>
-                        <div className="w-full overflow-hidden px-1">
-                          <p className="font-medium text-xs leading-tight break-words">{trigger.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{trigger.labelEn}</p>
+                        <div className="w-full min-w-0">
+                          <p className="font-medium text-[11px] sm:text-xs leading-tight line-clamp-2">{trigger.label}</p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 truncate">{trigger.labelEn}</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -2177,7 +2191,7 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                             </div>
                           </div>
                           <div className="border rounded-lg overflow-hidden">
-                            <DefaultEditor
+                            <Editor
                               value={formData.actionConfig.emailBody || ""}
                               onChange={(e) => setFormData({
                                 ...formData,
@@ -2185,7 +2199,42 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                               })}
                               style={{ minHeight: "300px" }}
                               data-testid="wysiwyg-email-editor"
-                            />
+                            >
+                              <Toolbar>
+                                <BtnUndo />
+                                <BtnRedo />
+                                <EditorSeparator />
+                                <BtnBold />
+                                <BtnItalic />
+                                <BtnUnderline />
+                                <BtnStrikeThrough />
+                                <EditorSeparator />
+                                <BtnBulletList />
+                                <BtnNumberedList />
+                                <EditorSeparator />
+                                <BtnLink />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = prompt('Zadajte URL obrázka:');
+                                    if (url) {
+                                      document.execCommand('insertImage', false, url);
+                                    }
+                                  }}
+                                  className="rsw-btn"
+                                  title="Vložiť obrázok"
+                                  data-testid="button-insert-image"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                                    <circle cx="9" cy="9" r="2"/>
+                                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                                  </svg>
+                                </button>
+                                <EditorSeparator />
+                                <BtnStyles />
+                              </Toolbar>
+                            </Editor>
                           </div>
                           
                           <div className="border rounded-lg overflow-hidden">

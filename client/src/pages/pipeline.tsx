@@ -81,6 +81,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
+import { DefaultEditor } from "react-simple-wysiwyg";
 
 interface StageWithDeals extends PipelineStage {
   deals: Deal[];
@@ -1549,11 +1550,12 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
             {/* STEP 1: Trigger Type Selection */}
             {wizardStep === 1 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <p className="text-sm text-muted-foreground mb-2">Vyberte udalosť, ktorá spustí automatizáciu:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {AUTOMATION_TRIGGER_TYPES.map((trigger) => (
                     <Card
                       key={trigger.value}
-                      className={`cursor-pointer hover-elevate transition-all ${
+                      className={`cursor-pointer hover-elevate transition-all h-full ${
                         formData.triggerType === trigger.value 
                           ? "ring-2 ring-primary bg-primary/5" 
                           : ""
@@ -1561,8 +1563,8 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                       onClick={() => setFormData({ ...formData, triggerType: trigger.value, triggerConfig: {} })}
                       data-testid={`trigger-card-${trigger.value}`}
                     >
-                      <CardContent className="p-4 flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <CardContent className="p-3 flex flex-col items-center text-center gap-2 h-full justify-center">
+                        <div className={`p-3 rounded-full ${formData.triggerType === trigger.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                           {trigger.value === "deal_created" && <Plus className="h-5 w-5" />}
                           {trigger.value === "stage_changed" && <ArrowRight className="h-5 w-5" />}
                           {trigger.value === "deal_won" && <CheckCircle2 className="h-5 w-5" />}
@@ -1572,15 +1574,15 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                           {trigger.value === "customer_updated" && <UserIcon className="h-5 w-5" />}
                         </div>
                         <div>
-                          <p className="font-medium text-sm">{trigger.label}</p>
-                          <p className="text-xs text-muted-foreground">{trigger.labelEn}</p>
+                          <p className="font-medium text-sm leading-tight">{trigger.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{trigger.labelEn}</p>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2 pt-2 border-t mt-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -2174,28 +2176,28 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                               <code className="bg-muted px-1.5 py-0.5 rounded">{"{deal_name}"}</code>
                             </div>
                           </div>
-                          <Textarea
-                            value={formData.actionConfig.emailBody || ""}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              actionConfig: { ...formData.actionConfig, emailBody: e.target.value }
-                            })}
-                            placeholder="<!DOCTYPE html><html>..."
-                            rows={12}
-                            className="font-mono text-sm"
-                            data-testid="textarea-email-html"
-                          />
-                          {formData.actionConfig.emailBody && (
-                            <div className="border rounded-lg overflow-hidden">
-                              <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
-                                <span className="text-xs font-medium">Náhľad emailu</span>
-                              </div>
-                              <div 
-                                className="bg-white p-4 max-h-[300px] overflow-y-auto"
-                                dangerouslySetInnerHTML={{ __html: formData.actionConfig.emailBody }}
-                              />
+                          <div className="border rounded-lg overflow-hidden">
+                            <DefaultEditor
+                              value={formData.actionConfig.emailBody || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                actionConfig: { ...formData.actionConfig, emailBody: e.target.value }
+                              })}
+                              style={{ minHeight: "300px" }}
+                              data-testid="wysiwyg-email-editor"
+                            />
+                          </div>
+                          
+                          <div className="border rounded-lg overflow-hidden">
+                            <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
+                              <span className="text-xs font-medium">Náhľad emailu</span>
+                              <Badge variant="secondary" className="text-[10px]">HTML Preview</Badge>
                             </div>
-                          )}
+                            <div 
+                              className="bg-white p-4 max-h-[250px] overflow-y-auto"
+                              dangerouslySetInnerHTML={{ __html: formData.actionConfig.emailBody || "<p class='text-muted-foreground'>Náhľad sa zobrazí po zadaní obsahu...</p>" }}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

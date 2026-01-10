@@ -140,6 +140,35 @@ const uploadAvatar = multer({
   },
 });
 
+// Configure multer for email image uploads
+const emailImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads", "email-images");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `email-${uniqueSuffix}${ext}`);
+  },
+});
+
+const uploadEmailImage = multer({
+  storage: emailImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only JPEG, PNG, GIF, WEBP are allowed."));
+    }
+  },
+});
+
 // Configure multer for contract template PDF uploads
 const contractPdfStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -990,6 +1019,52 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error uploading avatar:", error);
       res.status(500).json({ error: "Failed to upload avatar" });
+    }
+  });
+
+  // Email images upload API
+  app.post("/api/email-images", requireAuth, uploadEmailImage.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const imageUrl = `/uploads/email-images/${req.file.filename}`;
+      res.json({ 
+        success: true, 
+        url: imageUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname
+      });
+    } catch (error) {
+      console.error("Error uploading email image:", error);
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  });
+
+  // Get all email images
+  app.get("/api/email-images", requireAuth, async (req, res) => {
+    try {
+      const emailImagesDir = path.join(process.cwd(), "uploads", "email-images");
+      if (!fs.existsSync(emailImagesDir)) {
+        fs.mkdirSync(emailImagesDir, { recursive: true });
+        return res.json([]);
+      }
+      
+      const files = fs.readdirSync(emailImagesDir);
+      const images = files
+        .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
+        .map(file => ({
+          filename: file,
+          url: `/uploads/email-images/${file}`,
+          createdAt: fs.statSync(path.join(emailImagesDir, file)).mtime
+        }))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching email images:", error);
+      res.status(500).json({ error: "Failed to fetch images" });
     }
   });
 

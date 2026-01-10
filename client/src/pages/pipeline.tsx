@@ -18,7 +18,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users, LayoutGrid, List, Archive, Coins, Globe, UserPlus, Megaphone, Share2, Building, Link2, Star, Facebook, Linkedin, Zap, Play, Pause, Briefcase } from "lucide-react";
+import { Plus, GripVertical, User as UserIcon, Calendar, DollarSign, Phone, Mail, FileText, Loader2, Settings, MoreHorizontal, Trash2, Edit, Clock, CheckCircle2, MessageSquare, X, Activity, Bell, BarChart3, TrendingUp, ArrowRight, HelpCircle, ChevronRight, Users, LayoutGrid, List, Archive, Coins, Globe, UserPlus, Megaphone, Share2, Building, Link2, Star, Facebook, Linkedin, Zap, Play, Pause, Briefcase, ImageIcon, Upload } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Progress } from "@/components/ui/progress";
@@ -873,6 +873,9 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
   const [activeTab, setActiveTab] = useState<string>("automations");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [wizardStep, setWizardStep] = useState(1);
+  const [isImageGalleryOpen, setIsImageGalleryOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [emailImages, setEmailImages] = useState<Array<{ filename: string; url: string; createdAt: Date }>>([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -992,6 +995,61 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
 
   // Get all deals from stages for the execute dialog
   const allDeals = stages.flatMap(stage => stage.deals || []);
+
+  // Load email images from server
+  const loadEmailImages = async () => {
+    try {
+      const response = await fetch('/api/email-images', { credentials: 'include' });
+      if (response.ok) {
+        const images = await response.json();
+        setEmailImages(images);
+      }
+    } catch (error) {
+      console.error('Failed to load images:', error);
+    }
+  };
+
+  // Upload image to server
+  const handleImageUpload = async (file: File) => {
+    setIsUploadingImage(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+      
+      const response = await fetch('/api/email-images', {
+        method: 'POST',
+        credentials: 'include',
+        body: formDataUpload,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast({ title: "Obrázok nahraný", description: result.originalName });
+        await loadEmailImages();
+        return result.url;
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      toast({ title: "Chyba", description: "Nepodarilo sa nahrať obrázok", variant: "destructive" });
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Insert image into email body
+  const insertImageIntoEmail = (url: string) => {
+    const imgTag = `<img src="${url}" alt="Obrázok" style="max-width: 100%; height: auto;" />`;
+    setFormData({
+      ...formData,
+      actionConfig: { 
+        ...formData.actionConfig, 
+        emailBody: (formData.actionConfig.emailBody || "") + imgTag
+      }
+    });
+    setIsImageGalleryOpen(false);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -2181,21 +2239,12 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  const url = prompt('Zadajte URL obrázka:');
-                                  if (url) {
-                                    const imgTag = `<img src="${url}" alt="Obrázok" style="max-width: 100%; height: auto;" />`;
-                                    setFormData({
-                                      ...formData,
-                                      actionConfig: { 
-                                        ...formData.actionConfig, 
-                                        emailBody: (formData.actionConfig.emailBody || "") + imgTag
-                                      }
-                                    });
-                                  }
+                                  loadEmailImages();
+                                  setIsImageGalleryOpen(true);
                                 }}
                                 data-testid="button-insert-image"
                               >
-                                <FileText className="h-4 w-4 mr-1" />
+                                <ImageIcon className="h-4 w-4 mr-1" />
                                 Vložiť obrázok
                               </Button>
                             </div>
@@ -2211,6 +2260,89 @@ function AutomationsView({ pipelineId, stages, users }: AutomationsViewProps) {
                               />
                             </div>
                           </div>
+
+                          {/* Image Gallery Dialog */}
+                          <Dialog open={isImageGalleryOpen} onOpenChange={setIsImageGalleryOpen}>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Galéria obrázkov</DialogTitle>
+                                <DialogDescription>
+                                  Nahrajte nový obrázok alebo vyberte z existujúcich
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              <div className="space-y-4">
+                                {/* Upload section */}
+                                <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    id="email-image-upload"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const url = await handleImageUpload(file);
+                                        if (url) {
+                                          insertImageIntoEmail(url);
+                                        }
+                                      }
+                                      e.target.value = '';
+                                    }}
+                                    data-testid="input-email-image-upload"
+                                  />
+                                  <label 
+                                    htmlFor="email-image-upload" 
+                                    className="cursor-pointer flex flex-col items-center gap-2"
+                                  >
+                                    {isUploadingImage ? (
+                                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                    ) : (
+                                      <Upload className="h-8 w-8 text-muted-foreground" />
+                                    )}
+                                    <span className="text-sm text-muted-foreground">
+                                      {isUploadingImage ? "Nahrávam..." : "Kliknite pre nahratie obrázka"}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Podporované formáty: JPG, PNG, GIF, WEBP (max 5MB)
+                                    </span>
+                                  </label>
+                                </div>
+
+                                {/* Existing images */}
+                                {emailImages.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-medium mb-2">Nahrané obrázky</p>
+                                    <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+                                      {emailImages.map((image) => (
+                                        <div
+                                          key={image.filename}
+                                          className="relative aspect-square border rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                          onClick={() => insertImageIntoEmail(image.url)}
+                                          data-testid={`image-gallery-item-${image.filename}`}
+                                        >
+                                          <img
+                                            src={image.url}
+                                            alt={image.filename}
+                                            className="w-full h-full object-cover"
+                                          />
+                                          <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                                            <span className="text-white text-xs opacity-0 hover:opacity-100">Vybrať</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {emailImages.length === 0 && (
+                                  <p className="text-sm text-muted-foreground text-center py-4">
+                                    Zatiaľ nie sú nahrané žiadne obrázky
+                                  </p>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                           
                           <div className="border rounded-lg overflow-hidden">
                             <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">

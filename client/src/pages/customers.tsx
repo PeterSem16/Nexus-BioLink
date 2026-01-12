@@ -874,16 +874,17 @@ function EmailPaymentBreakdownItem({
   }
 }
 
-// Timeline action types for filtering
+// Timeline action types for filtering with colors
 const TIMELINE_ACTION_TYPES = [
-  { value: "all", label: "Všetky", icon: ListChecks },
-  { value: "update", label: "Zmeny údajov", icon: Pencil },
-  { value: "document", label: "Dokumenty", icon: FileText },
-  { value: "note", label: "Poznámky", icon: MessageSquare },
-  { value: "message", label: "Správy", icon: Mail },
-  { value: "status", label: "Zmeny stavu", icon: RefreshCw },
-  { value: "product", label: "Produkty", icon: Package },
-  { value: "pipeline", label: "Pipeline", icon: ArrowRight },
+  { value: "all", label: "Všetky", icon: ListChecks, activeClass: "bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-500 ring-2 ring-slate-400 dark:ring-slate-500 ring-offset-1", textColor: "text-slate-700 dark:text-slate-300" },
+  { value: "update", label: "Zmeny údajov", icon: Pencil, activeClass: "bg-blue-100 dark:bg-blue-900 border-blue-400 dark:border-blue-500 ring-2 ring-blue-400 dark:ring-blue-500 ring-offset-1", textColor: "text-blue-700 dark:text-blue-300" },
+  { value: "document", label: "Dokumenty", icon: FileText, activeClass: "bg-emerald-100 dark:bg-emerald-900 border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-400 dark:ring-emerald-500 ring-offset-1", textColor: "text-emerald-700 dark:text-emerald-300" },
+  { value: "note", label: "Poznámky", icon: MessageSquare, activeClass: "bg-yellow-100 dark:bg-yellow-900 border-yellow-400 dark:border-yellow-500 ring-2 ring-yellow-400 dark:ring-yellow-500 ring-offset-1", textColor: "text-yellow-700 dark:text-yellow-300" },
+  { value: "message", label: "Správy", icon: Mail, activeClass: "bg-purple-100 dark:bg-purple-900 border-purple-400 dark:border-purple-500 ring-2 ring-purple-400 dark:ring-purple-500 ring-offset-1", textColor: "text-purple-700 dark:text-purple-300" },
+  { value: "status", label: "Zmeny stavu", icon: RefreshCw, activeClass: "bg-orange-100 dark:bg-orange-900 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400 dark:ring-orange-500 ring-offset-1", textColor: "text-orange-700 dark:text-orange-300" },
+  { value: "product", label: "Produkty", icon: Package, activeClass: "bg-indigo-100 dark:bg-indigo-900 border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-400 dark:ring-indigo-500 ring-offset-1", textColor: "text-indigo-700 dark:text-indigo-300" },
+  { value: "pipeline", label: "Pipeline", icon: ArrowRight, activeClass: "bg-cyan-100 dark:bg-cyan-900 border-cyan-400 dark:border-cyan-500 ring-2 ring-cyan-400 dark:ring-cyan-500 ring-offset-1", textColor: "text-cyan-700 dark:text-cyan-300" },
+  { value: "consent", label: "Súhlasy", icon: Shield, activeClass: "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-500 ring-2 ring-green-400 dark:ring-green-500 ring-offset-1", textColor: "text-green-700 dark:text-green-300" },
 ] as const;
 
 // Field label translations for displaying changes
@@ -942,6 +943,7 @@ function CustomerHistoryTimeline({
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   // Fetch all data sources
   const { data: activityLogs = [], isLoading: logsLoading } = useQuery<any[]>({
@@ -963,6 +965,62 @@ function CustomerHistoryTimeline({
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
   });
+
+  const { data: pipelineStages = [] } = useQuery<any[]>({
+    queryKey: ["/api/pipeline-stages"],
+    queryFn: async () => {
+      const res = await fetch("/api/pipeline-stages", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: customerProducts = [] } = useQuery<any[]>({
+    queryKey: ["/api/customers", customerId, "products"],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customerId}/products`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: products = [] } = useQuery<any[]>({
+    queryKey: ["/api/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/products", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const getStageName = (stageId: string) => {
+    const stage = pipelineStages.find((s: any) => s.id === stageId);
+    return stage?.name || stageId;
+  };
+
+  const getProductName = (productId: string) => {
+    const product = products.find((p: any) => p.id === productId);
+    return product?.name || productId;
+  };
+
+  // Helper to get explicit color classes for timeline dots (avoids dynamic class generation)
+  const getTimelineDotColors = (color: string) => {
+    const colorMap: Record<string, { border: string; bg: string }> = {
+      "text-blue-500": { border: "border-blue-500", bg: "bg-blue-500" },
+      "text-green-500": { border: "border-green-500", bg: "bg-green-500" },
+      "text-red-500": { border: "border-red-500", bg: "bg-red-500" },
+      "text-yellow-500": { border: "border-yellow-500", bg: "bg-yellow-500" },
+      "text-purple-500": { border: "border-purple-500", bg: "bg-purple-500" },
+      "text-orange-500": { border: "border-orange-500", bg: "bg-orange-500" },
+      "text-cyan-500": { border: "border-cyan-500", bg: "bg-cyan-500" },
+      "text-indigo-500": { border: "border-indigo-500", bg: "bg-indigo-500" },
+      "text-emerald-500": { border: "border-emerald-500", bg: "bg-emerald-500" },
+      "text-amber-500": { border: "border-amber-500", bg: "bg-amber-500" },
+      "text-blue-400": { border: "border-blue-400", bg: "bg-blue-400" },
+      "text-green-400": { border: "border-green-400", bg: "bg-green-400" },
+    };
+    return colorMap[color] || { border: "border-muted-foreground", bg: "bg-muted-foreground" };
+  };
 
   const getUserName = (userId: string) => {
     const user = users.find((u: any) => u.id === userId);
@@ -1043,7 +1101,7 @@ function CustomerHistoryTimeline({
       } else if (log.action === "consent_granted" || log.action === "consent_revoked") {
         icon = Shield;
         color = log.action === "consent_granted" ? "text-green-500" : "text-red-500";
-        type = "status";
+        type = "consent";
       }
 
       const actionLabels: Record<string, string> = {
@@ -1059,12 +1117,24 @@ function CustomerHistoryTimeline({
         consent_revoked: "Odvolanie súhlasu",
       };
 
+      // Build enriched description based on action type
+      let enrichedDescription = log.entityName || customerName;
+      if (log.action === "pipeline_move" && details) {
+        const fromStage = details.fromStageId ? getStageName(details.fromStageId) : "—";
+        const toStage = details.toStageId ? getStageName(details.toStageId) : "—";
+        enrichedDescription = `${fromStage} → ${toStage}`;
+      } else if ((log.action === "add_product" || log.action === "remove_product") && details?.productId) {
+        enrichedDescription = getProductName(details.productId);
+      } else if ((log.action === "consent_granted" || log.action === "consent_revoked") && details?.consentType) {
+        enrichedDescription = details.consentType;
+      }
+
       events.push({
         id: log.id,
         type,
         action: log.action,
         title: actionLabels[log.action] || log.action,
-        description: log.entityName || customerName,
+        description: enrichedDescription,
         details,
         createdAt: log.createdAt,
         userId: log.userId,
@@ -1131,15 +1201,28 @@ function CustomerHistoryTimeline({
       });
     });
 
-    // Sort by date descending
-    events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Add customer products assignments
+    customerProducts.forEach((cp: any) => {
+      events.push({
+        id: `product-${cp.id}`,
+        type: "product",
+        action: "product_assigned",
+        title: "Priradený produkt",
+        description: getProductName(cp.productId),
+        details: { productId: cp.productId, assignedAt: cp.createdAt },
+        createdAt: cp.createdAt,
+        userId: cp.assignedBy,
+        icon: Package,
+        color: "text-indigo-500",
+      });
+    });
 
     return events;
-  }, [activityLogs, documents, notes, messages, customerId, customerName]);
+  }, [activityLogs, documents, notes, messages, customerProducts, customerId, customerName, pipelineStages, products]);
 
-  // Filter events
+  // Filter and sort events
   const filteredEvents = useMemo(() => {
-    return timelineEvents.filter(event => {
+    let filtered = timelineEvents.filter(event => {
       // Type filter
       if (filterType !== "all" && event.type !== filterType) {
         return false;
@@ -1154,7 +1237,25 @@ function CustomerHistoryTimeline({
       }
       return true;
     });
-  }, [timelineEvents, filterType, searchQuery]);
+    
+    // Sort events
+    filtered.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+    });
+    
+    return filtered;
+  }, [timelineEvents, filterType, searchQuery, sortOrder]);
+
+  // Count events by type
+  const eventCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: timelineEvents.length };
+    timelineEvents.forEach(event => {
+      counts[event.type] = (counts[event.type] || 0) + 1;
+    });
+    return counts;
+  }, [timelineEvents]);
 
   // Group events by month
   const groupedEvents = useMemo(() => {
@@ -1190,7 +1291,53 @@ function CustomerHistoryTimeline({
   };
 
   const renderFieldChanges = (details: any) => {
-    if (!details?.changes || !Array.isArray(details.changes)) return null;
+    if (!details) return null;
+    
+    // Check if we have old/new values for each field
+    const oldVals = details.oldValues || {};
+    const newVals = details.newValues || {};
+    const hasValueDetails = Object.keys(oldVals).length > 0 || Object.keys(newVals).length > 0;
+    
+    if (hasValueDetails) {
+      // Filter to only fields that have translations and actually changed
+      const changedFields = Object.keys(newVals).filter(f => {
+        const hasLabel = FIELD_LABELS[f];
+        const actuallyChanged = oldVals[f] !== newVals[f];
+        return hasLabel && actuallyChanged;
+      });
+      
+      if (changedFields.length === 0) {
+        // Fall through to show field names if no translated fields with actual changes
+      } else {
+        return (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Zmenené hodnoty:</p>
+            <div className="space-y-1 bg-muted/30 rounded-md p-2">
+              {changedFields.slice(0, 6).map((field: string) => {
+                const oldVal = oldVals[field];
+                const newVal = newVals[field];
+                const displayOld = oldVal === null || oldVal === undefined || oldVal === "" ? "—" : String(oldVal);
+                const displayNew = newVal === null || newVal === undefined || newVal === "" ? "—" : String(newVal);
+                return (
+                  <div key={field} className="flex items-center gap-2 text-xs flex-wrap">
+                    <span className="font-medium min-w-[100px]">{FIELD_LABELS[field] || field}:</span>
+                    <span className="text-red-600 dark:text-red-400 line-through">{displayOld}</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="text-green-600 dark:text-green-400 font-medium">{displayNew}</span>
+                  </div>
+                );
+              })}
+              {changedFields.length > 6 && (
+                <p className="text-xs text-muted-foreground">+{changedFields.length - 6} ďalších zmien</p>
+              )}
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    // Fallback to just showing field names if no values available
+    if (!details.changes || !Array.isArray(details.changes)) return null;
     
     const changedFields = details.changes.filter((f: string) => FIELD_LABELS[f]);
     if (changedFields.length === 0) return null;
@@ -1226,7 +1373,7 @@ function CustomerHistoryTimeline({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Search and Sort Controls */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1235,43 +1382,44 @@ function CustomerHistoryTimeline({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
+            data-testid="input-timeline-search"
           />
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Typ akcie" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIMELINE_ACTION_TYPES.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                <div className="flex items-center gap-2">
-                  <type.icon className="h-4 w-4" />
-                  {type.label}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+          className="gap-2"
+          data-testid="button-timeline-sort"
+        >
+          <Clock className="h-4 w-4" />
+          {sortOrder === "desc" ? "Najnovšie" : "Najstaršie"}
+        </Button>
       </div>
 
-      {/* Stats summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <p className="text-2xl font-bold">{timelineEvents.length}</p>
-          <p className="text-xs text-muted-foreground">Celkom akcií</p>
-        </div>
-        <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <p className="text-2xl font-bold">{documents.length}</p>
-          <p className="text-xs text-muted-foreground">Dokumentov</p>
-        </div>
-        <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <p className="text-2xl font-bold">{notes.length}</p>
-          <p className="text-xs text-muted-foreground">Poznámok</p>
-        </div>
-        <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <p className="text-2xl font-bold">{messages.length}</p>
-          <p className="text-xs text-muted-foreground">Správ</p>
-        </div>
+      {/* Filter Tiles */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
+        {TIMELINE_ACTION_TYPES.map((type) => {
+          const count = eventCounts[type.value] || 0;
+          const isActive = filterType === type.value;
+          const TypeIcon = type.icon;
+          return (
+            <button
+              key={type.value}
+              onClick={() => setFilterType(type.value)}
+              className={`p-2.5 rounded-lg border-2 transition-all cursor-pointer text-center ring-offset-background ${
+                isActive 
+                  ? type.activeClass
+                  : "bg-card border-border hover:bg-muted/50"
+              }`}
+              data-testid={`button-filter-${type.value}`}
+            >
+              <TypeIcon className={`h-4 w-4 mx-auto mb-1 ${isActive ? type.textColor : 'text-muted-foreground'}`} />
+              <p className={`text-lg font-bold ${isActive ? type.textColor : ''}`}>{count}</p>
+              <p className={`text-[10px] leading-tight ${isActive ? type.textColor : 'text-muted-foreground'}`}>{type.label}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Timeline */}
@@ -1301,8 +1449,8 @@ function CustomerHistoryTimeline({
                   return (
                     <div key={event.id} className="relative">
                       {/* Timeline dot */}
-                      <div className={`absolute -left-[25px] w-4 h-4 rounded-full bg-background border-2 flex items-center justify-center ${event.color.replace('text-', 'border-')}`}>
-                        <div className={`w-2 h-2 rounded-full ${event.color.replace('text-', 'bg-')}`} />
+                      <div className={`absolute -left-[25px] w-4 h-4 rounded-full bg-background border-2 flex items-center justify-center ${getTimelineDotColors(event.color).border}`}>
+                        <div className={`w-2 h-2 rounded-full ${getTimelineDotColors(event.color).bg}`} />
                       </div>
 
                       {/* Event card */}
@@ -1328,20 +1476,91 @@ function CustomerHistoryTimeline({
                               {/* Render field changes for updates */}
                               {event.action === "update" && renderFieldChanges(event.details)}
 
+                              {/* Pipeline move details */}
+                              {event.type === "pipeline" && event.details && (
+                                <div className="mt-2 p-2 rounded-md bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200 dark:border-cyan-800 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Presun:</span>
+                                    <Badge variant="outline" className="bg-background">{event.details.fromStageId ? getStageName(event.details.fromStageId) : "—"}</Badge>
+                                    <ArrowRight className="h-3 w-3 text-cyan-500" />
+                                    <Badge className="bg-cyan-600 text-white">{event.details.toStageId ? getStageName(event.details.toStageId) : "—"}</Badge>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Product details */}
+                              {event.type === "product" && event.details?.productId && (
+                                <div className="mt-2 p-2 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="h-3.5 w-3.5 text-indigo-500" />
+                                    <span className="font-medium">{getProductName(event.details.productId)}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Consent details */}
+                              {event.type === "consent" && event.details && (
+                                <div className={`mt-2 p-2 rounded-md text-xs ${
+                                  event.action === "consent_granted" 
+                                    ? "bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800" 
+                                    : "bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    <Shield className={`h-3.5 w-3.5 ${event.action === "consent_granted" ? "text-green-500" : "text-red-500"}`} />
+                                    <span className="font-medium">
+                                      {event.details.consentType || event.details.consentName || "GDPR súhlas"}
+                                    </span>
+                                    {event.details.consentPurpose && (
+                                      <span className="text-muted-foreground">- {event.details.consentPurpose}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Status change details */}
+                              {event.type === "status" && event.details && (event.details.oldStatus || event.details.newStatus) && (
+                                <div className="mt-2 p-2 rounded-md bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <RefreshCw className="h-3.5 w-3.5 text-orange-500" />
+                                    <span className="text-muted-foreground">Stav:</span>
+                                    <Badge variant="outline" className="bg-background">{event.details.oldStatus || "—"}</Badge>
+                                    <ArrowRight className="h-3 w-3 text-orange-500" />
+                                    <Badge className="bg-orange-600 text-white">{event.details.newStatus || "—"}</Badge>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Message details */}
                               {event.type === "message" && event.details && (
-                                <div className="mt-2 p-2 rounded bg-muted/50 text-xs space-y-1">
+                                <div className="mt-2 p-2 rounded-md bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 text-xs space-y-1">
                                   <p><span className="font-medium">Príjemca:</span> {event.details.recipient}</p>
                                   {event.details.subject && (
                                     <p><span className="font-medium">Predmet:</span> {event.details.subject}</p>
+                                  )}
+                                  {event.details.content && (
+                                    <p className="line-clamp-2 text-muted-foreground mt-1">{event.details.content}</p>
                                   )}
                                 </div>
                               )}
 
                               {/* Note content */}
                               {event.type === "note" && event.details?.content && (
-                                <div className="mt-2 p-2 rounded bg-muted/50 text-xs">
-                                  <p className="line-clamp-3">{event.details.content}</p>
+                                <div className="mt-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/50 border border-yellow-200 dark:border-yellow-800 text-xs">
+                                  <p className="line-clamp-3 whitespace-pre-wrap">{event.details.content}</p>
+                                </div>
+                              )}
+
+                              {/* Document details */}
+                              {event.type === "document" && event.details && (
+                                <div className="mt-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {event.details.templateName && (
+                                      <span><span className="font-medium">Šablóna:</span> {event.details.templateName}</span>
+                                    )}
+                                    {event.details.status && (
+                                      <Badge variant="outline" className="text-xs">{event.details.status}</Badge>
+                                    )}
+                                  </div>
                                 </div>
                               )}
 

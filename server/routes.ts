@@ -1223,19 +1223,40 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Customer not found" });
       }
       
-      // Log activity
+      // Build old/new values for changed fields
+      const changedFields = Object.keys(validatedData);
+      const oldValues: Record<string, any> = {};
+      const newValues: Record<string, any> = {};
+      
+      changedFields.forEach(field => {
+        if (oldCustomer && (oldCustomer as any)[field] !== (customer as any)[field]) {
+          oldValues[field] = (oldCustomer as any)[field];
+          newValues[field] = (customer as any)[field];
+        }
+      });
+      
+      // Check for status changes specifically
+      const statusChanged = oldCustomer && oldCustomer.status !== customer.status;
+      const clientStatusChanged = oldCustomer && oldCustomer.clientStatus !== customer.clientStatus;
+      
+      // Log activity with old/new values
       await logActivity(
         req.session.user!.id,
         "update",
         "customer",
         customer.id,
         `${customer.firstName} ${customer.lastName}`,
-        { changes: Object.keys(validatedData) },
+        { 
+          changes: changedFields,
+          oldValues,
+          newValues,
+          ...(statusChanged && { oldStatus: oldCustomer?.status, newStatus: customer.status }),
+          ...(clientStatusChanged && { oldClientStatus: oldCustomer?.clientStatus, newClientStatus: customer.clientStatus }),
+        },
         req.ip
       );
       
       // Trigger customer_updated automations
-      const changedFields = Object.keys(validatedData);
       triggerCustomerAutomations(customer, changedFields, oldCustomer, req.session?.user?.id).catch(err => 
         console.error("Customer automation trigger error:", err)
       );

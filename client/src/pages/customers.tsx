@@ -1122,8 +1122,8 @@ function CustomerHistoryTimeline({
       // Build enriched description based on action type
       let enrichedDescription = log.entityName || customerName;
       if ((log.action === "pipeline_move" || log.action === "stage_changed") && details) {
-        const fromStage = details.fromStageId ? getStageName(details.fromStageId) : "—";
-        const toStage = details.toStageId ? getStageName(details.toStageId) : "—";
+        const fromStage = details.fromStageName || (details.fromStageId ? getStageName(details.fromStageId) : "—");
+        const toStage = details.toStageName || (details.toStageId ? getStageName(details.toStageId) : "—");
         enrichedDescription = `${fromStage} → ${toStage}`;
       } else if ((log.action === "add_product" || log.action === "remove_product") && details?.productId) {
         enrichedDescription = getProductName(details.productId);

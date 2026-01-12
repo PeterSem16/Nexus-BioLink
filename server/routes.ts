@@ -11224,6 +11224,10 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
       
       // Log activity for pipeline stage change (linked to customer)
       if (deal.customerId) {
+        // Get stage names for readable logging
+        const fromStage = oldDeal?.stageId ? await storage.getPipelineStage(oldDeal.stageId) : null;
+        const toStage = await storage.getPipelineStage(stageId);
+        
         await logActivity(
           req.session?.user?.id || "system",
           "pipeline_move",
@@ -11234,7 +11238,9 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
             dealId: deal.id,
             dealTitle: deal.title,
             fromStageId: oldDeal?.stageId,
+            fromStageName: fromStage?.name || "Neznámy",
             toStageId: stageId,
+            toStageName: toStage?.name || "Neznámy",
             pipelineId: deal.pipelineId,
           }
         );

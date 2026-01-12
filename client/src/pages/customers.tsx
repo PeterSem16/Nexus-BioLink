@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight, Shield, CreditCard, Loader2, Calendar, Globe, Linkedin, Facebook, Twitter, Instagram, Building2, ExternalLink, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight, Shield, CreditCard, Loader2, Calendar, Globe, Linkedin, Facebook, Twitter, Instagram, Building2, ExternalLink, Sparkles, FileSignature, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1094,7 +1095,7 @@ function CustomerHistoryTimeline({
         icon = MessageSquare;
         color = "text-yellow-500";
         type = "note";
-      } else if (log.action === "pipeline_move" || log.action === "stage_changed" || log.entityType === "pipeline") {
+      } else if (log.action === "pipeline_move" || log.action === "stage_changed") {
         icon = ArrowRight;
         color = "text-cyan-500";
         type = "pipeline";
@@ -2683,15 +2684,32 @@ function CustomerDetailsContent({
 
       <Separator />
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button
           variant="outline"
-          className="flex-1"
           onClick={onEdit}
           data-testid="button-edit-from-view"
         >
           <Pencil className="h-4 w-4 mr-2" />
           {t.customers.details?.editCustomer || "Edit Customer"}
+        </Button>
+        <Button
+          variant="outline"
+          asChild
+          data-testid="button-create-contract-from-view"
+        >
+          <Link href={`/contracts?customerId=${customer.id}&action=new`}>
+            <FileSignature className="h-4 w-4 mr-2" />
+            {t.customers.details?.createContract || "Vytvoriť zmluvu"}
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setIsManualInvoiceOpen(true)}
+          data-testid="button-create-invoice-from-view"
+        >
+          <Receipt className="h-4 w-4 mr-2" />
+          {t.customers.details?.createInvoice || "Vytvoriť faktúru"}
         </Button>
       </div>
 

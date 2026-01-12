@@ -1739,7 +1739,7 @@ export async function registerRoutes(
         await storage.updateUserMs365Connection(userId, updateData);
       }
       
-      const { to, cc, subject, body, isHtml, mailboxId, attachments } = req.body;
+      const { to, cc, subject, body, isHtml, mailboxId, attachments, customerId } = req.body;
       
       if (!to || !subject || !body) {
         return res.status(400).json({ error: "Missing required fields: to, subject, body" });
@@ -1768,6 +1768,7 @@ export async function registerRoutes(
       
       const toArray = Array.isArray(to) ? to : [to];
       const ccArray = cc ? (Array.isArray(cc) ? cc : [cc]) : undefined;
+      const fromEmail = sharedMailboxEmail || ms365Connection.email;
       
       const { sendEmail, sendEmailFromSharedMailbox } = await import("./lib/ms365");
       
@@ -1783,12 +1784,62 @@ export async function registerRoutes(
           ccArray,
           attachments
         );
-        res.json({ message: "Email sent successfully from shared mailbox", from: sharedMailboxEmail });
       } else {
         // Send from user's own mailbox
         await sendEmail(tokenResult.accessToken, toArray, subject, body, isHtml !== false);
-        res.json({ message: "Email sent successfully from your mailbox", from: ms365Connection.email });
       }
+      
+      // Log email to customer history if customerId is provided
+      let messageId: string | undefined;
+      if (customerId) {
+        try {
+          // Save to communication_messages table
+          const message = await storage.createCommunicationMessage({
+            customerId,
+            userId,
+            type: "email",
+            subject,
+            content: body,
+            status: "sent",
+            recipients: toArray.join(", "),
+            metadata: JSON.stringify({
+              from: fromEmail,
+              cc: ccArray?.join(", ") || null,
+              isHtml: isHtml !== false,
+              sentVia: "ms365",
+              sharedMailbox: sharedMailboxEmail || null,
+            }),
+          });
+          messageId = message.id;
+          
+          // Also log to activity logs
+          await storage.createActivityLog({
+            userId,
+            action: "email_sent",
+            entityType: "customer",
+            entityId: customerId,
+            entityName: toArray[0],
+            details: JSON.stringify({
+              messageId: message.id,
+              subject,
+              to: toArray,
+              cc: ccArray || [],
+              from: fromEmail,
+            }),
+          });
+        } catch (logError) {
+          console.error("[MS365] Failed to log email to customer history:", logError);
+          // Don't fail the request - email was already sent
+        }
+      }
+      
+      res.json({ 
+        message: sharedMailboxEmail 
+          ? "Email sent successfully from shared mailbox" 
+          : "Email sent successfully from your mailbox", 
+        from: fromEmail,
+        messageId,
+      });
     } catch (error: any) {
       console.error("Error sending MS365 email from mailbox:", error);
       
@@ -4016,6 +4067,27 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching customer messages:", error);
       res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Update a communication message (for editing saved email records)
+  app.patch("/api/customers/:customerId/messages/:messageId", requireAuth, async (req, res) => {
+    try {
+      const { subject, content } = req.body;
+      
+      const updated = await storage.updateCommunicationMessage(req.params.messageId, {
+        subject,
+        content,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating message:", error);
+      res.status(500).json({ error: "Failed to update message" });
     }
   });
 

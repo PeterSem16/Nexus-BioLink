@@ -955,6 +955,10 @@ function CustomerHistoryTimeline({
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [viewingEmail, setViewingEmail] = useState<any>(null);
+  const [editingEmail, setEditingEmail] = useState<any>(null);
+  const [editEmailSubject, setEditEmailSubject] = useState("");
+  const [editEmailContent, setEditEmailContent] = useState("");
 
   // Fetch all data sources
   const { data: activityLogs = [], isLoading: logsLoading } = useQuery<any[]>({
@@ -1122,6 +1126,10 @@ function CustomerHistoryTimeline({
         icon = MessageSquare;
         color = "text-amber-500";
         type = "note";
+      } else if (log.action === "email_sent") {
+        icon = Mail;
+        color = "text-blue-400";
+        type = "message";
       }
 
       const actionLabels: Record<string, string> = {
@@ -1142,6 +1150,7 @@ function CustomerHistoryTimeline({
         campaign_note_added: "Poznámka ku kampani",
         note_added: "Pridanie poznámky",
         add_note: "Pridanie poznámky",
+        email_sent: "Odoslaný email",
       };
 
       // Build enriched description based on action type
@@ -1165,6 +1174,8 @@ function CustomerHistoryTimeline({
         enrichedDescription = details.campaignName || "Kampaň";
       } else if ((log.action === "note_added" || log.action === "add_note") && details?.content) {
         enrichedDescription = details.content.substring(0, 50) + (details.content.length > 50 ? "..." : "");
+      } else if (log.action === "email_sent" && details?.subject) {
+        enrichedDescription = details.subject;
       }
 
       events.push({
@@ -1631,6 +1642,34 @@ function CustomerHistoryTimeline({
                               PDF
                             </Button>
                           )}
+
+                          {/* View and Edit buttons for emails */}
+                          {(event.type === "message" && (event.action === "email" || event.action === "email_sent")) && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setViewingEmail(event)}
+                                title="Zobraziť email"
+                                data-testid={`button-view-email-${event.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingEmail(event);
+                                  setEditEmailSubject(event.details?.subject || "");
+                                  setEditEmailContent(event.details?.content || "");
+                                }}
+                                title="Upraviť záznam"
+                                data-testid={`button-edit-email-${event.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1641,6 +1680,128 @@ function CustomerHistoryTimeline({
           ))}
         </div>
       )}
+
+      {/* View Email Dialog */}
+      <Dialog open={!!viewingEmail} onOpenChange={(open) => !open && setViewingEmail(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-500" />
+              Detail emailu
+            </DialogTitle>
+          </DialogHeader>
+          {viewingEmail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="font-medium text-muted-foreground">Príjemca</p>
+                  <p>{viewingEmail.details?.to?.join(", ") || viewingEmail.details?.recipient || viewingEmail.entityName}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-muted-foreground">Dátum odoslania</p>
+                  <p>{format(new Date(viewingEmail.createdAt), "d.M.yyyy HH:mm")}</p>
+                </div>
+                {viewingEmail.details?.from && (
+                  <div>
+                    <p className="font-medium text-muted-foreground">Odosielateľ</p>
+                    <p>{viewingEmail.details.from}</p>
+                  </div>
+                )}
+                {viewingEmail.details?.cc?.length > 0 && (
+                  <div>
+                    <p className="font-medium text-muted-foreground">Kópia (CC)</p>
+                    <p>{viewingEmail.details.cc.join(", ")}</p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground mb-1">Predmet</p>
+                <p className="font-medium">{viewingEmail.details?.subject || viewingEmail.description}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground mb-1">Obsah</p>
+                <div className="p-3 bg-muted/50 rounded-lg border whitespace-pre-wrap text-sm">
+                  {viewingEmail.details?.content || "Bez obsahu"}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingEmail(null)}>
+              Zavrieť
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Email Dialog */}
+      <Dialog open={!!editingEmail} onOpenChange={(open) => !open && setEditingEmail(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-blue-500" />
+              Upraviť záznam emailu
+            </DialogTitle>
+          </DialogHeader>
+          {editingEmail && (
+            <div className="space-y-4">
+              <div>
+                <Label>Predmet</Label>
+                <Input 
+                  value={editEmailSubject}
+                  onChange={(e) => setEditEmailSubject(e.target.value)}
+                  data-testid="input-edit-email-subject"
+                />
+              </div>
+              <div>
+                <Label>Obsah</Label>
+                <Textarea 
+                  value={editEmailContent}
+                  onChange={(e) => setEditEmailContent(e.target.value)}
+                  rows={8}
+                  className="resize-none"
+                  data-testid="input-edit-email-content"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Poznámka: Úprava záznamu nemení už odoslaný email, len uloženú kópiu v histórii.
+              </p>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingEmail(null)}>
+              Zrušiť
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!editingEmail) return;
+                try {
+                  // Update the message in database
+                  const messageId = editingEmail.details?.messageId || editingEmail.id.replace("msg-", "");
+                  await fetch(`/api/customers/${customerId}/messages/${messageId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                      subject: editEmailSubject,
+                      content: editEmailContent,
+                    }),
+                  });
+                  toast({ title: "Záznam emailu bol aktualizovaný" });
+                  setEditingEmail(null);
+                  // Refresh data
+                  window.location.reload();
+                } catch (error) {
+                  toast({ title: "Nepodarilo sa aktualizovať záznam", variant: "destructive" });
+                }
+              }}
+              data-testid="button-save-email-edit"
+            >
+              Uložiť zmeny
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2113,6 +2274,7 @@ function CustomerDetailsContent({
           body: data.content,
           isHtml: false,
           mailboxId: data.mailboxId === "default" ? null : data.mailboxId,
+          customerId: customer.id, // Log email to customer history
         });
       } else {
         return apiRequest("POST", `/api/customers/${customer.id}/messages/email`, {

@@ -2875,6 +2875,190 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // EMAIL ROUTING RULES API
+  // ============================================
+
+  // Get all email routing rules
+  app.get("/api/email-routing-rules", requireAuth, async (req, res) => {
+    try {
+      const rules = await storage.getAllEmailRoutingRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching email routing rules:", error);
+      res.status(500).json({ error: "Failed to fetch email routing rules" });
+    }
+  });
+
+  // Get single email routing rule
+  app.get("/api/email-routing-rules/:id", requireAuth, async (req, res) => {
+    try {
+      const rule = await storage.getEmailRoutingRule(req.params.id);
+      if (!rule) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error fetching email routing rule:", error);
+      res.status(500).json({ error: "Failed to fetch email routing rule" });
+    }
+  });
+
+  // Create email routing rule
+  app.post("/api/email-routing-rules", requireAuth, async (req, res) => {
+    try {
+      const ruleData = {
+        ...req.body,
+        createdBy: req.session.user!.id,
+      };
+      const rule = await storage.createEmailRoutingRule(ruleData);
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating email routing rule:", error);
+      res.status(500).json({ error: "Failed to create email routing rule" });
+    }
+  });
+
+  // Update email routing rule
+  app.patch("/api/email-routing-rules/:id", requireAuth, async (req, res) => {
+    try {
+      const rule = await storage.updateEmailRoutingRule(req.params.id, req.body);
+      if (!rule) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error updating email routing rule:", error);
+      res.status(500).json({ error: "Failed to update email routing rule" });
+    }
+  });
+
+  // Delete email routing rule
+  app.delete("/api/email-routing-rules/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteEmailRoutingRule(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json({ message: "Rule deleted" });
+    } catch (error) {
+      console.error("Error deleting email routing rule:", error);
+      res.status(500).json({ error: "Failed to delete email routing rule" });
+    }
+  });
+
+  // Toggle email routing rule active status
+  app.post("/api/email-routing-rules/:id/toggle", requireAuth, async (req, res) => {
+    try {
+      const { isActive } = req.body;
+      const rule = await storage.toggleEmailRoutingRule(req.params.id, isActive);
+      if (!rule) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json(rule);
+    } catch (error) {
+      console.error("Error toggling email routing rule:", error);
+      res.status(500).json({ error: "Failed to toggle email routing rule" });
+    }
+  });
+
+  // ============================================
+  // EMAIL TAGS API
+  // ============================================
+
+  // Get all email tags
+  app.get("/api/email-tags", requireAuth, async (req, res) => {
+    try {
+      const tags = await storage.getAllEmailTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching email tags:", error);
+      res.status(500).json({ error: "Failed to fetch email tags" });
+    }
+  });
+
+  // Create email tag
+  app.post("/api/email-tags", requireAuth, async (req, res) => {
+    try {
+      const tag = await storage.createEmailTag(req.body);
+      res.status(201).json(tag);
+    } catch (error) {
+      console.error("Error creating email tag:", error);
+      res.status(500).json({ error: "Failed to create email tag" });
+    }
+  });
+
+  // Update email tag
+  app.patch("/api/email-tags/:id", requireAuth, async (req, res) => {
+    try {
+      const tag = await storage.updateEmailTag(req.params.id, req.body);
+      if (!tag) {
+        return res.status(404).json({ error: "Tag not found" });
+      }
+      res.json(tag);
+    } catch (error) {
+      console.error("Error updating email tag:", error);
+      res.status(500).json({ error: "Failed to update email tag" });
+    }
+  });
+
+  // Delete email tag
+  app.delete("/api/email-tags/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteEmailTag(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Tag not found" });
+      }
+      res.json({ message: "Tag deleted" });
+    } catch (error) {
+      console.error("Error deleting email tag:", error);
+      res.status(500).json({ error: "Failed to delete email tag" });
+    }
+  });
+
+  // ============================================
+  // CUSTOMER EMAIL NOTIFICATIONS API
+  // ============================================
+
+  // Get customer email notifications
+  app.get("/api/customers/:customerId/email-notifications", requireAuth, async (req, res) => {
+    try {
+      const notifications = await storage.getCustomerEmailNotifications(req.params.customerId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching customer email notifications:", error);
+      res.status(500).json({ error: "Failed to fetch customer email notifications" });
+    }
+  });
+
+  // Get unread count for customer
+  app.get("/api/customers/:customerId/email-notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadCustomerEmailNotificationsCount(req.params.customerId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/customer-email-notifications/:id/mark-read", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.markCustomerEmailNotificationRead(
+        req.params.id, 
+        req.session.user!.id
+      );
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
   // Tasks API (protected)
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {

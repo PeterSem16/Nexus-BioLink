@@ -3413,3 +3413,177 @@ export const emailSignaturesRelations = relations(emailSignatures, ({ one }) => 
     references: [users.id],
   }),
 }));
+
+// ============================================
+// EMAIL ROUTING RULES
+// ============================================
+
+// Priority levels for email routing
+export const EMAIL_PRIORITIES = [
+  { value: "low", label: "Nízka", color: "gray" },
+  { value: "normal", label: "Normálna", color: "blue" },
+  { value: "high", label: "Vysoká", color: "orange" },
+  { value: "urgent", label: "Urgentná", color: "red" },
+] as const;
+
+// Importance levels for email routing
+export const EMAIL_IMPORTANCE = [
+  { value: "low", label: "Nízka", color: "gray" },
+  { value: "normal", label: "Normálna", color: "blue" },
+  { value: "high", label: "Vysoká", color: "orange" },
+] as const;
+
+// Condition types for email routing rules
+export const EMAIL_CONDITION_TYPES = [
+  { value: "sender_email", label: "Odosielateľ (email)", description: "Emailová adresa odosielateľa" },
+  { value: "sender_domain", label: "Odosielateľ (doména)", description: "Doména odosielateľa (napr. @firma.sk)" },
+  { value: "subject_contains", label: "Predmet obsahuje", description: "Kľúčové slová v predmete" },
+  { value: "body_contains", label: "Obsah obsahuje", description: "Kľúčové slová v tele emailu" },
+  { value: "cc_contains", label: "CC obsahuje", description: "Emailová adresa v kópii" },
+  { value: "to_contains", label: "Príjemca obsahuje", description: "Emailová adresa príjemcu" },
+  { value: "has_attachment", label: "Obsahuje prílohu", description: "Email má prílohu" },
+  { value: "customer_email", label: "Email zákazníka", description: "Odosielateľ je registrovaný zákazník" },
+] as const;
+
+// Action types for email routing rules
+export const EMAIL_ACTION_TYPES = [
+  { value: "set_priority", label: "Nastaviť prioritu", description: "Priradí prioritu emailu" },
+  { value: "set_importance", label: "Nastaviť dôležitosť", description: "Priradí dôležitosť emailu" },
+  { value: "add_tag", label: "Pridať tag", description: "Pridá tag k emailu" },
+  { value: "create_notification", label: "Vytvoriť notifikáciu", description: "Vytvorí notifikáciu pre zákazníka" },
+  { value: "assign_to_user", label: "Priradiť používateľovi", description: "Priradí email konkrétnemu používateľovi" },
+  { value: "auto_reply", label: "Automatická odpoveď", description: "Odošle automatickú odpoveď" },
+] as const;
+
+// Email routing rules table
+export const emailRoutingRules = pgTable("email_routing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  priority: integer("priority").notNull().default(0), // Rule execution order (higher = first)
+  stopProcessing: boolean("stop_processing").notNull().default(false), // Stop after this rule matches
+  
+  // Conditions - stored as JSON array of condition objects
+  conditions: jsonb("conditions").$type<{
+    type: string; // sender_email, sender_domain, subject_contains, etc.
+    operator: string; // equals, contains, starts_with, ends_with, regex
+    value: string;
+    caseSensitive?: boolean;
+  }[]>().notNull().default([]),
+  
+  // Match mode - all conditions must match (AND) or any condition (OR)
+  matchMode: text("match_mode").notNull().default("all"), // 'all' or 'any'
+  
+  // Actions - stored as JSON array of action objects
+  actions: jsonb("actions").$type<{
+    type: string; // set_priority, set_importance, add_tag, create_notification, etc.
+    value: string; // priority level, importance level, tag name, etc.
+    config?: Record<string, any>; // Additional configuration
+  }[]>().notNull().default([]),
+  
+  // Mailbox filter - apply to specific mailboxes or all
+  mailboxFilter: text("mailbox_filter").array().default(sql`ARRAY[]::text[]`), // Empty = all mailboxes
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertEmailRoutingRuleSchema = createInsertSchema(emailRoutingRules).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertEmailRoutingRule = z.infer<typeof insertEmailRoutingRuleSchema>;
+export type EmailRoutingRule = typeof emailRoutingRules.$inferSelect;
+
+export const emailRoutingRulesRelations = relations(emailRoutingRules, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [emailRoutingRules.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Email tags - custom tags that can be applied to emails
+export const emailTags = pgTable("email_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#6B7280"), // Hex color
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertEmailTagSchema = createInsertSchema(emailTags).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertEmailTag = z.infer<typeof insertEmailTagSchema>;
+export type EmailTag = typeof emailTags.$inferSelect;
+
+// Email metadata - stores routing results and tags for processed emails
+export const emailMetadata = pgTable("email_metadata", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: text("message_id").notNull(), // MS Graph message ID
+  mailboxEmail: text("mailbox_email").notNull(),
+  priority: text("priority").default("normal"), // low, normal, high, urgent
+  importance: text("importance").default("normal"), // low, normal, high
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`), // Array of tag names
+  matchedRules: text("matched_rules").array().default(sql`ARRAY[]::text[]`), // Rule IDs that matched
+  customerId: varchar("customer_id").references(() => customers.id), // Linked customer if any
+  isProcessed: boolean("is_processed").notNull().default(false),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertEmailMetadataSchema = createInsertSchema(emailMetadata).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+export type InsertEmailMetadata = z.infer<typeof insertEmailMetadataSchema>;
+export type EmailMetadata = typeof emailMetadata.$inferSelect;
+
+export const emailMetadataRelations = relations(emailMetadata, ({ one }) => ({
+  customer: one(customers, {
+    fields: [emailMetadata.customerId],
+    references: [customers.id],
+  }),
+}));
+
+// Customer email notifications - notifications in customer detail when email arrives
+export const customerEmailNotifications = pgTable("customer_email_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id, { onDelete: "cascade" }).notNull(),
+  messageId: text("message_id").notNull(), // MS Graph message ID
+  mailboxEmail: text("mailbox_email").notNull(),
+  subject: text("subject").notNull(),
+  senderEmail: text("sender_email").notNull(),
+  senderName: text("sender_name"),
+  receivedAt: timestamp("received_at").notNull(),
+  priority: text("priority").default("normal"),
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  readBy: varchar("read_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertCustomerEmailNotificationSchema = createInsertSchema(customerEmailNotifications).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertCustomerEmailNotification = z.infer<typeof insertCustomerEmailNotificationSchema>;
+export type CustomerEmailNotification = typeof customerEmailNotifications.$inferSelect;
+
+export const customerEmailNotificationsRelations = relations(customerEmailNotifications, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerEmailNotifications.customerId],
+    references: [customers.id],
+  }),
+  readByUser: one(users, {
+    fields: [customerEmailNotifications.readBy],
+    references: [users.id],
+  }),
+}));

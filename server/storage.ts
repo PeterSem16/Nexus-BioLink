@@ -93,9 +93,14 @@ import {
   type DealProduct, type InsertDealProduct,
   type AutomationRule, type InsertAutomationRule,
   userMs365Connections, userMs365SharedMailboxes, emailSignatures,
+  emailRoutingRules, emailTags, emailMetadata, customerEmailNotifications,
   type UserMs365Connection, type InsertUserMs365Connection,
   type UserMs365SharedMailbox, type InsertUserMs365SharedMailbox,
-  type EmailSignature, type InsertEmailSignature
+  type EmailSignature, type InsertEmailSignature,
+  type EmailRoutingRule, type InsertEmailRoutingRule,
+  type EmailTag, type InsertEmailTag,
+  type EmailMetadata, type InsertEmailMetadata,
+  type CustomerEmailNotification, type InsertCustomerEmailNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
@@ -711,6 +716,31 @@ export interface IStorage {
   getEmailSignatures(userId: string): Promise<EmailSignature[]>;
   upsertEmailSignature(data: InsertEmailSignature): Promise<EmailSignature>;
   deleteEmailSignature(userId: string, mailboxEmail: string): Promise<boolean>;
+
+  // Email Routing Rules
+  getAllEmailRoutingRules(): Promise<EmailRoutingRule[]>;
+  getEmailRoutingRule(id: string): Promise<EmailRoutingRule | undefined>;
+  createEmailRoutingRule(data: InsertEmailRoutingRule): Promise<EmailRoutingRule>;
+  updateEmailRoutingRule(id: string, data: Partial<InsertEmailRoutingRule>): Promise<EmailRoutingRule | undefined>;
+  deleteEmailRoutingRule(id: string): Promise<boolean>;
+  toggleEmailRoutingRule(id: string, isActive: boolean): Promise<EmailRoutingRule | undefined>;
+
+  // Email Tags
+  getAllEmailTags(): Promise<EmailTag[]>;
+  getEmailTag(id: string): Promise<EmailTag | undefined>;
+  createEmailTag(data: InsertEmailTag): Promise<EmailTag>;
+  updateEmailTag(id: string, data: Partial<InsertEmailTag>): Promise<EmailTag | undefined>;
+  deleteEmailTag(id: string): Promise<boolean>;
+
+  // Email Metadata
+  getEmailMetadata(messageId: string, mailboxEmail: string): Promise<EmailMetadata | undefined>;
+  upsertEmailMetadata(data: InsertEmailMetadata): Promise<EmailMetadata>;
+
+  // Customer Email Notifications
+  getCustomerEmailNotifications(customerId: string): Promise<CustomerEmailNotification[]>;
+  createCustomerEmailNotification(data: InsertCustomerEmailNotification): Promise<CustomerEmailNotification>;
+  markCustomerEmailNotificationRead(id: string, userId: string): Promise<CustomerEmailNotification | undefined>;
+  getUnreadCustomerEmailNotificationsCount(customerId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4198,6 +4228,129 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return result.length > 0;
+  }
+
+  // Email Routing Rules
+  async getAllEmailRoutingRules(): Promise<EmailRoutingRule[]> {
+    return db.select().from(emailRoutingRules)
+      .orderBy(desc(emailRoutingRules.priority), asc(emailRoutingRules.name));
+  }
+
+  async getEmailRoutingRule(id: string): Promise<EmailRoutingRule | undefined> {
+    const [rule] = await db.select().from(emailRoutingRules)
+      .where(eq(emailRoutingRules.id, id));
+    return rule || undefined;
+  }
+
+  async createEmailRoutingRule(data: InsertEmailRoutingRule): Promise<EmailRoutingRule> {
+    const [rule] = await db.insert(emailRoutingRules).values(data).returning();
+    return rule;
+  }
+
+  async updateEmailRoutingRule(id: string, data: Partial<InsertEmailRoutingRule>): Promise<EmailRoutingRule | undefined> {
+    const [rule] = await db.update(emailRoutingRules)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(emailRoutingRules.id, id))
+      .returning();
+    return rule || undefined;
+  }
+
+  async deleteEmailRoutingRule(id: string): Promise<boolean> {
+    const result = await db.delete(emailRoutingRules)
+      .where(eq(emailRoutingRules.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async toggleEmailRoutingRule(id: string, isActive: boolean): Promise<EmailRoutingRule | undefined> {
+    const [rule] = await db.update(emailRoutingRules)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(emailRoutingRules.id, id))
+      .returning();
+    return rule || undefined;
+  }
+
+  // Email Tags
+  async getAllEmailTags(): Promise<EmailTag[]> {
+    return db.select().from(emailTags).orderBy(asc(emailTags.name));
+  }
+
+  async getEmailTag(id: string): Promise<EmailTag | undefined> {
+    const [tag] = await db.select().from(emailTags).where(eq(emailTags.id, id));
+    return tag || undefined;
+  }
+
+  async createEmailTag(data: InsertEmailTag): Promise<EmailTag> {
+    const [tag] = await db.insert(emailTags).values(data).returning();
+    return tag;
+  }
+
+  async updateEmailTag(id: string, data: Partial<InsertEmailTag>): Promise<EmailTag | undefined> {
+    const [tag] = await db.update(emailTags)
+      .set(data)
+      .where(eq(emailTags.id, id))
+      .returning();
+    return tag || undefined;
+  }
+
+  async deleteEmailTag(id: string): Promise<boolean> {
+    const result = await db.delete(emailTags)
+      .where(eq(emailTags.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Email Metadata
+  async getEmailMetadata(messageId: string, mailboxEmail: string): Promise<EmailMetadata | undefined> {
+    const [metadata] = await db.select().from(emailMetadata)
+      .where(and(
+        eq(emailMetadata.messageId, messageId),
+        eq(emailMetadata.mailboxEmail, mailboxEmail)
+      ));
+    return metadata || undefined;
+  }
+
+  async upsertEmailMetadata(data: InsertEmailMetadata): Promise<EmailMetadata> {
+    const existing = await this.getEmailMetadata(data.messageId, data.mailboxEmail);
+    if (existing) {
+      const [updated] = await db.update(emailMetadata)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(emailMetadata.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(emailMetadata).values(data).returning();
+    return created;
+  }
+
+  // Customer Email Notifications
+  async getCustomerEmailNotifications(customerId: string): Promise<CustomerEmailNotification[]> {
+    return db.select().from(customerEmailNotifications)
+      .where(eq(customerEmailNotifications.customerId, customerId))
+      .orderBy(desc(customerEmailNotifications.receivedAt));
+  }
+
+  async createCustomerEmailNotification(data: InsertCustomerEmailNotification): Promise<CustomerEmailNotification> {
+    const [notification] = await db.insert(customerEmailNotifications).values(data).returning();
+    return notification;
+  }
+
+  async markCustomerEmailNotificationRead(id: string, userId: string): Promise<CustomerEmailNotification | undefined> {
+    const [notification] = await db.update(customerEmailNotifications)
+      .set({ isRead: true, readAt: new Date(), readBy: userId })
+      .where(eq(customerEmailNotifications.id, id))
+      .returning();
+    return notification || undefined;
+  }
+
+  async getUnreadCustomerEmailNotificationsCount(customerId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(customerEmailNotifications)
+      .where(and(
+        eq(customerEmailNotifications.customerId, customerId),
+        eq(customerEmailNotifications.isRead, false)
+      ));
+    return result[0]?.count || 0;
   }
 }
 

@@ -5,6 +5,7 @@ import {
   Users, 
   UserCog, 
   Settings,
+  Cloud,
   Activity,
   Droplets,
   LogOut,
@@ -77,6 +78,7 @@ export function AppSidebar() {
     { title: t.nav.users, url: "/users", icon: UserCog, testId: "users", moduleKey: "users" },
     { title: t.nav.settings, url: "/settings", icon: Settings, testId: "settings", moduleKey: "settings" },
     { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator", moduleKey: "configurator" },
+    { title: "Microsoft 365", url: "/ms365", icon: Cloud, testId: "ms365", moduleKey: "settings" },
   ];
 
   const toolsNavItems = [

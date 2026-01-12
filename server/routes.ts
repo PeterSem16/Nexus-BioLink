@@ -1404,6 +1404,283 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // Microsoft 365 / Entra ID Integration API
+  // ============================================
+  
+  // Store PKCE verifiers temporarily (in production, use Redis or session)
+  const ms365PkceStore = new Map<string, { codeVerifier: string; createdAt: Date }>();
+  
+  // Cleanup old PKCE codes (older than 10 minutes)
+  setInterval(() => {
+    const now = Date.now();
+    for (const [state, data] of ms365PkceStore) {
+      if (now - data.createdAt.getTime() > 10 * 60 * 1000) {
+        ms365PkceStore.delete(state);
+      }
+    }
+  }, 60000);
+  
+  // Get MS365 configuration status
+  app.get("/api/ms365/status", requireAuth, async (req, res) => {
+    try {
+      const { getConfigStatus, isConfigured } = await import("./lib/ms365");
+      const status = getConfigStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Error fetching MS365 status:", error);
+      res.status(500).json({ error: "Failed to fetch MS365 status", configured: false });
+    }
+  });
+  
+  // Initiate OAuth flow with Microsoft
+  app.get("/api/auth/microsoft", requireAuth, async (req, res) => {
+    try {
+      const { getAuthorizationUrl, isConfigured } = await import("./lib/ms365");
+      
+      if (!isConfigured()) {
+        return res.status(400).json({ error: "MS365 integration not configured" });
+      }
+      
+      const { url, codeVerifier, state } = await getAuthorizationUrl();
+      
+      // Store PKCE verifier
+      ms365PkceStore.set(state, { codeVerifier, createdAt: new Date() });
+      
+      // Also store in session for security
+      (req.session as any).ms365State = state;
+      
+      res.json({ authUrl: url, state });
+    } catch (error) {
+      console.error("Error initiating MS365 auth:", error);
+      res.status(500).json({ error: "Failed to initiate Microsoft authentication" });
+    }
+  });
+  
+  // OAuth callback from Microsoft
+  app.get("/api/auth/microsoft/callback", async (req, res) => {
+    try {
+      const { code, state, error: authError, error_description } = req.query;
+      
+      if (authError) {
+        console.error("MS365 auth error:", authError, error_description);
+        return res.redirect(`/?ms365_error=${encodeURIComponent(String(error_description || authError))}`);
+      }
+      
+      if (!code || !state) {
+        return res.redirect("/?ms365_error=Missing%20authorization%20code%20or%20state");
+      }
+      
+      // SECURITY: Validate state matches the one stored in user's session (CSRF protection)
+      const sessionState = (req.session as any)?.ms365State;
+      if (!sessionState || sessionState !== String(state)) {
+        console.error("MS365 auth error: State mismatch - possible CSRF attack");
+        return res.redirect("/?ms365_error=Invalid%20session%20state%20-%20please%20try%20again");
+      }
+      
+      // Retrieve PKCE verifier
+      const pkceData = ms365PkceStore.get(String(state));
+      if (!pkceData) {
+        return res.redirect("/?ms365_error=Invalid%20or%20expired%20state");
+      }
+      
+      const { acquireTokenByCode, getUserProfile } = await import("./lib/ms365");
+      
+      // Exchange code for tokens
+      const tokenResult = await acquireTokenByCode(String(code), pkceData.codeVerifier);
+      
+      // Clean up PKCE store and session state
+      ms365PkceStore.delete(String(state));
+      delete (req.session as any).ms365State;
+      
+      // Get user profile from Microsoft Graph
+      const profile = await getUserProfile(tokenResult.accessToken);
+      
+      // Store tokens in session
+      if (req.session) {
+        (req.session as any).ms365 = {
+          accessToken: tokenResult.accessToken,
+          expiresOn: tokenResult.expiresOn,
+          account: tokenResult.account,
+          profile,
+          connectedAt: new Date(),
+        };
+      }
+      
+      // Redirect back to app with success
+      res.redirect("/?ms365_connected=true");
+    } catch (error) {
+      console.error("Error in MS365 callback:", error);
+      res.redirect(`/?ms365_error=${encodeURIComponent("Authentication failed")}`);
+    }
+  });
+  
+  // Front-channel logout from Microsoft
+  app.get("/api/auth/microsoft/logout", (req, res) => {
+    try {
+      // Clear MS365 session data
+      if (req.session) {
+        delete (req.session as any).ms365;
+        delete (req.session as any).ms365State;
+      }
+      res.status(200).send("Logged out from Microsoft 365");
+    } catch (error) {
+      console.error("Error in MS365 logout:", error);
+      res.status(500).send("Logout error");
+    }
+  });
+  
+  // Disconnect MS365 (clear session)
+  app.post("/api/ms365/disconnect", requireAuth, async (req, res) => {
+    try {
+      if (req.session) {
+        delete (req.session as any).ms365;
+        delete (req.session as any).ms365State;
+      }
+      
+      const { getLogoutUrl } = await import("./lib/ms365");
+      res.json({ 
+        message: "Disconnected from Microsoft 365",
+        logoutUrl: getLogoutUrl() 
+      });
+    } catch (error) {
+      console.error("Error disconnecting MS365:", error);
+      res.status(500).json({ error: "Failed to disconnect" });
+    }
+  });
+  
+  // Get current MS365 connection status
+  app.get("/api/ms365/connection", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session) {
+        return res.json({ connected: false });
+      }
+      
+      // Check if token is expired
+      const expiresOn = new Date(ms365Session.expiresOn);
+      const isExpired = expiresOn < new Date();
+      
+      res.json({
+        connected: !isExpired,
+        profile: ms365Session.profile,
+        connectedAt: ms365Session.connectedAt,
+        expiresOn: ms365Session.expiresOn,
+        isExpired,
+      });
+    } catch (error) {
+      console.error("Error fetching MS365 connection:", error);
+      res.status(500).json({ error: "Failed to fetch connection status" });
+    }
+  });
+  
+  // Test MS365 connection - get user profile
+  app.get("/api/ms365/me", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365" });
+      }
+      
+      const { getUserProfile } = await import("./lib/ms365");
+      const profile = await getUserProfile(ms365Session.accessToken);
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching MS365 profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+  
+  // Get emails from MS365
+  app.get("/api/ms365/emails", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365" });
+      }
+      
+      const top = parseInt(req.query.top as string) || 10;
+      const { getUserEmails } = await import("./lib/ms365");
+      const emails = await getUserEmails(ms365Session.accessToken, top);
+      
+      res.json(emails);
+    } catch (error) {
+      console.error("Error fetching MS365 emails:", error);
+      res.status(500).json({ error: "Failed to fetch emails" });
+    }
+  });
+  
+  // Send email via MS365
+  app.post("/api/ms365/send-email", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365" });
+      }
+      
+      const { to, subject, body, isHtml } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ error: "Missing required fields: to, subject, body" });
+      }
+      
+      const { sendEmail } = await import("./lib/ms365");
+      await sendEmail(ms365Session.accessToken, Array.isArray(to) ? to : [to], subject, body, isHtml !== false);
+      
+      res.json({ message: "Email sent successfully" });
+    } catch (error) {
+      console.error("Error sending MS365 email:", error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+  
+  // Get calendar events from MS365
+  app.get("/api/ms365/calendar", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365" });
+      }
+      
+      const startDate = req.query.start ? new Date(req.query.start as string) : new Date();
+      const endDate = req.query.end ? new Date(req.query.end as string) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      const { getCalendarEvents } = await import("./lib/ms365");
+      const events = await getCalendarEvents(ms365Session.accessToken, startDate, endDate);
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching MS365 calendar:", error);
+      res.status(500).json({ error: "Failed to fetch calendar events" });
+    }
+  });
+  
+  // Get contacts from MS365
+  app.get("/api/ms365/contacts", requireAuth, async (req, res) => {
+    try {
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365" });
+      }
+      
+      const top = parseInt(req.query.top as string) || 50;
+      const { getContacts } = await import("./lib/ms365");
+      const contacts = await getContacts(ms365Session.accessToken, top);
+      
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching MS365 contacts:", error);
+      res.status(500).json({ error: "Failed to fetch contacts" });
+    }
+  });
+
   // Tasks API (protected)
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {

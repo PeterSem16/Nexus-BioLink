@@ -3387,3 +3387,29 @@ export const userMs365SharedMailboxesRelations = relations(userMs365SharedMailbo
     references: [users.id],
   }),
 }));
+
+// Email signatures - HTML signatures for mailboxes
+export const emailSignatures = pgTable("email_signatures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  mailboxEmail: text("mailbox_email").notNull(), // 'personal' or shared mailbox email
+  htmlContent: text("html_content").notNull().default(""),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertEmailSignatureSchema = createInsertSchema(emailSignatures).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertEmailSignature = z.infer<typeof insertEmailSignatureSchema>;
+export type EmailSignature = typeof emailSignatures.$inferSelect;
+
+export const emailSignaturesRelations = relations(emailSignatures, ({ one }) => ({
+  user: one(users, {
+    fields: [emailSignatures.userId],
+    references: [users.id],
+  }),
+}));

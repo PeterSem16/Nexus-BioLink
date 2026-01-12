@@ -92,9 +92,10 @@ import {
   type DealActivity, type InsertDealActivity,
   type DealProduct, type InsertDealProduct,
   type AutomationRule, type InsertAutomationRule,
-  userMs365Connections, userMs365SharedMailboxes,
+  userMs365Connections, userMs365SharedMailboxes, emailSignatures,
   type UserMs365Connection, type InsertUserMs365Connection,
-  type UserMs365SharedMailbox, type InsertUserMs365SharedMailbox
+  type UserMs365SharedMailbox, type InsertUserMs365SharedMailbox,
+  type EmailSignature, type InsertEmailSignature
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
@@ -704,6 +705,12 @@ export interface IStorage {
   updateUserMs365SharedMailbox(id: string, data: Partial<InsertUserMs365SharedMailbox>): Promise<UserMs365SharedMailbox | undefined>;
   deleteUserMs365SharedMailbox(id: string): Promise<boolean>;
   setDefaultUserMs365SharedMailbox(userId: string, mailboxId: string): Promise<UserMs365SharedMailbox | undefined>;
+
+  // Email Signatures
+  getEmailSignature(userId: string, mailboxEmail: string): Promise<EmailSignature | undefined>;
+  getEmailSignatures(userId: string): Promise<EmailSignature[]>;
+  upsertEmailSignature(data: InsertEmailSignature): Promise<EmailSignature>;
+  deleteEmailSignature(userId: string, mailboxEmail: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4152,6 +4159,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userMs365SharedMailboxes.id, mailboxId))
       .returning();
     return mailbox || undefined;
+  }
+
+  // Email Signatures
+  async getEmailSignature(userId: string, mailboxEmail: string): Promise<EmailSignature | undefined> {
+    const [signature] = await db.select().from(emailSignatures)
+      .where(and(
+        eq(emailSignatures.userId, userId),
+        eq(emailSignatures.mailboxEmail, mailboxEmail)
+      ));
+    return signature || undefined;
+  }
+
+  async getEmailSignatures(userId: string): Promise<EmailSignature[]> {
+    return db.select().from(emailSignatures)
+      .where(eq(emailSignatures.userId, userId))
+      .orderBy(asc(emailSignatures.mailboxEmail));
+  }
+
+  async upsertEmailSignature(data: InsertEmailSignature): Promise<EmailSignature> {
+    const existing = await this.getEmailSignature(data.userId, data.mailboxEmail);
+    if (existing) {
+      const [updated] = await db.update(emailSignatures)
+        .set({ htmlContent: data.htmlContent, isActive: data.isActive ?? true, updatedAt: new Date() })
+        .where(eq(emailSignatures.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(emailSignatures).values(data).returning();
+    return created;
+  }
+
+  async deleteEmailSignature(userId: string, mailboxEmail: string): Promise<boolean> {
+    const result = await db.delete(emailSignatures)
+      .where(and(
+        eq(emailSignatures.userId, userId),
+        eq(emailSignatures.mailboxEmail, mailboxEmail)
+      ))
+      .returning();
+    return result.length > 0;
   }
 }
 

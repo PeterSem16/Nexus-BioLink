@@ -38,6 +38,7 @@ const msalConfig: Configuration = {
 };
 
 // Scopes for Microsoft Graph API
+// Note: Files.Read requires admin consent, so we exclude it
 const GRAPH_SCOPES = [
   'User.Read',
   'Mail.Read',
@@ -45,7 +46,6 @@ const GRAPH_SCOPES = [
   'Calendars.Read',
   'Calendars.ReadWrite',
   'Contacts.Read',
-  'Files.Read',
   'offline_access',
 ];
 

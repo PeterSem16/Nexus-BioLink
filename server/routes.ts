@@ -1312,7 +1312,7 @@ export async function registerRoutes(
         "consent",
         consent.id,
         `${req.body.consentType} for customer ${req.params.id}`,
-        { consentType: req.body.consentType, legalBasis: req.body.legalBasis },
+        { consentType: req.body.consentType, legalBasis: req.body.legalBasis, customerId: req.params.id },
         req.ip
       );
       
@@ -1354,7 +1354,7 @@ export async function registerRoutes(
         "consent",
         consent.id,
         `${consent.consentType} for customer ${req.params.customerId}`,
-        { consentType: consent.consentType, reason: req.body.reason },
+        { consentType: consent.consentType, reason: req.body.reason, customerId: req.params.customerId },
         req.ip
       );
       
@@ -3156,6 +3156,9 @@ export async function registerRoutes(
     try {
       const logs = await storage.getActivityLogsByEntity("customer", req.params.customerId);
       
+      // Also get consent logs (stored with entityType="consent" but with customerId in details)
+      const consentLogs = await storage.getConsentLogsByCustomerId(req.params.customerId);
+      
       // Also get campaign participations from campaign_contacts table
       const campaignContacts = await storage.getCampaignContactsByCustomer(req.params.customerId);
       
@@ -3197,7 +3200,7 @@ export async function registerRoutes(
       });
       
       // Combine and sort by date
-      const allLogs = [...logs, ...newCampaignLogs].sort((a, b) => 
+      const allLogs = [...logs, ...consentLogs, ...newCampaignLogs].sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       

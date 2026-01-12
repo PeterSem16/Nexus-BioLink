@@ -243,6 +243,7 @@ export interface IStorage {
   getActivityLogsByUser(userId: string, limit?: number): Promise<ActivityLog[]>;
   getActivityLogsByEntity(entityType: string, entityId: string): Promise<ActivityLog[]>;
   getAllActivityLogs(limit?: number): Promise<ActivityLog[]>;
+  getConsentLogsByCustomerId(customerId: string): Promise<ActivityLog[]>;
 
   // Customer Consents (GDPR)
   getCustomerConsents(customerId: string): Promise<CustomerConsent[]>;
@@ -1387,6 +1388,12 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(activityLogs)
       .orderBy(desc(activityLogs.createdAt))
       .limit(limit);
+  }
+
+  async getConsentLogsByCustomerId(customerId: string): Promise<ActivityLog[]> {
+    return db.select().from(activityLogs)
+      .where(sql`(${activityLogs.action} = 'consent_granted' OR ${activityLogs.action} = 'consent_revoked' OR ${activityLogs.action} = 'consent_created') AND ${activityLogs.details}::jsonb->>'customerId' = ${customerId}`)
+      .orderBy(desc(activityLogs.createdAt));
   }
 
   // Customer Consents (GDPR)

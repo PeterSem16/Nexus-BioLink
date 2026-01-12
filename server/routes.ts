@@ -6116,6 +6116,10 @@ export async function registerRoutes(
       const previousStatus = existingContact.status;
       const contact = await storage.updateCampaignContact(req.params.contactId, req.body);
       
+      // Get customer and campaign info for logging
+      const customer = await storage.getCustomer(existingContact.customerId);
+      const campaign = await storage.getCampaign(existingContact.campaignId);
+      
       // Log history if status changed
       if (req.body.status && req.body.status !== previousStatus) {
         await storage.createCampaignContactHistory({
@@ -6126,6 +6130,25 @@ export async function registerRoutes(
           newStatus: req.body.status,
           notes: req.body.notes || null,
         });
+        
+        // Log to customer activity
+        if (customer) {
+          await logActivity(
+            req.session.user!.id,
+            "campaign_status_changed",
+            "customer",
+            customer.id,
+            `${customer.firstName} ${customer.lastName}`,
+            { 
+              campaignId: campaign?.id,
+              campaignName: campaign?.name || "Kampaň",
+              previousStatus,
+              newStatus: req.body.status,
+              notes: req.body.notes || null
+            },
+            req.ip
+          );
+        }
       } else if (req.body.notes) {
         await storage.createCampaignContactHistory({
           campaignContactId: req.params.contactId,
@@ -6133,6 +6156,23 @@ export async function registerRoutes(
           action: "note_added",
           notes: req.body.notes,
         });
+        
+        // Log note to customer activity
+        if (customer) {
+          await logActivity(
+            req.session.user!.id,
+            "campaign_note_added",
+            "customer",
+            customer.id,
+            `${customer.firstName} ${customer.lastName}`,
+            { 
+              campaignId: campaign?.id,
+              campaignName: campaign?.name || "Kampaň",
+              content: req.body.notes
+            },
+            req.ip
+          );
+        }
       }
       
       res.json(contact);

@@ -1753,6 +1753,10 @@ function CustomerDetailsContent({
         return <LogIn className="h-4 w-4 text-purple-600" />;
       case "campaign_left":
         return <LogOut className="h-4 w-4 text-purple-600" />;
+      case "campaign_status_changed":
+        return <ArrowRight className="h-4 w-4 text-indigo-600" />;
+      case "campaign_note_added":
+        return <FileEdit className="h-4 w-4 text-violet-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
@@ -1774,6 +1778,8 @@ function CustomerDetailsContent({
       stage_changed: "Presun v pipeline",
       campaign_joined: "Pridanie do kampane",
       campaign_left: "Odstránenie z kampane",
+      campaign_status_changed: "Zmena statusu v kampani",
+      campaign_note_added: "Poznámka ku kampani",
       note_added: "Poznámka pridaná",
       add_note: "Poznámka pridaná",
       create_note: "Poznámka pridaná",
@@ -1816,6 +1822,32 @@ function CustomerDetailsContent({
         <div className="mt-2 p-2 rounded-md bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 text-sm">
           <span className="text-muted-foreground">{action === "campaign_joined" ? "Pridaný do:" : "Odstránený z:"}</span>{" "}
           <strong>{campaignName}</strong>
+        </div>
+      );
+    }
+
+    if (action === "campaign_status_changed") {
+      const campaignName = (details.campaignName as string) || "Kampaň";
+      const previousStatus = (details.previousStatus as string) || "";
+      const newStatus = (details.newStatus as string) || "";
+      return (
+        <div className="mt-2 p-2 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-sm">
+          <div className="font-medium text-indigo-700 dark:text-indigo-300">{campaignName}</div>
+          <div className="text-muted-foreground">
+            Status: <span className="line-through">{previousStatus}</span> → <strong>{newStatus}</strong>
+          </div>
+          {details.notes && <div className="mt-1 text-xs italic">{details.notes as string}</div>}
+        </div>
+      );
+    }
+
+    if (action === "campaign_note_added") {
+      const campaignName = (details.campaignName as string) || "Kampaň";
+      const content = (details.content as string) || "";
+      return (
+        <div className="mt-2 p-2 rounded-md bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800 text-sm">
+          <div className="font-medium text-violet-700 dark:text-violet-300">{campaignName}</div>
+          <p className="text-foreground whitespace-pre-wrap">{content}</p>
         </div>
       );
     }

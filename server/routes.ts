@@ -3155,7 +3155,53 @@ export async function registerRoutes(
   app.get("/api/customers/:customerId/activity-logs", requireAuth, async (req, res) => {
     try {
       const logs = await storage.getActivityLogsByEntity("customer", req.params.customerId);
-      res.json(logs);
+      
+      // Also get campaign participations from campaign_contacts table
+      const campaignContacts = await storage.getCampaignContactsByCustomer(req.params.customerId);
+      
+      // Create synthetic activity logs for campaign participations that don't have real logs
+      const campaignLogs = campaignContacts.map(cc => ({
+        id: `campaign-${cc.id}`,
+        userId: null,
+        action: "campaign_joined",
+        entityType: "customer",
+        entityId: req.params.customerId,
+        entityName: null,
+        details: JSON.stringify({ 
+          campaignId: cc.campaignId, 
+          campaignName: cc.campaign?.name || "Kampaň",
+          synthetic: true 
+        }),
+        ipAddress: null,
+        createdAt: cc.createdAt,
+      }));
+      
+      // Filter out synthetic logs for campaigns that already have real activity logs
+      const existingCampaignIds = new Set(
+        logs
+          .filter(l => l.action === "campaign_joined")
+          .map(l => {
+            try {
+              const details = JSON.parse(l.details || "{}");
+              return details.campaignId;
+            } catch { return null; }
+          })
+          .filter(Boolean)
+      );
+      
+      const newCampaignLogs = campaignLogs.filter(cl => {
+        try {
+          const details = JSON.parse(cl.details || "{}");
+          return !existingCampaignIds.has(details.campaignId);
+        } catch { return true; }
+      });
+      
+      // Combine and sort by date
+      const allLogs = [...logs, ...newCampaignLogs].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      res.json(allLogs);
     } catch (error) {
       console.error("Error fetching customer activity logs:", error);
       res.status(500).json({ error: "Failed to fetch customer activity logs" });

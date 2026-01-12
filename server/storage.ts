@@ -434,6 +434,7 @@ export interface IStorage {
 
   // Campaign Contacts
   getCampaignContacts(campaignId: string): Promise<CampaignContact[]>;
+  getCampaignContactsByCustomer(customerId: string): Promise<(CampaignContact & { campaign?: Campaign })[]>;
   getCampaignContact(id: string): Promise<CampaignContact | undefined>;
   createCampaignContact(data: InsertCampaignContact): Promise<CampaignContact>;
   createCampaignContacts(data: InsertCampaignContact[]): Promise<CampaignContact[]>;
@@ -2354,6 +2355,22 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(campaignContacts)
       .where(eq(campaignContacts.campaignId, campaignId))
       .orderBy(desc(campaignContacts.createdAt));
+  }
+
+  async getCampaignContactsByCustomer(customerId: string): Promise<(CampaignContact & { campaign?: Campaign })[]> {
+    const contacts = await db.select({
+      contact: campaignContacts,
+      campaign: campaigns,
+    })
+      .from(campaignContacts)
+      .leftJoin(campaigns, eq(campaignContacts.campaignId, campaigns.id))
+      .where(eq(campaignContacts.customerId, customerId))
+      .orderBy(desc(campaignContacts.createdAt));
+    
+    return contacts.map(row => ({
+      ...row.contact,
+      campaign: row.campaign || undefined,
+    }));
   }
 
   async getCampaignContact(id: string): Promise<CampaignContact | undefined> {

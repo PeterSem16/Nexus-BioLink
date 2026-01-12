@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Eye, Package, FileText, Download, Calculator, MessageSquare, History, Send, Mail, Phone, PhoneCall, Baby, Copy, ListChecks, FileEdit, UserCircle, Clock, PlusCircle, RefreshCw, XCircle, LogIn, LogOut, AlertCircle, CheckCircle2, ArrowRight, Shield, CreditCard, Loader2, Calendar, Globe, Linkedin, Facebook, Twitter, Instagram, Building2, ExternalLink, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -872,6 +872,518 @@ function EmailPaymentBreakdownItem({
       </div>
     );
   }
+}
+
+// Timeline action types for filtering
+const TIMELINE_ACTION_TYPES = [
+  { value: "all", label: "Všetky", icon: ListChecks },
+  { value: "update", label: "Zmeny údajov", icon: Pencil },
+  { value: "document", label: "Dokumenty", icon: FileText },
+  { value: "note", label: "Poznámky", icon: MessageSquare },
+  { value: "message", label: "Správy", icon: Mail },
+  { value: "status", label: "Zmeny stavu", icon: RefreshCw },
+  { value: "product", label: "Produkty", icon: Package },
+  { value: "pipeline", label: "Pipeline", icon: ArrowRight },
+] as const;
+
+// Field label translations for displaying changes
+const FIELD_LABELS: Record<string, string> = {
+  firstName: "Meno",
+  lastName: "Priezvisko",
+  maidenName: "Rodné meno",
+  titleBefore: "Titul pred",
+  titleAfter: "Titul za",
+  email: "Email",
+  email2: "Sekundárny email",
+  phone: "Telefón",
+  mobile: "Mobil",
+  mobile2: "Mobil 2",
+  otherContact: "Ďalší kontakt",
+  nationalId: "Rodné číslo",
+  idCardNumber: "Číslo OP",
+  dateOfBirth: "Dátum narodenia",
+  country: "Krajina",
+  city: "Mesto",
+  address: "Adresa",
+  postalCode: "PSČ",
+  region: "Región",
+  status: "Stav",
+  clientStatus: "Stav klienta",
+  serviceType: "Typ služby",
+  leadScore: "Lead skóre",
+  leadStatus: "Lead stav",
+  newsletter: "Newsletter",
+  notes: "Poznámky",
+  bankAccount: "Bankový účet",
+  bankCode: "Kód banky",
+  bankName: "Názov banky",
+  bankSwift: "SWIFT",
+  healthInsuranceId: "Zdravotná poisťovňa",
+  useCorrespondenceAddress: "Korešpondenčná adresa",
+  corrName: "Korešp. meno",
+  corrAddress: "Korešp. adresa",
+  corrCity: "Korešp. mesto",
+  corrPostalCode: "Korešp. PSČ",
+  corrRegion: "Korešp. región",
+  corrCountry: "Korešp. krajina",
+  complaintTypeId: "Typ reklamácie",
+  cooperationTypeId: "Typ spolupráce",
+  vipStatusId: "VIP status",
+  assignedUserId: "Priradený používateľ",
+};
+
+function CustomerHistoryTimeline({ 
+  customerId, 
+  customerName 
+}: { 
+  customerId: string; 
+  customerName: string;
+}) {
+  const { toast } = useToast();
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch all data sources
+  const { data: activityLogs = [], isLoading: logsLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers", customerId, "activity-logs"],
+  });
+
+  const { data: documents = [], isLoading: docsLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers", customerId, "documents"],
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers", customerId, "notes"],
+  });
+
+  const { data: messages = [], isLoading: messagesLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers", customerId, "messages"],
+  });
+
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const getUserName = (userId: string) => {
+    const user = users.find((u: any) => u.id === userId);
+    return user?.fullName || user?.username || "Systém";
+  };
+
+  // Combine all events into unified timeline
+  const timelineEvents = useMemo(() => {
+    const events: Array<{
+      id: string;
+      type: string;
+      action: string;
+      title: string;
+      description: string;
+      details?: any;
+      createdAt: string;
+      userId?: string;
+      downloadUrl?: string;
+      documentType?: string;
+      icon: any;
+      color: string;
+    }> = [];
+
+    // Add activity logs
+    activityLogs.forEach((log: any) => {
+      // Handle details - may be string or already parsed object
+      let details: any = {};
+      if (log.details) {
+        if (typeof log.details === "string") {
+          try {
+            details = JSON.parse(log.details);
+          } catch (e) {
+            details = {};
+          }
+        } else {
+          details = log.details;
+        }
+      }
+
+      let type = "update";
+      let icon = Pencil;
+      let color = "text-blue-500";
+
+      if (log.action === "create") {
+        icon = PlusCircle;
+        color = "text-green-500";
+        type = "update";
+      } else if (log.action === "update") {
+        icon = Pencil;
+        color = "text-blue-500";
+        type = "update";
+        // Check if it's a status change
+        if (details?.changes?.includes("status") || details?.changes?.includes("clientStatus")) {
+          type = "status";
+          icon = RefreshCw;
+          color = "text-orange-500";
+        }
+      } else if (log.action === "delete") {
+        icon = Trash2;
+        color = "text-red-500";
+        type = "update";
+      } else if (log.action === "export") {
+        icon = Download;
+        color = "text-purple-500";
+        type = "update";
+      } else if (log.action === "add_product" || log.action === "remove_product") {
+        icon = Package;
+        color = "text-indigo-500";
+        type = "product";
+      } else if (log.action === "create_note") {
+        icon = MessageSquare;
+        color = "text-yellow-500";
+        type = "note";
+      } else if (log.action === "pipeline_move") {
+        icon = ArrowRight;
+        color = "text-cyan-500";
+        type = "pipeline";
+      } else if (log.action === "consent_granted" || log.action === "consent_revoked") {
+        icon = Shield;
+        color = log.action === "consent_granted" ? "text-green-500" : "text-red-500";
+        type = "status";
+      }
+
+      const actionLabels: Record<string, string> = {
+        create: "Vytvorenie zákazníka",
+        update: "Aktualizácia údajov",
+        delete: "Zmazanie",
+        export: "Export dát (GDPR)",
+        add_product: "Pridanie produktu",
+        remove_product: "Odobratie produktu",
+        create_note: "Pridanie poznámky",
+        pipeline_move: "Presun v pipeline",
+        consent_granted: "Udelenie súhlasu",
+        consent_revoked: "Odvolanie súhlasu",
+      };
+
+      events.push({
+        id: log.id,
+        type,
+        action: log.action,
+        title: actionLabels[log.action] || log.action,
+        description: log.entityName || customerName,
+        details,
+        createdAt: log.createdAt,
+        userId: log.userId,
+        icon,
+        color,
+      });
+    });
+
+    // Add documents (contracts and invoices)
+    documents.forEach((doc: any) => {
+      events.push({
+        id: doc.id,
+        type: "document",
+        action: "document_created",
+        title: doc.type === "contract" ? "Zmluva" : "Faktúra",
+        description: doc.number || doc.contractNumber || doc.invoiceNumber,
+        details: { status: doc.status, templateName: doc.templateName },
+        createdAt: doc.createdAt,
+        userId: doc.createdBy,
+        downloadUrl: `/api/customers/${customerId}/documents/${doc.type}/${doc.id}/pdf`,
+        documentType: doc.type,
+        icon: FileText,
+        color: doc.type === "contract" ? "text-emerald-500" : "text-amber-500",
+      });
+    });
+
+    // Add notes (only if not already in activity logs)
+    notes.forEach((note: any) => {
+      const alreadyInLogs = events.some(e => e.action === "create_note" && (e.details as any)?.noteId === note.id);
+      if (!alreadyInLogs) {
+        events.push({
+          id: `note-${note.id}`,
+          type: "note",
+          action: "note",
+          title: "Poznámka",
+          description: note.content?.substring(0, 100) + (note.content?.length > 100 ? "..." : ""),
+          details: { content: note.content },
+          createdAt: note.createdAt,
+          userId: note.userId,
+          icon: MessageSquare,
+          color: "text-yellow-500",
+        });
+      }
+    });
+
+    // Add messages
+    messages.forEach((msg: any) => {
+      events.push({
+        id: `msg-${msg.id}`,
+        type: "message",
+        action: msg.type,
+        title: msg.type === "email" ? "Email" : "SMS",
+        description: msg.subject || msg.content?.substring(0, 50),
+        details: { 
+          subject: msg.subject, 
+          content: msg.content,
+          recipient: msg.recipientEmail || msg.recipientPhone,
+          status: msg.status,
+        },
+        createdAt: msg.sentAt || msg.createdAt,
+        userId: msg.userId,
+        icon: msg.type === "email" ? Mail : Phone,
+        color: msg.type === "email" ? "text-blue-400" : "text-green-400",
+      });
+    });
+
+    // Sort by date descending
+    events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return events;
+  }, [activityLogs, documents, notes, messages, customerId, customerName]);
+
+  // Filter events
+  const filteredEvents = useMemo(() => {
+    return timelineEvents.filter(event => {
+      // Type filter
+      if (filterType !== "all" && event.type !== filterType) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          event.title.toLowerCase().includes(query) ||
+          event.description.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
+  }, [timelineEvents, filterType, searchQuery]);
+
+  // Group events by month
+  const groupedEvents = useMemo(() => {
+    const groups: Record<string, typeof filteredEvents> = {};
+    filteredEvents.forEach(event => {
+      const date = new Date(event.createdAt);
+      const key = format(date, "MMMM yyyy", { locale: sk });
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(event);
+    });
+    return groups;
+  }, [filteredEvents]);
+
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast({ title: "Dokument stiahnutý" });
+    } catch (error) {
+      toast({ title: "Nepodarilo sa stiahnuť dokument", variant: "destructive" });
+    }
+  };
+
+  const renderFieldChanges = (details: any) => {
+    if (!details?.changes || !Array.isArray(details.changes)) return null;
+    
+    const changedFields = details.changes.filter((f: string) => FIELD_LABELS[f]);
+    if (changedFields.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-1">
+        <p className="text-xs font-medium text-muted-foreground">Zmenené polia:</p>
+        <div className="flex flex-wrap gap-1">
+          {changedFields.slice(0, 8).map((field: string) => (
+            <Badge key={field} variant="outline" className="text-xs">
+              {FIELD_LABELS[field] || field}
+            </Badge>
+          ))}
+          {changedFields.length > 8 && (
+            <Badge variant="outline" className="text-xs">
+              +{changedFields.length - 8} ďalších
+            </Badge>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const isLoading = logsLoading || docsLoading || notesLoading || messagesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Hľadať v histórii..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Typ akcie" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMELINE_ACTION_TYPES.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                <div className="flex items-center gap-2">
+                  <type.icon className="h-4 w-4" />
+                  {type.label}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Stats summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <p className="text-2xl font-bold">{timelineEvents.length}</p>
+          <p className="text-xs text-muted-foreground">Celkom akcií</p>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <p className="text-2xl font-bold">{documents.length}</p>
+          <p className="text-xs text-muted-foreground">Dokumentov</p>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <p className="text-2xl font-bold">{notes.length}</p>
+          <p className="text-xs text-muted-foreground">Poznámok</p>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <p className="text-2xl font-bold">{messages.length}</p>
+          <p className="text-xs text-muted-foreground">Správ</p>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      {filteredEvents.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">Žiadne záznamy</p>
+          <p className="text-sm">Pre tohto zákazníka neboli nájdené žiadne akcie</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedEvents).map(([month, events]) => (
+            <div key={month}>
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                  {month}
+                </h3>
+                <Badge variant="outline" className="text-xs">
+                  {events.length}
+                </Badge>
+              </div>
+
+              <div className="relative pl-6 border-l-2 border-muted space-y-4">
+                {events.map((event, idx) => {
+                  const Icon = event.icon;
+                  return (
+                    <div key={event.id} className="relative">
+                      {/* Timeline dot */}
+                      <div className={`absolute -left-[25px] w-4 h-4 rounded-full bg-background border-2 flex items-center justify-center ${event.color.replace('text-', 'border-')}`}>
+                        <div className={`w-2 h-2 rounded-full ${event.color.replace('text-', 'bg-')}`} />
+                      </div>
+
+                      {/* Event card */}
+                      <div className="ml-4 p-4 rounded-lg border bg-card hover-elevate transition-all">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div className={`p-2 rounded-lg bg-muted ${event.color}`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium">{event.title}</p>
+                                {event.details?.status && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {event.details.status}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {event.description}
+                              </p>
+                              
+                              {/* Render field changes for updates */}
+                              {event.action === "update" && renderFieldChanges(event.details)}
+
+                              {/* Message details */}
+                              {event.type === "message" && event.details && (
+                                <div className="mt-2 p-2 rounded bg-muted/50 text-xs space-y-1">
+                                  <p><span className="font-medium">Príjemca:</span> {event.details.recipient}</p>
+                                  {event.details.subject && (
+                                    <p><span className="font-medium">Predmet:</span> {event.details.subject}</p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Note content */}
+                              {event.type === "note" && event.details?.content && (
+                                <div className="mt-2 p-2 rounded bg-muted/50 text-xs">
+                                  <p className="line-clamp-3">{event.details.content}</p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <UserCircle className="h-3.5 w-3.5" />
+                                  <span>{getUserName(event.userId || "")}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>{format(new Date(event.createdAt), "d.M.yyyy HH:mm")}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Download button for documents */}
+                          {event.downloadUrl && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownload(
+                                event.downloadUrl!,
+                                `${event.documentType}-${event.description}.pdf`
+                              )}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              PDF
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CustomerDetailsContent({ 
@@ -3339,20 +3851,44 @@ export default function CustomersPage() {
       </Dialog>
 
       <Dialog open={!!editingCustomer} onOpenChange={() => setEditingCustomer(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {editingCustomer && (
+                <>
+                  <UserCircle className="h-5 w-5" />
+                  {editingCustomer.firstName} {editingCustomer.lastName}
+                </>
+              )}
+            </DialogTitle>
             <DialogDescription>
-              Update customer information.
+              Správa zákazníka a história aktivít
             </DialogDescription>
           </DialogHeader>
           {editingCustomer && (
-            <CustomerForm
-              initialData={editingCustomer}
-              onSubmit={(data) => updateMutation.mutate({ ...data, id: editingCustomer.id })}
-              isLoading={updateMutation.isPending}
-              onCancel={() => setEditingCustomer(null)}
-            />
+            <Tabs defaultValue="data" className="flex-1 flex flex-col overflow-hidden">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="data" className="flex items-center gap-2">
+                  <FileEdit className="h-4 w-4" />
+                  Údaje
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  História
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="data" className="flex-1 overflow-y-auto mt-4">
+                <CustomerForm
+                  initialData={editingCustomer}
+                  onSubmit={(data) => updateMutation.mutate({ ...data, id: editingCustomer.id })}
+                  isLoading={updateMutation.isPending}
+                  onCancel={() => setEditingCustomer(null)}
+                />
+              </TabsContent>
+              <TabsContent value="history" className="flex-1 overflow-y-auto mt-4">
+                <CustomerHistoryTimeline customerId={editingCustomer.id} customerName={`${editingCustomer.firstName} ${editingCustomer.lastName}`} />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>

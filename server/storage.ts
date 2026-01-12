@@ -91,7 +91,10 @@ import {
   type Deal, type InsertDeal,
   type DealActivity, type InsertDealActivity,
   type DealProduct, type InsertDealProduct,
-  type AutomationRule, type InsertAutomationRule
+  type AutomationRule, type InsertAutomationRule,
+  userMs365Connections, userMs365SharedMailboxes,
+  type UserMs365Connection, type InsertUserMs365Connection,
+  type UserMs365SharedMailbox, type InsertUserMs365SharedMailbox
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
@@ -686,6 +689,20 @@ export interface IStorage {
   updateAutomationRule(id: string, data: Partial<InsertAutomationRule>): Promise<AutomationRule | undefined>;
   deleteAutomationRule(id: string): Promise<boolean>;
   toggleAutomationRule(id: string, isActive: boolean): Promise<AutomationRule | undefined>;
+
+  // MS365 User Connections
+  getUserMs365Connection(userId: string): Promise<UserMs365Connection | undefined>;
+  createUserMs365Connection(data: InsertUserMs365Connection): Promise<UserMs365Connection>;
+  updateUserMs365Connection(userId: string, data: Partial<InsertUserMs365Connection>): Promise<UserMs365Connection | undefined>;
+  deleteUserMs365Connection(userId: string): Promise<boolean>;
+  
+  // MS365 Shared Mailboxes
+  getUserMs365SharedMailboxes(userId: string): Promise<UserMs365SharedMailbox[]>;
+  getUserMs365SharedMailbox(id: string): Promise<UserMs365SharedMailbox | undefined>;
+  createUserMs365SharedMailbox(data: InsertUserMs365SharedMailbox): Promise<UserMs365SharedMailbox>;
+  updateUserMs365SharedMailbox(id: string, data: Partial<InsertUserMs365SharedMailbox>): Promise<UserMs365SharedMailbox | undefined>;
+  deleteUserMs365SharedMailbox(id: string): Promise<boolean>;
+  setDefaultUserMs365SharedMailbox(userId: string, mailboxId: string): Promise<UserMs365SharedMailbox | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4032,6 +4049,98 @@ export class DatabaseStorage implements IStorage {
       .where(eq(automationRules.id, id))
       .returning();
     return rule || undefined;
+  }
+
+  // MS365 User Connections
+  async getUserMs365Connection(userId: string): Promise<UserMs365Connection | undefined> {
+    const [connection] = await db.select().from(userMs365Connections)
+      .where(eq(userMs365Connections.userId, userId));
+    return connection || undefined;
+  }
+
+  async createUserMs365Connection(data: InsertUserMs365Connection): Promise<UserMs365Connection> {
+    const [connection] = await db.insert(userMs365Connections).values(data).returning();
+    return connection;
+  }
+
+  async updateUserMs365Connection(userId: string, data: Partial<InsertUserMs365Connection>): Promise<UserMs365Connection | undefined> {
+    const [connection] = await db.update(userMs365Connections)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userMs365Connections.userId, userId))
+      .returning();
+    return connection || undefined;
+  }
+
+  async deleteUserMs365Connection(userId: string): Promise<boolean> {
+    const result = await db.delete(userMs365Connections)
+      .where(eq(userMs365Connections.userId, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  // MS365 Shared Mailboxes
+  async getUserMs365SharedMailboxes(userId: string): Promise<UserMs365SharedMailbox[]> {
+    return db.select().from(userMs365SharedMailboxes)
+      .where(eq(userMs365SharedMailboxes.userId, userId))
+      .orderBy(desc(userMs365SharedMailboxes.isDefault), asc(userMs365SharedMailboxes.displayName));
+  }
+
+  async getUserMs365SharedMailbox(id: string): Promise<UserMs365SharedMailbox | undefined> {
+    const [mailbox] = await db.select().from(userMs365SharedMailboxes)
+      .where(eq(userMs365SharedMailboxes.id, id));
+    return mailbox || undefined;
+  }
+
+  async createUserMs365SharedMailbox(data: InsertUserMs365SharedMailbox): Promise<UserMs365SharedMailbox> {
+    // If this is set as default, unset other defaults first
+    if (data.isDefault) {
+      await db.update(userMs365SharedMailboxes)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(userMs365SharedMailboxes.userId, data.userId));
+    }
+    const [mailbox] = await db.insert(userMs365SharedMailboxes).values(data).returning();
+    return mailbox;
+  }
+
+  async updateUserMs365SharedMailbox(id: string, data: Partial<InsertUserMs365SharedMailbox>): Promise<UserMs365SharedMailbox | undefined> {
+    // If setting as default, unset other defaults first
+    if (data.isDefault) {
+      const [existing] = await db.select().from(userMs365SharedMailboxes).where(eq(userMs365SharedMailboxes.id, id));
+      if (existing) {
+        await db.update(userMs365SharedMailboxes)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(and(
+            eq(userMs365SharedMailboxes.userId, existing.userId),
+            sql`${userMs365SharedMailboxes.id} != ${id}`
+          ));
+      }
+    }
+    const [mailbox] = await db.update(userMs365SharedMailboxes)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userMs365SharedMailboxes.id, id))
+      .returning();
+    return mailbox || undefined;
+  }
+
+  async deleteUserMs365SharedMailbox(id: string): Promise<boolean> {
+    const result = await db.delete(userMs365SharedMailboxes)
+      .where(eq(userMs365SharedMailboxes.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async setDefaultUserMs365SharedMailbox(userId: string, mailboxId: string): Promise<UserMs365SharedMailbox | undefined> {
+    // Unset all defaults for this user
+    await db.update(userMs365SharedMailboxes)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(eq(userMs365SharedMailboxes.userId, userId));
+    
+    // Set the specified mailbox as default
+    const [mailbox] = await db.update(userMs365SharedMailboxes)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(userMs365SharedMailboxes.id, mailboxId))
+      .returning();
+    return mailbox || undefined;
   }
 }
 

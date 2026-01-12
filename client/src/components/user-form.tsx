@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Phone, User, Shield, MapPin, Camera, Loader2, Link2, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Phone, User, Shield, MapPin, Camera, Loader2, Link2, RefreshCw, Mail, Star, Trash2, Plus, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Form,
   FormControl,
@@ -630,6 +631,349 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     </div>
   );
 
+  // MS365 Connection state and queries
+  const userId = initialData?.id;
+  
+  const { data: ms365Connection, isLoading: ms365Loading, refetch: refetchMs365Connection } = useQuery<{
+    id: string;
+    email: string;
+    displayName: string | null;
+    isConnected: boolean;
+    lastSyncAt: string | null;
+    hasTokens: boolean;
+  } | null>({
+    queryKey: ["/api/users", userId, "ms365-connection"],
+    queryFn: async () => {
+      if (!userId) return null;
+      const res = await fetch(`/api/users/${userId}/ms365-connection`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+  
+  const { data: ms365Mailboxes = [], refetch: refetchMailboxes } = useQuery<{
+    id: string;
+    email: string;
+    displayName: string;
+    isDefault: boolean;
+    isActive: boolean;
+  }[]>({
+    queryKey: ["/api/users", userId, "ms365-shared-mailboxes"],
+    queryFn: async () => {
+      if (!userId) return [];
+      const res = await fetch(`/api/users/${userId}/ms365-shared-mailboxes`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+  
+  const [newMailboxEmail, setNewMailboxEmail] = useState("");
+  const [newMailboxName, setNewMailboxName] = useState("");
+  const [isAddingMailbox, setIsAddingMailbox] = useState(false);
+  
+  const connectMs365Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${userId}/ms365-connection`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to save connection');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMs365Connection();
+      toast({ title: "MS365 pripojenie uložené" });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri ukladaní pripojenia", variant: "destructive" });
+    },
+  });
+  
+  const disconnectMs365Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${userId}/ms365-connection`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to disconnect');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMs365Connection();
+      refetchMailboxes();
+      toast({ title: "MS365 odpojené" });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri odpájaní", variant: "destructive" });
+    },
+  });
+  
+  const addMailboxMutation = useMutation({
+    mutationFn: async ({ email, displayName }: { email: string; displayName: string }) => {
+      const res = await fetch(`/api/users/${userId}/ms365-shared-mailboxes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, displayName, isDefault: ms365Mailboxes.length === 0 }),
+      });
+      if (!res.ok) throw new Error('Failed to add mailbox');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMailboxes();
+      setNewMailboxEmail("");
+      setNewMailboxName("");
+      setIsAddingMailbox(false);
+      toast({ title: "Shared mailbox pridaný" });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri pridávaní mailboxu", variant: "destructive" });
+    },
+  });
+  
+  const deleteMailboxMutation = useMutation({
+    mutationFn: async (mailboxId: string) => {
+      const res = await fetch(`/api/users/${userId}/ms365-shared-mailboxes/${mailboxId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to delete mailbox');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMailboxes();
+      toast({ title: "Shared mailbox odstránený" });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri odstraňovaní mailboxu", variant: "destructive" });
+    },
+  });
+  
+  const setDefaultMailboxMutation = useMutation({
+    mutationFn: async (mailboxId: string) => {
+      const res = await fetch(`/api/users/${userId}/ms365-shared-mailboxes/${mailboxId}/set-default`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to set default');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMailboxes();
+      toast({ title: "Predvolený mailbox nastavený" });
+    },
+    onError: () => {
+      toast({ title: "Chyba pri nastavovaní predvoleného mailboxu", variant: "destructive" });
+    },
+  });
+  
+  const handleConnectMs365 = async () => {
+    // First authenticate with MS365
+    const res = await fetch('/api/auth/microsoft', { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    }
+  };
+  
+  const renderMs365Tab = () => {
+    if (!isEditing) {
+      return (
+        <div className="p-4 rounded-md bg-muted text-center">
+          <p className="text-sm text-muted-foreground">
+            MS365 pripojenie je dostupné až po vytvorení používateľa.
+          </p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-muted-foreground mb-4">
+          <Mail className="h-4 w-4" />
+          <span className="text-sm">Pripojenie Microsoft 365 účtu pre email a kalendár</span>
+        </div>
+        
+        {ms365Loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Načítavanie...
+          </div>
+        ) : ms365Connection?.isConnected ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg border bg-green-50 dark:bg-green-900/20">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="font-medium text-green-700 dark:text-green-300">Pripojené</p>
+                    <p className="text-sm text-green-600 dark:text-green-400">{ms365Connection.email}</p>
+                    {ms365Connection.displayName && (
+                      <p className="text-xs text-green-600/70 dark:text-green-400/70">{ms365Connection.displayName}</p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => disconnectMs365Mutation.mutate()}
+                  disabled={disconnectMs365Mutation.isPending}
+                  data-testid="button-disconnect-ms365"
+                >
+                  {disconnectMs365Mutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4 mr-1" />
+                  )}
+                  Odpojiť
+                </Button>
+              </div>
+            </div>
+            
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h4 className="font-medium">Shared Mailboxy</h4>
+                {!isAddingMailbox && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddingMailbox(true)}
+                    data-testid="button-add-mailbox"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Pridať
+                  </Button>
+                )}
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-3">
+                Pridajte shared mailboxy, z ktorých môžete odosielať emaily. Predvolený mailbox sa použije ako prvý pri odosielaní.
+              </p>
+              
+              {isAddingMailbox && (
+                <div className="p-3 border rounded-md mb-3 space-y-3">
+                  <Input
+                    placeholder="Email (napr. info@firma.sk)"
+                    value={newMailboxEmail}
+                    onChange={(e) => setNewMailboxEmail(e.target.value)}
+                    data-testid="input-new-mailbox-email"
+                  />
+                  <Input
+                    placeholder="Názov (napr. Info box)"
+                    value={newMailboxName}
+                    onChange={(e) => setNewMailboxName(e.target.value)}
+                    data-testid="input-new-mailbox-name"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => addMailboxMutation.mutate({ email: newMailboxEmail, displayName: newMailboxName })}
+                      disabled={!newMailboxEmail || !newMailboxName || addMailboxMutation.isPending}
+                      data-testid="button-save-mailbox"
+                    >
+                      {addMailboxMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Uložiť"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsAddingMailbox(false);
+                        setNewMailboxEmail("");
+                        setNewMailboxName("");
+                      }}
+                      data-testid="button-cancel-mailbox"
+                    >
+                      Zrušiť
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {ms365Mailboxes.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">Žiadne shared mailboxy</p>
+              ) : (
+                <div className="space-y-2">
+                  {ms365Mailboxes.map((mailbox) => (
+                    <div
+                      key={mailbox.id}
+                      className="flex items-center justify-between p-3 border rounded-md"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-sm">{mailbox.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{mailbox.email}</p>
+                        </div>
+                        {mailbox.isDefault && (
+                          <Badge variant="secondary" className="ml-2">
+                            <Star className="h-3 w-3 mr-1" />
+                            Predvolený
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        {!mailbox.isDefault && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDefaultMailboxMutation.mutate(mailbox.id)}
+                            disabled={setDefaultMailboxMutation.isPending}
+                            title="Nastaviť ako predvolený"
+                            data-testid={`button-set-default-${mailbox.id}`}
+                          >
+                            <Star className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
+                          disabled={deleteMailboxMutation.isPending}
+                          title="Odstrániť"
+                          data-testid={`button-delete-mailbox-${mailbox.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-md bg-muted space-y-3">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-muted-foreground" />
+              <p className="font-medium">Nepripojené</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Pre pripojenie Microsoft 365 účtu najprv vykonajte autentifikáciu na stránke MS365 Integrácia a potom sa vráťte sem.
+            </p>
+            <Button
+              type="button"
+              onClick={handleConnectMs365}
+              data-testid="button-connect-ms365"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Pripojiť Microsoft 365
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderJiraTab = () => (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-muted-foreground mb-4">
@@ -719,7 +1063,7 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile" className="flex items-center gap-2" data-testid="tab-profile">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profil</span>
@@ -735,6 +1079,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
             <TabsTrigger value="sip" className="flex items-center gap-2" data-testid="tab-sip">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">SIP</span>
+            </TabsTrigger>
+            <TabsTrigger value="ms365" className="flex items-center gap-2" data-testid="tab-ms365">
+              <Mail className="h-4 w-4" />
+              <span className="hidden sm:inline">MS365</span>
             </TabsTrigger>
             <TabsTrigger value="jira" className="flex items-center gap-2" data-testid="tab-jira">
               <Link2 className="h-4 w-4" />
@@ -756,6 +1104,10 @@ export function UserForm({ initialData, onSubmit, isLoading, onCancel }: UserFor
           
           <TabsContent value="sip" className="mt-6">
             {renderSipTab()}
+          </TabsContent>
+          
+          <TabsContent value="ms365" className="mt-6">
+            {renderMs365Tab()}
           </TabsContent>
           
           <TabsContent value="jira" className="mt-6">

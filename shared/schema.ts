@@ -3318,3 +3318,71 @@ export const automationRulesRelations = relations(automationRules, ({ one }) => 
     references: [users.id],
   }),
 }));
+
+// ============================================
+// MS365 USER CONNECTIONS
+// ============================================
+
+// User MS365 connections - each user can have their own MS365 account connected
+export const userMs365Connections = pgTable("user_ms365_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  accountId: text("account_id"), // MSAL homeAccountId for silent token refresh
+  email: text("email").notNull(), // The connected MS365 email
+  displayName: text("display_name"),
+  isConnected: boolean("is_connected").notNull().default(true),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertUserMs365ConnectionSchema = createInsertSchema(userMs365Connections).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertUserMs365Connection = z.infer<typeof insertUserMs365ConnectionSchema>;
+export type UserMs365Connection = typeof userMs365Connections.$inferSelect;
+
+export const userMs365ConnectionsRelations = relations(userMs365Connections, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userMs365Connections.userId],
+    references: [users.id],
+  }),
+  sharedMailboxes: many(userMs365SharedMailboxes),
+}));
+
+// User MS365 shared mailboxes - users can have access to multiple shared mailboxes
+export const userMs365SharedMailboxes = pgTable("user_ms365_shared_mailboxes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  connectionId: varchar("connection_id").references(() => userMs365Connections.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  email: text("email").notNull(), // Shared mailbox email (e.g., info@company.sk)
+  displayName: text("display_name").notNull(), // Display name for the mailbox
+  isDefault: boolean("is_default").notNull().default(false), // Default mailbox for sending
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertUserMs365SharedMailboxSchema = createInsertSchema(userMs365SharedMailboxes).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertUserMs365SharedMailbox = z.infer<typeof insertUserMs365SharedMailboxSchema>;
+export type UserMs365SharedMailbox = typeof userMs365SharedMailboxes.$inferSelect;
+
+export const userMs365SharedMailboxesRelations = relations(userMs365SharedMailboxes, ({ one }) => ({
+  connection: one(userMs365Connections, {
+    fields: [userMs365SharedMailboxes.connectionId],
+    references: [userMs365Connections.id],
+  }),
+  user: one(users, {
+    fields: [userMs365SharedMailboxes.userId],
+    references: [users.id],
+  }),
+}));

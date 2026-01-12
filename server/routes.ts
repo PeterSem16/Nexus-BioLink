@@ -1503,11 +1503,45 @@ export async function registerRoutes(
       if (req.session) {
         (req.session as any).ms365 = {
           accessToken: tokenResult.accessToken,
+          refreshToken: (tokenResult as any).refreshToken,
           expiresOn: tokenResult.expiresOn,
+          expiresAt: tokenResult.expiresOn?.getTime(),
           account: tokenResult.account,
           profile,
           connectedAt: new Date(),
         };
+        
+        // Also save to database if user is logged in (with encrypted tokens)
+        const crmUser = req.session.user;
+        if (crmUser) {
+          try {
+            const { encryptTokenWithMarker } = await import("./lib/token-crypto");
+            const existing = await storage.getUserMs365Connection(crmUser.id);
+            
+            // Encrypt tokens before storing (with ENC: prefix for unambiguous identification)
+            const connectionData = {
+              userId: crmUser.id,
+              accessToken: encryptTokenWithMarker(tokenResult.accessToken),
+              refreshToken: tokenResult.refreshToken ? encryptTokenWithMarker(tokenResult.refreshToken) : null,
+              tokenExpiresAt: tokenResult.expiresOn,
+              accountId: null, // Not using MSAL account anymore
+              email: profile.mail || profile.userPrincipalName,
+              displayName: profile.displayName,
+              isConnected: true,
+              lastSyncAt: new Date(),
+            };
+            
+            if (existing) {
+              await storage.updateUserMs365Connection(crmUser.id, connectionData);
+            } else {
+              await storage.createUserMs365Connection(connectionData);
+            }
+            
+            console.log(`[MS365] Connection saved for user ${crmUser.username}, refresh token: ${tokenResult.refreshToken ? 'present' : 'missing'}`);
+          } catch (dbError) {
+            console.error("Error saving MS365 connection to database:", dbError);
+          }
+        }
       }
       
       // Redirect back to app with success
@@ -1642,6 +1676,122 @@ export async function registerRoutes(
     }
   });
   
+  // Send email from shared mailbox via MS365 (uses user's stored connection with token refresh)
+  app.post("/api/ms365/send-email-from-mailbox", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.user!.id;
+      
+      // Get user's MS365 connection from database
+      const ms365Connection = await storage.getUserMs365Connection(userId);
+      
+      if (!ms365Connection || !ms365Connection.isConnected) {
+        return res.status(401).json({ error: "Not connected to Microsoft 365. Please connect your MS365 account first." });
+      }
+      
+      // Decrypt tokens for use (handles both encrypted and legacy plaintext tokens)
+      const { decryptTokenSafe } = await import("./lib/token-crypto");
+      let accessToken: string;
+      let refreshToken: string | null;
+      
+      try {
+        accessToken = decryptTokenSafe(ms365Connection.accessToken);
+        refreshToken = ms365Connection.refreshToken ? decryptTokenSafe(ms365Connection.refreshToken) : null;
+      } catch (decryptError) {
+        console.error("[MS365] Token decryption failed:", decryptError);
+        await storage.updateUserMs365Connection(userId, { isConnected: false });
+        return res.status(401).json({ 
+          error: "MS365 session corrupted. Please reconnect your Microsoft 365 account.",
+          requiresReauth: true
+        });
+      }
+      
+      // Get valid access token, refreshing if necessary
+      const { getValidAccessToken } = await import("./lib/ms365");
+      const tokenResult = await getValidAccessToken(
+        accessToken,
+        ms365Connection.tokenExpiresAt,
+        refreshToken
+      );
+      
+      if (!tokenResult) {
+        // Token expired and cannot be refreshed - user needs to re-authenticate
+        await storage.updateUserMs365Connection(userId, { isConnected: false });
+        return res.status(401).json({ 
+          error: "MS365 session expired. Please reconnect your Microsoft 365 account.",
+          requiresReauth: true
+        });
+      }
+      
+      // Update stored token if it was refreshed (encrypt before storing)
+      if (tokenResult.refreshed) {
+        const { encryptTokenWithMarker } = await import("./lib/token-crypto");
+        const updateData: any = {
+          accessToken: encryptTokenWithMarker(tokenResult.accessToken),
+          tokenExpiresAt: tokenResult.expiresOn,
+          lastSyncAt: new Date(),
+        };
+        
+        // Only update refresh token if a new one was returned, otherwise preserve existing
+        if (tokenResult.refreshToken) {
+          updateData.refreshToken = encryptTokenWithMarker(tokenResult.refreshToken);
+        }
+        
+        await storage.updateUserMs365Connection(userId, updateData);
+      }
+      
+      const { to, cc, subject, body, isHtml, mailboxId, attachments } = req.body;
+      
+      if (!to || !subject || !body) {
+        return res.status(400).json({ error: "Missing required fields: to, subject, body" });
+      }
+      
+      // Determine which mailbox to use
+      let sharedMailboxEmail: string | null = null;
+      
+      if (mailboxId) {
+        // Specific mailbox requested
+        const mailbox = await storage.getUserMs365SharedMailbox(mailboxId);
+        if (!mailbox || mailbox.userId !== userId) {
+          return res.status(400).json({ error: "Invalid mailbox" });
+        }
+        sharedMailboxEmail = mailbox.email;
+      } else {
+        // Use default mailbox
+        const defaultMailbox = await storage.getDefaultUserMs365SharedMailbox(userId);
+        if (defaultMailbox) {
+          sharedMailboxEmail = defaultMailbox.email;
+        }
+      }
+      
+      const toArray = Array.isArray(to) ? to : [to];
+      const ccArray = cc ? (Array.isArray(cc) ? cc : [cc]) : undefined;
+      
+      const { sendEmail, sendEmailFromSharedMailbox } = await import("./lib/ms365");
+      
+      if (sharedMailboxEmail) {
+        // Send from shared mailbox
+        await sendEmailFromSharedMailbox(
+          tokenResult.accessToken,
+          sharedMailboxEmail,
+          toArray,
+          subject,
+          body,
+          isHtml !== false,
+          ccArray,
+          attachments
+        );
+        res.json({ message: "Email sent successfully from shared mailbox", from: sharedMailboxEmail });
+      } else {
+        // Send from user's own mailbox
+        await sendEmail(tokenResult.accessToken, toArray, subject, body, isHtml !== false);
+        res.json({ message: "Email sent successfully from your mailbox", from: ms365Connection.email });
+      }
+    } catch (error) {
+      console.error("Error sending MS365 email from mailbox:", error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+  
   // Get calendar events from MS365
   app.get("/api/ms365/calendar", requireAuth, async (req, res) => {
     try {
@@ -1681,6 +1831,230 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching MS365 contacts:", error);
       res.status(500).json({ error: "Failed to fetch contacts" });
+    }
+  });
+
+  // ============================================
+  // User MS365 Connections API
+  // ============================================
+  
+  // Get current user's MS365 connection
+  app.get("/api/users/:userId/ms365-connection", requireAuth, async (req, res) => {
+    try {
+      const connection = await storage.getUserMs365Connection(req.params.userId);
+      if (connection) {
+        // Don't expose tokens to client
+        const { accessToken, refreshToken, ...safeConnection } = connection;
+        res.json({ ...safeConnection, hasTokens: !!accessToken });
+      } else {
+        res.json(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user MS365 connection:", error);
+      res.status(500).json({ error: "Failed to fetch MS365 connection" });
+    }
+  });
+
+  // Connect user to MS365 (save tokens after OAuth)
+  app.post("/api/users/:userId/ms365-connection", requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const ms365Session = (req.session as any)?.ms365;
+      
+      if (!ms365Session?.accessToken) {
+        return res.status(400).json({ error: "No active MS365 session. Please authenticate first." });
+      }
+      
+      // Get user info from MS365
+      const { getUserProfile } = await import("./lib/ms365");
+      const profile = await getUserProfile(ms365Session.accessToken);
+      
+      // Check if connection exists
+      const existing = await storage.getUserMs365Connection(userId);
+      
+      if (existing) {
+        // Update existing connection
+        const updated = await storage.updateUserMs365Connection(userId, {
+          accessToken: ms365Session.accessToken,
+          refreshToken: ms365Session.refreshToken,
+          tokenExpiresAt: ms365Session.expiresAt ? new Date(ms365Session.expiresAt) : null,
+          email: profile.mail || profile.userPrincipalName,
+          displayName: profile.displayName,
+          isConnected: true,
+          lastSyncAt: new Date(),
+        });
+        const { accessToken, refreshToken, ...safeConnection } = updated!;
+        res.json(safeConnection);
+      } else {
+        // Create new connection
+        const connection = await storage.createUserMs365Connection({
+          userId,
+          accessToken: ms365Session.accessToken,
+          refreshToken: ms365Session.refreshToken,
+          tokenExpiresAt: ms365Session.expiresAt ? new Date(ms365Session.expiresAt) : null,
+          email: profile.mail || profile.userPrincipalName,
+          displayName: profile.displayName,
+          isConnected: true,
+          lastSyncAt: new Date(),
+        });
+        const { accessToken, refreshToken, ...safeConnection } = connection;
+        res.json(safeConnection);
+      }
+    } catch (error) {
+      console.error("Error saving user MS365 connection:", error);
+      res.status(500).json({ error: "Failed to save MS365 connection" });
+    }
+  });
+
+  // Disconnect user from MS365
+  app.delete("/api/users/:userId/ms365-connection", requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Also delete all shared mailboxes
+      const mailboxes = await storage.getUserMs365SharedMailboxes(userId);
+      for (const mb of mailboxes) {
+        await storage.deleteUserMs365SharedMailbox(mb.id);
+      }
+      
+      await storage.deleteUserMs365Connection(userId);
+      
+      // Clear session if it's the current user
+      if (req.session.user?.id === userId) {
+        delete (req.session as any).ms365;
+      }
+      
+      res.json({ message: "Disconnected from MS365" });
+    } catch (error) {
+      console.error("Error disconnecting user MS365:", error);
+      res.status(500).json({ error: "Failed to disconnect from MS365" });
+    }
+  });
+
+  // ============================================
+  // User MS365 Shared Mailboxes API
+  // ============================================
+  
+  // Get user's shared mailboxes
+  app.get("/api/users/:userId/ms365-shared-mailboxes", requireAuth, async (req, res) => {
+    try {
+      const mailboxes = await storage.getUserMs365SharedMailboxes(req.params.userId);
+      res.json(mailboxes);
+    } catch (error) {
+      console.error("Error fetching shared mailboxes:", error);
+      res.status(500).json({ error: "Failed to fetch shared mailboxes" });
+    }
+  });
+
+  // Add a shared mailbox
+  app.post("/api/users/:userId/ms365-shared-mailboxes", requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { email, displayName, isDefault } = req.body;
+      
+      // Get user's MS365 connection
+      const connection = await storage.getUserMs365Connection(userId);
+      if (!connection) {
+        return res.status(400).json({ error: "User must be connected to MS365 first" });
+      }
+      
+      const mailbox = await storage.createUserMs365SharedMailbox({
+        connectionId: connection.id,
+        userId,
+        email,
+        displayName,
+        isDefault: isDefault || false,
+        isActive: true,
+      });
+      
+      res.status(201).json(mailbox);
+    } catch (error) {
+      console.error("Error creating shared mailbox:", error);
+      res.status(500).json({ error: "Failed to add shared mailbox" });
+    }
+  });
+
+  // Update a shared mailbox
+  app.patch("/api/users/:userId/ms365-shared-mailboxes/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const mailbox = await storage.updateUserMs365SharedMailbox(id, req.body);
+      if (!mailbox) {
+        return res.status(404).json({ error: "Shared mailbox not found" });
+      }
+      res.json(mailbox);
+    } catch (error) {
+      console.error("Error updating shared mailbox:", error);
+      res.status(500).json({ error: "Failed to update shared mailbox" });
+    }
+  });
+
+  // Delete a shared mailbox
+  app.delete("/api/users/:userId/ms365-shared-mailboxes/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteUserMs365SharedMailbox(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Shared mailbox not found" });
+      }
+      res.json({ message: "Shared mailbox deleted" });
+    } catch (error) {
+      console.error("Error deleting shared mailbox:", error);
+      res.status(500).json({ error: "Failed to delete shared mailbox" });
+    }
+  });
+
+  // Set default shared mailbox
+  app.post("/api/users/:userId/ms365-shared-mailboxes/:id/set-default", requireAuth, async (req, res) => {
+    try {
+      const { userId, id } = req.params;
+      const mailbox = await storage.setDefaultUserMs365SharedMailbox(userId, id);
+      if (!mailbox) {
+        return res.status(404).json({ error: "Shared mailbox not found" });
+      }
+      res.json(mailbox);
+    } catch (error) {
+      console.error("Error setting default mailbox:", error);
+      res.status(500).json({ error: "Failed to set default mailbox" });
+    }
+  });
+
+  // Get all available mailboxes for sending (user's own + shared)
+  app.get("/api/users/:userId/ms365-available-mailboxes", requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const connection = await storage.getUserMs365Connection(userId);
+      const sharedMailboxes = await storage.getUserMs365SharedMailboxes(userId);
+      
+      const mailboxes = [];
+      
+      // Add user's own mailbox if connected
+      if (connection && connection.isConnected) {
+        mailboxes.push({
+          id: 'personal',
+          email: connection.email,
+          displayName: connection.displayName || connection.email,
+          type: 'personal',
+          isDefault: sharedMailboxes.length === 0 || !sharedMailboxes.some(m => m.isDefault),
+        });
+      }
+      
+      // Add shared mailboxes
+      for (const mb of sharedMailboxes) {
+        if (mb.isActive) {
+          mailboxes.push({
+            id: mb.id,
+            email: mb.email,
+            displayName: mb.displayName,
+            type: 'shared',
+            isDefault: mb.isDefault,
+          });
+        }
+      }
+      
+      res.json(mailboxes);
+    } catch (error) {
+      console.error("Error fetching available mailboxes:", error);
+      res.status(500).json({ error: "Failed to fetch available mailboxes" });
     }
   });
 

@@ -103,31 +103,146 @@ export async function getAuthorizationUrl(state?: string, useAdminConsent: boole
 }
 
 /**
- * Exchange authorization code for tokens
+ * Exchange authorization code for tokens using direct OAuth2 token endpoint
+ * This bypasses MSAL to get the refresh token which MSAL doesn't expose
  */
 export async function acquireTokenByCode(code: string, codeVerifier: string): Promise<{
   accessToken: string;
   refreshToken?: string;
   expiresOn: Date | null;
   account: any;
+  accountId?: string;
 }> {
-  const client = initializeMsal();
+  const tokenEndpoint = `https://login.microsoftonline.com/${MS365_CONFIG.tenantId}/oauth2/v2.0/token`;
   
-  const tokenRequest: AuthorizationCodeRequest = {
-    code,
-    scopes: GRAPH_SCOPES,
-    redirectUri: MS365_CONFIG.redirectUri,
-    codeVerifier,
-  };
+  const params = new URLSearchParams({
+    client_id: MS365_CONFIG.clientId,
+    client_secret: MS365_CONFIG.clientSecret,
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: MS365_CONFIG.redirectUri,
+    code_verifier: codeVerifier,
+    scope: GRAPH_SCOPES.join(' '),
+  });
   
-  const response = await client.acquireTokenByCode(tokenRequest);
+  const response = await fetch(tokenEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[MS365] Token exchange failed:', errorData);
+    throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`);
+  }
+  
+  const data = await response.json();
+  
+  // Calculate expiration date
+  const expiresOn = new Date(Date.now() + (data.expires_in * 1000));
   
   return {
-    accessToken: response.accessToken,
-    refreshToken: undefined, // MSAL handles refresh internally via cache
-    expiresOn: response.expiresOn,
-    account: response.account,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token, // Now we get the actual refresh token!
+    expiresOn,
+    account: null, // Not using MSAL account
+    accountId: undefined,
   };
+}
+
+/**
+ * Refresh access token using refresh token via direct OAuth2 token endpoint
+ * This bypasses MSAL cache and works after server restarts
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expiresOn: Date;
+} | null> {
+  if (!refreshToken) {
+    console.log('[MS365] No refresh token provided');
+    return null;
+  }
+  
+  try {
+    const tokenEndpoint = `https://login.microsoftonline.com/${MS365_CONFIG.tenantId}/oauth2/v2.0/token`;
+    
+    const params = new URLSearchParams({
+      client_id: MS365_CONFIG.clientId,
+      client_secret: MS365_CONFIG.clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      scope: GRAPH_SCOPES.join(' '),
+    });
+    
+    const response = await fetch(tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[MS365] Token refresh failed:', errorData);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || refreshToken, // Use new if provided, else keep old
+      expiresOn: new Date(Date.now() + (data.expires_in * 1000)),
+    };
+  } catch (error) {
+    console.error('[MS365] Token refresh error:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if token is expired or expiring soon (within 5 minutes)
+ */
+export function isTokenExpiringSoon(expiresAt: Date | null): boolean {
+  if (!expiresAt) return true;
+  const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+  return new Date(expiresAt) < fiveMinutesFromNow;
+}
+
+/**
+ * Get valid access token, refreshing if necessary using stored refresh token
+ * Returns null if token cannot be obtained
+ */
+export async function getValidAccessToken(
+  storedAccessToken: string | null,
+  tokenExpiresAt: Date | null,
+  storedRefreshToken: string | null
+): Promise<{ accessToken: string; refreshToken?: string; expiresOn: Date | null; refreshed: boolean } | null> {
+  // If we have a valid token that's not expiring soon, use it
+  if (storedAccessToken && tokenExpiresAt && !isTokenExpiringSoon(tokenExpiresAt)) {
+    return { accessToken: storedAccessToken, expiresOn: tokenExpiresAt, refreshed: false };
+  }
+  
+  // Try to refresh using the refresh token
+  if (storedRefreshToken) {
+    const freshToken = await refreshAccessToken(storedRefreshToken);
+    if (freshToken) {
+      return { 
+        accessToken: freshToken.accessToken, 
+        refreshToken: freshToken.refreshToken,
+        expiresOn: freshToken.expiresOn, 
+        refreshed: true 
+      };
+    }
+  }
+  
+  // Cannot obtain valid token
+  return null;
 }
 
 /**
@@ -184,6 +299,56 @@ export async function sendEmail(
   };
   
   await client.api('/me/sendMail').post({ message });
+}
+
+/**
+ * Send email from a shared mailbox via Microsoft Graph
+ * Uses /users/{sharedMailboxEmail}/sendMail endpoint
+ * Requires Mail.Send permission and SendAs/SendOnBehalf permission on the shared mailbox
+ */
+export async function sendEmailFromSharedMailbox(
+  accessToken: string,
+  sharedMailboxEmail: string,
+  to: string[],
+  subject: string,
+  body: string,
+  isHtml: boolean = true,
+  cc?: string[],
+  attachments?: Array<{ name: string; contentType: string; contentBase64: string }>
+): Promise<void> {
+  const client = createGraphClient(accessToken);
+  
+  const message: any = {
+    subject,
+    body: {
+      contentType: isHtml ? 'HTML' : 'Text',
+      content: body,
+    },
+    toRecipients: to.map(email => ({
+      emailAddress: { address: email },
+    })),
+    from: {
+      emailAddress: { address: sharedMailboxEmail },
+    },
+  };
+  
+  if (cc && cc.length > 0) {
+    message.ccRecipients = cc.map(email => ({
+      emailAddress: { address: email },
+    }));
+  }
+  
+  if (attachments && attachments.length > 0) {
+    message.attachments = attachments.map(att => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: att.name,
+      contentType: att.contentType,
+      contentBytes: att.contentBase64,
+    }));
+  }
+  
+  // Send from shared mailbox using users/{email}/sendMail endpoint
+  await client.api(`/users/${sharedMailboxEmail}/sendMail`).post({ message });
 }
 
 /**

@@ -131,6 +131,8 @@ function DocumentsTab({ customerId }: { customerId: string }) {
       if (!res.ok) throw new Error("Failed to fetch documents");
       return res.json();
     },
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+    refetchOnWindowFocus: true,
   });
 
   const getStatusBadgeVariant = (type: string, status: string) => {

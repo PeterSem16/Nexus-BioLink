@@ -6,8 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Shield, Globe, Users, Lock, ArrowRight } from "lucide-react";
-import { SiMicrosoft } from "react-icons/si";
+import { Heart, Shield, Globe, Users, Lock, ArrowRight, Building2 } from "lucide-react";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
@@ -228,7 +227,7 @@ export default function LandingPage() {
                           disabled={isLoading}
                           data-testid="button-login-ms365"
                         >
-                          <SiMicrosoft className="mr-2 h-4 w-4" />
+                          <Building2 className="mr-2 h-4 w-4" />
                           Prihlásiť sa cez Microsoft 365
                         </Button>
                       </div>

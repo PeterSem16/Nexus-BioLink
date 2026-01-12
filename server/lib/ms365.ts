@@ -68,13 +68,25 @@ export function initializeMsal(): ConfidentialClientApplication {
 
 /**
  * Get authorization URL for OAuth flow
+ * @param state - Optional state parameter for CSRF protection
+ * @param useAdminConsent - If true, uses admin consent endpoint for tenant-wide permissions
  */
-export async function getAuthorizationUrl(state?: string): Promise<{ url: string; codeVerifier: string; state: string }> {
+export async function getAuthorizationUrl(state?: string, useAdminConsent: boolean = false): Promise<{ url: string; codeVerifier: string; state: string }> {
   const client = initializeMsal();
   
   // Generate PKCE codes
   const { verifier, challenge } = await cryptoProvider.generatePkceCodes();
   const generatedState = state || cryptoProvider.createNewGuid();
+  
+  // If admin consent is needed, redirect to admin consent endpoint first
+  if (useAdminConsent) {
+    const adminConsentUrl = `https://login.microsoftonline.com/${MS365_CONFIG.tenantId}/adminconsent?client_id=${MS365_CONFIG.clientId}&redirect_uri=${encodeURIComponent(MS365_CONFIG.redirectUri)}&state=${generatedState}`;
+    return {
+      url: adminConsentUrl,
+      codeVerifier: verifier,
+      state: generatedState,
+    };
+  }
   
   const authCodeUrlParameters = {
     scopes: GRAPH_SCOPES,
@@ -82,6 +94,7 @@ export async function getAuthorizationUrl(state?: string): Promise<{ url: string
     codeChallenge: challenge,
     codeChallengeMethod: 'S256' as const,
     state: generatedState,
+    prompt: 'select_account' as const, // Allow user to select account without forcing consent
   };
   
   const url = await client.getAuthCodeUrl(authCodeUrlParameters);

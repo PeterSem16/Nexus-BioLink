@@ -108,8 +108,9 @@ export default function MS365IntegrationPage() {
 
   // Connect mutation
   const connectMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("GET", "/api/auth/microsoft");
+    mutationFn: async (useAdminConsent: boolean = false) => {
+      const url = useAdminConsent ? "/api/auth/microsoft?admin_consent=true" : "/api/auth/microsoft";
+      const res = await apiRequest("GET", url);
       return res.json();
     },
     onSuccess: (data) => {
@@ -302,17 +303,33 @@ export default function MS365IntegrationPage() {
                   </Button>
                 </>
               ) : (
-                <Button 
-                  onClick={() => connectMutation.mutate()}
-                  disabled={connectMutation.isPending || !configStatus?.configured}
-                >
-                  {connectMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Cloud className="h-4 w-4 mr-2" />
-                  )}
-                  Pripojiť Microsoft 365
-                </Button>
+                <div className="flex flex-col gap-2 items-end">
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => connectMutation.mutate(false)}
+                      disabled={connectMutation.isPending || !configStatus?.configured}
+                    >
+                      {connectMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Cloud className="h-4 w-4 mr-2" />
+                      )}
+                      Pripojiť Microsoft 365
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => connectMutation.mutate(true)}
+                      disabled={connectMutation.isPending || !configStatus?.configured}
+                      title="Použite ak vidíte hlášku 'Need admin approval'"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Admin Consent
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ak vidíte "Need admin approval", použite tlačidlo Admin Consent
+                  </p>
+                </div>
               )}
             </div>
           </div>

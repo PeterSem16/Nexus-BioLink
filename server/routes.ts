@@ -1442,7 +1442,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "MS365 integration not configured" });
       }
       
-      const { url, codeVerifier, state } = await getAuthorizationUrl();
+      // Check if admin consent is requested
+      const useAdminConsent = req.query.admin_consent === 'true';
+      
+      const { url, codeVerifier, state } = await getAuthorizationUrl(undefined, useAdminConsent);
       
       // Store PKCE verifier
       ms365PkceStore.set(state, { codeVerifier, createdAt: new Date() });

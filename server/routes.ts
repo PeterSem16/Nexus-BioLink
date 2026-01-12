@@ -44,6 +44,7 @@ import {
 } from "./template-processor";
 import { convertPdfToDocx, isConverterAvailable } from "./pdf-to-docx-converter";
 import mammoth from "mammoth";
+import { PDFDocument as PDFLibDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 
 // Global uploads directory
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -217,6 +218,66 @@ const uploadDocxMemory = multer({
     }
   },
 });
+
+// Add cancellation watermark to PDF for cancelled contracts
+async function addCancellationWatermark(pdfBuffer: Buffer, cancellationReason: string | null): Promise<Buffer> {
+  try {
+    const pdfDoc = await PDFLibDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const watermarkText = "ZRUŠENÁ";
+    const reasonText = cancellationReason ? `Dôvod: ${cancellationReason}` : "";
+    
+    for (const page of pages) {
+      const { width, height } = page.getSize();
+      
+      // Draw large diagonal "ZRUŠENÁ" watermark
+      const fontSize = Math.min(width, height) / 6;
+      const textWidth = font.widthOfTextAtSize(watermarkText, fontSize);
+      
+      page.drawText(watermarkText, {
+        x: width / 2 - textWidth / 2,
+        y: height / 2,
+        size: fontSize,
+        font,
+        color: rgb(0.8, 0.2, 0.2),
+        opacity: 0.35,
+        rotate: degrees(-45),
+      });
+      
+      // Draw reason text at bottom
+      if (reasonText) {
+        const reasonFontSize = 12;
+        page.drawText(reasonText, {
+          x: 50,
+          y: 30,
+          size: reasonFontSize,
+          font,
+          color: rgb(0.8, 0.2, 0.2),
+          opacity: 0.8,
+        });
+      }
+      
+      // Draw red border
+      page.drawRectangle({
+        x: 10,
+        y: 10,
+        width: width - 20,
+        height: height - 20,
+        borderColor: rgb(0.8, 0.2, 0.2),
+        borderWidth: 3,
+        opacity: 0.5,
+      });
+    }
+    
+    const modifiedPdfBytes = await pdfDoc.save();
+    return Buffer.from(modifiedPdfBytes);
+  } catch (error) {
+    console.error("Error adding watermark:", error);
+    return pdfBuffer; // Return original if watermark fails
+  }
+}
 
 // Helper function to convert date strings to Date objects
 function parseDateFields(data: Record<string, any>): Record<string, any> {
@@ -9896,8 +9957,13 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
           const relativePdfPath = result.pdfPath.replace(process.cwd() + "/", "");
           await storage.updateContractInstance(contract.id, { pdfPath: relativePdfPath });
           
-          // Send PDF file
-          const pdfBuffer = await fs.promises.readFile(result.pdfPath);
+          // Send PDF file - add watermark if cancelled
+          let pdfBuffer = await fs.promises.readFile(result.pdfPath);
+          
+          if (contract.status === "cancelled") {
+            pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason);
+          }
+          
           res.setHeader("Content-Type", "application/pdf");
           res.setHeader("Content-Disposition", `attachment; filename="zmluva-${contract.contractNumber}.pdf"`);
           res.setHeader("Content-Length", pdfBuffer.length);
@@ -10058,8 +10124,14 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
       // Collect PDF chunks in memory first
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(chunks);
+      doc.on('end', async () => {
+        let pdfBuffer = Buffer.concat(chunks);
+        
+        // Add watermark if contract is cancelled
+        if (contract.status === "cancelled") {
+          pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason);
+        }
+        
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="zmluva-${contract.contractNumber}.pdf"`);
         res.setHeader("Content-Length", pdfBuffer.length);

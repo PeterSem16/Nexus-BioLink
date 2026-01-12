@@ -303,7 +303,7 @@ export async function sendEmail(
 
 /**
  * Send email from a shared mailbox via Microsoft Graph
- * Uses /users/{sharedMailboxEmail}/sendMail endpoint
+ * Uses /me/sendMail endpoint with 'from' set to shared mailbox address
  * Requires Mail.Send permission and SendAs/SendOnBehalf permission on the shared mailbox
  */
 export async function sendEmailFromSharedMailbox(
@@ -327,6 +327,7 @@ export async function sendEmailFromSharedMailbox(
     toRecipients: to.map(email => ({
       emailAddress: { address: email },
     })),
+    // Set 'from' to shared mailbox - user must have SendAs permission
     from: {
       emailAddress: { address: sharedMailboxEmail },
     },
@@ -347,8 +348,9 @@ export async function sendEmailFromSharedMailbox(
     }));
   }
   
-  // Send from shared mailbox using users/{email}/sendMail endpoint
-  await client.api(`/users/${sharedMailboxEmail}/sendMail`).post({ message });
+  // Send using /me/sendMail with 'from' set to shared mailbox
+  // This works when user has SendAs or SendOnBehalf permission on the shared mailbox
+  await client.api('/me/sendMail').post({ message });
 }
 
 /**

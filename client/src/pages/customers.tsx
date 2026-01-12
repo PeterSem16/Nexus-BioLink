@@ -44,6 +44,15 @@ import { PotentialCaseForm, EmbeddedPotentialCaseForm } from "@/components/poten
 import { CallCustomerButton } from "@/components/sip-phone";
 import { useCountryFilter } from "@/contexts/country-filter-context";
 import { usePermissions } from "@/contexts/permissions-context";
+import { useAuth } from "@/contexts/auth-context";
+
+interface AvailableMailbox {
+  id: string | null;
+  email: string;
+  displayName: string;
+  type: "personal" | "shared";
+  isDefault: boolean;
+}
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getCountryFlag, getCountryName } from "@/lib/countries";
@@ -1665,6 +1674,9 @@ function CustomerDetailsContent({
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [editingProductAssignment, setEditingProductAssignment] = useState<any>(null);
   const [editBillsetId, setEditBillsetId] = useState<string>("");
+  const [selectedMailboxId, setSelectedMailboxId] = useState<string>("personal");
+  
+  const { user } = useAuth();
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -1723,6 +1735,41 @@ function CustomerDetailsContent({
       return res.json();
     },
   });
+
+  const { data: availableMailboxes = [], isLoading: mailboxesLoading } = useQuery<AvailableMailbox[]>({
+    queryKey: ["/api/users", user?.id, "ms365-available-mailboxes"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const res = await fetch(`/api/users/${user.id}/ms365-available-mailboxes`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  const personalMailbox = availableMailboxes.find(m => m.type === "personal");
+  const defaultSharedMailbox = availableMailboxes.find(m => m.isDefault && m.type === "shared");
+  const defaultMailbox = defaultSharedMailbox || personalMailbox || availableMailboxes[0];
+  const isMs365Connected = availableMailboxes.length > 0;
+  
+  useEffect(() => {
+    if (availableMailboxes.length > 0 && !mailboxesLoading) {
+      const isCurrentSelectionValid = 
+        selectedMailboxId === "personal" && personalMailbox ||
+        availableMailboxes.some(m => m.type === "shared" && (m.id === selectedMailboxId || m.email === selectedMailboxId));
+      
+      if (!isCurrentSelectionValid) {
+        if (personalMailbox) {
+          setSelectedMailboxId("personal");
+        } else {
+          const firstShared = availableMailboxes.find(m => m.type === "shared");
+          if (firstShared) {
+            setSelectedMailboxId(firstShared.id || firstShared.email);
+          }
+        }
+      }
+    }
+  }, [availableMailboxes, mailboxesLoading]);
 
   const { data: pipelineStages = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ["/api/pipeline-stages"],
@@ -2058,20 +2105,36 @@ function CustomerDetailsContent({
   });
 
   const sendEmailMutation = useMutation({
-    mutationFn: (data: { subject: string; content: string }) =>
-      apiRequest("POST", `/api/customers/${customer.id}/messages/email`, data),
+    mutationFn: async (data: { subject: string; content: string; mailboxId?: string | null }) => {
+      if (isMs365Connected) {
+        return apiRequest("POST", "/api/ms365/send-email-from-mailbox", {
+          to: customer.email,
+          subject: data.subject,
+          body: data.content,
+          isHtml: false,
+          mailboxId: data.mailboxId === "default" ? null : data.mailboxId,
+        });
+      } else {
+        return apiRequest("POST", `/api/customers/${customer.id}/messages/email`, {
+          subject: data.subject,
+          content: data.content,
+        });
+      }
+    },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "activity-logs"] });
       setEmailSubject("");
       setEmailContent("");
+      const fromInfo = response.from ? ` z ${response.from}` : "";
       const message = response.simulated 
         ? "Email queued (demo mode - configure SendGrid for actual delivery)" 
-        : "Email sent successfully";
+        : `Email odoslaný${fromInfo}`;
       toast({ title: message });
     },
-    onError: () => {
-      toast({ title: "Failed to send email", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMsg = error?.message || "Failed to send email";
+      toast({ title: errorMsg, variant: "destructive" });
     },
   });
 
@@ -2102,7 +2165,19 @@ function CustomerDetailsContent({
       toast({ title: "Please enter subject and message", variant: "destructive" });
       return;
     }
-    sendEmailMutation.mutate({ subject: emailSubject.trim(), content: emailContent.trim() });
+    let mailboxId: string | null;
+    if (selectedMailboxId === "default") {
+      mailboxId = defaultMailbox?.type === "shared" ? (defaultMailbox?.id || null) : null;
+    } else if (selectedMailboxId === "personal") {
+      mailboxId = null;
+    } else {
+      mailboxId = selectedMailboxId;
+    }
+    sendEmailMutation.mutate({ 
+      subject: emailSubject.trim(), 
+      content: emailContent.trim(),
+      mailboxId
+    });
   };
 
   const handleSendSms = () => {
@@ -2498,12 +2573,44 @@ function CustomerDetailsContent({
             <h4 className="font-semibold flex items-center gap-2">
               <Mail className="h-4 w-4" />
               {t.customers.details?.sendEmail || "Send Email"}
+              {isMs365Connected && (
+                <Badge variant="secondary" className="text-xs">MS365</Badge>
+              )}
             </h4>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs">{t.customers.details?.to || "To"}</Label>
                 <Input value={customer.email} disabled className="bg-muted" data-testid="input-email-to" />
               </div>
+              {isMs365Connected && availableMailboxes.length > 0 && (
+                <div>
+                  <Label className="text-xs">Odoslať z</Label>
+                  <Select value={selectedMailboxId} onValueChange={setSelectedMailboxId}>
+                    <SelectTrigger data-testid="select-email-from-mailbox">
+                      <SelectValue placeholder="Vyberte schránku" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personalMailbox && (
+                        <SelectItem value="personal">
+                          {personalMailbox.displayName} ({personalMailbox.email}) [Osobná]
+                        </SelectItem>
+                      )}
+                      {availableMailboxes.filter(m => m.type === "shared").map((mailbox) => (
+                        <SelectItem key={mailbox.id || mailbox.email} value={mailbox.id || mailbox.email}>
+                          {mailbox.displayName} ({mailbox.email}) [Zdieľaná]{mailbox.isDefault ? " (Predvolená)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!isMs365Connected && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Pre odosielanie emailov cez Microsoft 365 si pripojte váš účet v nastaveniach používateľa.
+                  </p>
+                </div>
+              )}
               <div>
                 <Label className="text-xs">{t.customers.details?.subject || "Subject"}</Label>
                 <Input
@@ -2530,7 +2637,7 @@ function CustomerDetailsContent({
                   data-testid="button-send-email"
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  {sendEmailMutation.isPending ? (t.customers.details?.sending || "Sending...") : (t.customers.details?.sendEmail || "Send Email")}
+                  {sendEmailMutation.isPending ? (t.customers.details?.sending || "Odosielam...") : (t.customers.details?.sendEmail || "Odoslať email")}
                 </Button>
               </div>
             </div>

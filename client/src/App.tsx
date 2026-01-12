@@ -15,6 +15,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { TourProvider, TourTrigger } from "@/components/tour-provider";
 import { SipPhoneHeaderButton } from "@/components/sip-phone";
 import { QuickCreate } from "@/components/quick-create";
+import { EmailNotifications } from "@/components/email-notifications";
 import { ChatProvider } from "@/contexts/chat-context";
 import { ChatContainer } from "@/components/chat-container";
 import Dashboard from "@/pages/dashboard";
@@ -115,6 +116,7 @@ function AuthenticatedApp() {
                 <div className="flex items-center gap-2">
                   <GlobalSearch />
                   <QuickCreate />
+                  <EmailNotifications />
                   <SipPhoneHeaderButton user={user} />
                   <TourTrigger />
                   <ThemeToggle />

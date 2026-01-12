@@ -381,6 +381,85 @@ export async function getContacts(accessToken: string, top: number = 50): Promis
 }
 
 /**
+ * Get unread email count for a mailbox
+ * @param accessToken - Access token
+ * @param mailboxEmail - Optional shared mailbox email. If not provided, uses user's own mailbox.
+ */
+export async function getUnreadEmailCount(accessToken: string, mailboxEmail?: string): Promise<number> {
+  const client = createGraphClient(accessToken);
+  
+  const basePath = mailboxEmail ? `/users/${mailboxEmail}` : '/me';
+  
+  try {
+    const result = await client.api(`${basePath}/mailFolders/inbox`)
+      .select('unreadItemCount')
+      .get();
+    
+    return result.unreadItemCount || 0;
+  } catch (error) {
+    console.error(`[MS365] Error getting unread count for ${mailboxEmail || 'me'}:`, error);
+    return 0;
+  }
+}
+
+/**
+ * Get recent emails from a mailbox
+ * @param accessToken - Access token
+ * @param mailboxEmail - Optional shared mailbox email. If not provided, uses user's own mailbox.
+ * @param top - Number of emails to fetch (default 10)
+ * @param onlyUnread - Only fetch unread emails
+ */
+export async function getRecentEmails(
+  accessToken: string,
+  mailboxEmail?: string,
+  top: number = 10,
+  onlyUnread: boolean = false
+): Promise<any[]> {
+  const client = createGraphClient(accessToken);
+  
+  const basePath = mailboxEmail ? `/users/${mailboxEmail}` : '/me';
+  
+  try {
+    let request = client.api(`${basePath}/mailFolders/inbox/messages`)
+      .select('id,subject,from,receivedDateTime,isRead,bodyPreview')
+      .orderby('receivedDateTime desc')
+      .top(top);
+    
+    if (onlyUnread) {
+      request = request.filter('isRead eq false');
+    }
+    
+    const result = await request.get();
+    return result.value || [];
+  } catch (error) {
+    console.error(`[MS365] Error getting emails for ${mailboxEmail || 'me'}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Get combined unread counts for user's own mailbox and all shared mailboxes
+ */
+export async function getAllMailboxUnreadCounts(
+  accessToken: string, 
+  sharedMailboxEmails: string[]
+): Promise<{ mailbox: string; unreadCount: number }[]> {
+  const results: { mailbox: string; unreadCount: number }[] = [];
+  
+  // Get user's own mailbox count
+  const personalCount = await getUnreadEmailCount(accessToken);
+  results.push({ mailbox: 'personal', unreadCount: personalCount });
+  
+  // Get shared mailbox counts
+  for (const email of sharedMailboxEmails) {
+    const count = await getUnreadEmailCount(accessToken, email);
+    results.push({ mailbox: email, unreadCount: count });
+  }
+  
+  return results;
+}
+
+/**
  * Check if MS365 integration is configured
  */
 export function isConfigured(): boolean {

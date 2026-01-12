@@ -699,6 +699,7 @@ export interface IStorage {
   // MS365 Shared Mailboxes
   getUserMs365SharedMailboxes(userId: string): Promise<UserMs365SharedMailbox[]>;
   getUserMs365SharedMailbox(id: string): Promise<UserMs365SharedMailbox | undefined>;
+  getDefaultUserMs365SharedMailbox(userId: string): Promise<UserMs365SharedMailbox | undefined>;
   createUserMs365SharedMailbox(data: InsertUserMs365SharedMailbox): Promise<UserMs365SharedMailbox>;
   updateUserMs365SharedMailbox(id: string, data: Partial<InsertUserMs365SharedMailbox>): Promise<UserMs365SharedMailbox | undefined>;
   deleteUserMs365SharedMailbox(id: string): Promise<boolean>;
@@ -4088,6 +4089,16 @@ export class DatabaseStorage implements IStorage {
   async getUserMs365SharedMailbox(id: string): Promise<UserMs365SharedMailbox | undefined> {
     const [mailbox] = await db.select().from(userMs365SharedMailboxes)
       .where(eq(userMs365SharedMailboxes.id, id));
+    return mailbox || undefined;
+  }
+
+  async getDefaultUserMs365SharedMailbox(userId: string): Promise<UserMs365SharedMailbox | undefined> {
+    const [mailbox] = await db.select().from(userMs365SharedMailboxes)
+      .where(and(
+        eq(userMs365SharedMailboxes.userId, userId),
+        eq(userMs365SharedMailboxes.isDefault, true),
+        eq(userMs365SharedMailboxes.isActive, true)
+      ));
     return mailbox || undefined;
   }
 

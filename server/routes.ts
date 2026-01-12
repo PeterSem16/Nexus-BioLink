@@ -2058,6 +2058,129 @@ export async function registerRoutes(
     }
   });
 
+  // Get unread email counts for all user's mailboxes
+  app.get("/api/users/:userId/ms365-unread-counts", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const ms365Connection = await storage.getUserMs365Connection(userId);
+      
+      if (!ms365Connection || !ms365Connection.isConnected) {
+        return res.json({ connected: false, counts: [] });
+      }
+      
+      const { decryptTokenSafe } = await import("./lib/token-crypto");
+      let accessToken: string;
+      let refreshToken: string | null;
+      
+      try {
+        accessToken = decryptTokenSafe(ms365Connection.accessToken);
+        refreshToken = ms365Connection.refreshToken ? decryptTokenSafe(ms365Connection.refreshToken) : null;
+      } catch (decryptError) {
+        console.error("[MS365] Token decryption failed:", decryptError);
+        return res.json({ connected: false, counts: [], error: "Token decryption failed" });
+      }
+      
+      const { getValidAccessToken, getAllMailboxUnreadCounts } = await import("./lib/ms365");
+      const tokenResult = await getValidAccessToken(accessToken, ms365Connection.tokenExpiresAt, refreshToken);
+      
+      if (!tokenResult || !tokenResult.accessToken) {
+        return res.json({ connected: false, counts: [], requiresReauth: true });
+      }
+      
+      if (tokenResult.refreshed) {
+        const { encryptTokenWithMarker } = await import("./lib/token-crypto");
+        const updateData: any = {
+          accessToken: encryptTokenWithMarker(tokenResult.accessToken),
+          tokenExpiresAt: tokenResult.expiresOn,
+          lastSyncAt: new Date(),
+        };
+        if (tokenResult.refreshToken) {
+          updateData.refreshToken = encryptTokenWithMarker(tokenResult.refreshToken);
+        }
+        await storage.updateUserMs365Connection(userId, updateData);
+      }
+      
+      const sharedMailboxes = await storage.getUserMs365SharedMailboxes(userId);
+      const sharedEmails = sharedMailboxes.filter(m => m.isActive).map(m => m.email);
+      
+      const counts = await getAllMailboxUnreadCounts(tokenResult.accessToken, sharedEmails);
+      const totalUnread = counts.reduce((sum, c) => sum + c.unreadCount, 0);
+      
+      res.json({ 
+        connected: true, 
+        counts,
+        totalUnread,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error fetching unread counts:", error);
+      res.status(500).json({ error: "Failed to fetch unread counts" });
+    }
+  });
+
+  // Get recent emails from a mailbox
+  app.get("/api/users/:userId/ms365-recent-emails", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const mailboxEmail = req.query.mailbox as string | undefined;
+      const top = parseInt(req.query.top as string) || 10;
+      const onlyUnread = req.query.unread === "true";
+      
+      const ms365Connection = await storage.getUserMs365Connection(userId);
+      
+      if (!ms365Connection || !ms365Connection.isConnected) {
+        return res.json({ connected: false, emails: [] });
+      }
+      
+      const { decryptTokenSafe } = await import("./lib/token-crypto");
+      let accessToken: string;
+      let refreshToken: string | null;
+      
+      try {
+        accessToken = decryptTokenSafe(ms365Connection.accessToken);
+        refreshToken = ms365Connection.refreshToken ? decryptTokenSafe(ms365Connection.refreshToken) : null;
+      } catch (decryptError) {
+        return res.json({ connected: false, emails: [], error: "Token decryption failed" });
+      }
+      
+      const { getValidAccessToken, getRecentEmails } = await import("./lib/ms365");
+      const tokenResult = await getValidAccessToken(accessToken, ms365Connection.tokenExpiresAt, refreshToken);
+      
+      if (!tokenResult || !tokenResult.accessToken) {
+        return res.json({ connected: false, emails: [], requiresReauth: true });
+      }
+      
+      if (tokenResult.refreshed) {
+        const { encryptTokenWithMarker } = await import("./lib/token-crypto");
+        const updateData: any = {
+          accessToken: encryptTokenWithMarker(tokenResult.accessToken),
+          tokenExpiresAt: tokenResult.expiresOn,
+          lastSyncAt: new Date(),
+        };
+        if (tokenResult.refreshToken) {
+          updateData.refreshToken = encryptTokenWithMarker(tokenResult.refreshToken);
+        }
+        await storage.updateUserMs365Connection(userId, updateData);
+      }
+      
+      const emails = await getRecentEmails(
+        tokenResult.accessToken,
+        mailboxEmail === "personal" ? undefined : mailboxEmail,
+        top,
+        onlyUnread
+      );
+      
+      res.json({ 
+        connected: true, 
+        emails,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error fetching recent emails:", error);
+      res.status(500).json({ error: "Failed to fetch recent emails" });
+    }
+  });
+
   // Tasks API (protected)
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {

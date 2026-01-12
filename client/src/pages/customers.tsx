@@ -302,7 +302,7 @@ function DocumentsTab({ customerId }: { customerId: string }) {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(doc.pdfPath!, "_blank")}
+                            onClick={() => window.open(`/api/customers/${customerId}/documents/${doc.type}/${doc.id}/pdf`, "_blank")}
                             data-testid={`button-download-${doc.type}-${doc.id}`}
                           >
                             <Download className="h-4 w-4 mr-1" />

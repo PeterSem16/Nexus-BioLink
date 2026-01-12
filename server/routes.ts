@@ -219,15 +219,46 @@ const uploadDocxMemory = multer({
   },
 });
 
+// Watermark translations by locale
+const WATERMARK_TRANSLATIONS: Record<string, { cancelled: string; reason: string }> = {
+  sk: { cancelled: "ZRUŠENÁ", reason: "Dôvod" },
+  cs: { cancelled: "ZRUŠENO", reason: "Důvod" },
+  hu: { cancelled: "TÖRÖLT", reason: "Ok" },
+  ro: { cancelled: "ANULAT", reason: "Motiv" },
+  it: { cancelled: "ANNULLATO", reason: "Motivo" },
+  de: { cancelled: "STORNIERT", reason: "Grund" },
+  en: { cancelled: "CANCELLED", reason: "Reason" },
+};
+
+// Get user locale from assigned countries (priority: en > first country)
+function getUserLocale(assignedCountries: string[] = []): string {
+  const countryToLocale: Record<string, string> = {
+    US: "en", SK: "sk", CZ: "cs", HU: "hu", RO: "ro", IT: "it", DE: "de"
+  };
+  
+  // If multiple countries or US is in the list, use English
+  if (assignedCountries.length > 1 || assignedCountries.includes("US")) {
+    return "en";
+  }
+  
+  // Single country - use its locale
+  if (assignedCountries.length === 1) {
+    return countryToLocale[assignedCountries[0]] || "en";
+  }
+  
+  return "en"; // Default to English
+}
+
 // Add cancellation watermark to PDF for cancelled contracts
-async function addCancellationWatermark(pdfBuffer: Buffer, cancellationReason: string | null): Promise<Buffer> {
+async function addCancellationWatermark(pdfBuffer: Buffer, cancellationReason: string | null, locale: string = "en"): Promise<Buffer> {
   try {
     const pdfDoc = await PDFLibDocument.load(pdfBuffer);
     const pages = pdfDoc.getPages();
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
-    const watermarkText = "ZRUŠENÁ";
-    const reasonText = cancellationReason ? `Dôvod: ${cancellationReason}` : "";
+    const translations = WATERMARK_TRANSLATIONS[locale] || WATERMARK_TRANSLATIONS.en;
+    const watermarkText = translations.cancelled;
+    const reasonText = cancellationReason ? `${translations.reason}: ${cancellationReason}` : "";
     
     for (const page of pages) {
       const { width, height } = page.getSize();
@@ -2202,6 +2233,69 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching customer documents:", error);
       res.status(500).json({ error: "Failed to fetch customer documents" });
+    }
+  });
+
+  // Download document PDF with watermark support for cancelled contracts
+  app.get("/api/customers/:customerId/documents/:docType/:docId/pdf", requireAuth, async (req, res) => {
+    try {
+      const { customerId, docType, docId } = req.params;
+      
+      if (docType === "contract") {
+        const contract = await storage.getContractInstance(docId);
+        if (!contract || contract.customerId !== customerId) {
+          return res.status(404).json({ error: "Contract not found" });
+        }
+        
+        if (!contract.pdfPath) {
+          return res.status(400).json({ error: "PDF not available" });
+        }
+        
+        const fullPath = path.join(process.cwd(), contract.pdfPath);
+        if (!fs.existsSync(fullPath)) {
+          return res.status(404).json({ error: "PDF file not found" });
+        }
+        
+        let pdfBuffer = await fs.promises.readFile(fullPath);
+        
+        // Add watermark if cancelled
+        if (contract.status === "cancelled") {
+          const userLocale = getUserLocale(req.session.user?.assignedCountries || []);
+          pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason, userLocale);
+        }
+        
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="zmluva-${contract.contractNumber}.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+      } else if (docType === "invoice") {
+        const invoices = await storage.getInvoicesByCustomer(customerId);
+        const invoice = invoices.find(i => i.id === docId);
+        
+        if (!invoice) {
+          return res.status(404).json({ error: "Invoice not found" });
+        }
+        
+        if (!invoice.pdfPath) {
+          return res.status(400).json({ error: "PDF not available" });
+        }
+        
+        const fullPath = path.join(process.cwd(), invoice.pdfPath);
+        if (!fs.existsSync(fullPath)) {
+          return res.status(404).json({ error: "PDF file not found" });
+        }
+        
+        const pdfBuffer = await fs.promises.readFile(fullPath);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="faktura-${invoice.invoiceNumber}.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+      } else {
+        return res.status(400).json({ error: "Invalid document type" });
+      }
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      res.status(500).json({ error: "Failed to download document" });
     }
   });
 
@@ -9961,7 +10055,8 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
           let pdfBuffer = await fs.promises.readFile(result.pdfPath);
           
           if (contract.status === "cancelled") {
-            pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason);
+            const userLocale = getUserLocale(req.session.user?.assignedCountries || []);
+            pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason, userLocale);
           }
           
           res.setHeader("Content-Type", "application/pdf");
@@ -10129,7 +10224,8 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
         
         // Add watermark if contract is cancelled
         if (contract.status === "cancelled") {
-          pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason);
+          const userLocale = getUserLocale(req.session.user?.assignedCountries || []);
+          pdfBuffer = await addCancellationWatermark(pdfBuffer, contract.cancellationReason, userLocale);
         }
         
         res.setHeader("Content-Type", "application/pdf");

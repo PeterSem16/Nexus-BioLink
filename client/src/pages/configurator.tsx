@@ -11903,6 +11903,303 @@ function BillingCompaniesTab() {
   );
 }
 
+// Country System Settings Tab
+function CountrySystemSettingsTab() {
+  const { toast } = useToast();
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
+
+  const userCountryCodes = user?.assignedCountries && user.assignedCountries.length > 0 ? user.assignedCountries : null;
+  const availableCountries = userCountryCodes 
+    ? COUNTRIES.filter(c => userCountryCodes.includes(c.code))
+    : COUNTRIES;
+
+  const { data: systemSettings = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/config/country-system-settings"],
+  });
+
+  const { data: gsmConfigs = [] } = useQuery<any[]>({
+    queryKey: ["/api/config/gsm-sender-configs"],
+  });
+
+  const currentSettings = systemSettings.find(s => s.countryCode === selectedCountry);
+  const currentGsmConfig = gsmConfigs.find(g => g.countryCode === selectedCountry);
+
+  const [formData, setFormData] = useState({
+    systemEmailEnabled: false,
+    systemEmailAddress: "",
+    systemEmailDisplayName: "",
+    systemSmsEnabled: false,
+    systemSmsSenderType: "gSystem",
+    systemSmsSenderValue: "",
+    alertsEnabled: true,
+    notificationsEnabled: true,
+  });
+
+  useEffect(() => {
+    if (currentSettings) {
+      setFormData({
+        systemEmailEnabled: currentSettings.systemEmailEnabled || false,
+        systemEmailAddress: currentSettings.systemEmailAddress || "",
+        systemEmailDisplayName: currentSettings.systemEmailDisplayName || "",
+        systemSmsEnabled: currentSettings.systemSmsEnabled || false,
+        systemSmsSenderType: currentSettings.systemSmsSenderType || currentGsmConfig?.senderIdType || "gSystem",
+        systemSmsSenderValue: currentSettings.systemSmsSenderValue || currentGsmConfig?.senderIdValue || "",
+        alertsEnabled: currentSettings.alertsEnabled ?? true,
+        notificationsEnabled: currentSettings.notificationsEnabled ?? true,
+      });
+    } else {
+      setFormData({
+        systemEmailEnabled: false,
+        systemEmailAddress: "",
+        systemEmailDisplayName: "",
+        systemSmsEnabled: false,
+        systemSmsSenderType: currentGsmConfig?.senderIdType || "gSystem",
+        systemSmsSenderValue: currentGsmConfig?.senderIdValue || "",
+        alertsEnabled: true,
+        notificationsEnabled: true,
+      });
+    }
+  }, [currentSettings, currentGsmConfig, selectedCountry]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/config/country-system-settings", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/config/country-system-settings"] });
+      toast({ title: t.common.success, description: "Systémové nastavenia uložené" });
+    },
+    onError: () => {
+      toast({ title: t.common.error, description: "Nepodarilo sa uložiť nastavenia", variant: "destructive" });
+    },
+  });
+
+  const handleSave = () => {
+    if (!selectedCountry) {
+      toast({ title: t.common.error, description: "Vyberte krajinu", variant: "destructive" });
+      return;
+    }
+    saveMutation.mutate({
+      countryCode: selectedCountry,
+      ...formData,
+    });
+  };
+
+  const senderTypes = [
+    { value: "gSystem", label: "Systémové číslo", needsValue: false },
+    { value: "gShort", label: "Short Code", needsValue: false },
+    { value: "gText", label: "Textový odosielateľ", needsValue: true },
+    { value: "gMobile", label: "Mobile Connect", needsValue: true },
+    { value: "gPush", label: "Mobile Connect Push", needsValue: false },
+    { value: "gOwn", label: "Vlastné číslo", needsValue: true },
+    { value: "gProfile", label: "BulkGate Profil ID", needsValue: true },
+  ];
+
+  const selectedSenderType = senderTypes.find(t => t.value === formData.systemSmsSenderType);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label>Vyberte krajinu</Label>
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+            <SelectTrigger className="w-[300px]" data-testid="select-system-settings-country">
+              <SelectValue placeholder="Vyberte krajinu..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCountries.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {selectedCountry && (
+        <div className="grid grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Systémový Email
+              </CardTitle>
+              <CardDescription>
+                MS365 email účet pre odosielanie systémových upozornení a alertov
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="emailEnabled">Povoliť systémový email</Label>
+                <Switch
+                  id="emailEnabled"
+                  checked={formData.systemEmailEnabled}
+                  onCheckedChange={(v) => setFormData({...formData, systemEmailEnabled: v})}
+                  data-testid="switch-system-email-enabled"
+                />
+              </div>
+              
+              {formData.systemEmailEnabled && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Email adresa (MS365)</Label>
+                    <Input
+                      value={formData.systemEmailAddress}
+                      onChange={(e) => setFormData({...formData, systemEmailAddress: e.target.value})}
+                      placeholder="system@vasadomena.sk"
+                      data-testid="input-system-email-address"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Tento email musí byť pripojený cez MS365 integráciu
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Zobrazované meno odosielateľa</Label>
+                    <Input
+                      value={formData.systemEmailDisplayName}
+                      onChange={(e) => setFormData({...formData, systemEmailDisplayName: e.target.value})}
+                      placeholder="INDEXUS Systém"
+                      data-testid="input-system-email-display-name"
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Systémový SMS odosielateľ
+              </CardTitle>
+              <CardDescription>
+                BulkGate konfigurácia pre odosielanie systémových SMS upozornení
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="smsEnabled">Povoliť systémové SMS</Label>
+                <Switch
+                  id="smsEnabled"
+                  checked={formData.systemSmsEnabled}
+                  onCheckedChange={(v) => setFormData({...formData, systemSmsEnabled: v})}
+                  data-testid="switch-system-sms-enabled"
+                />
+              </div>
+
+              {formData.systemSmsEnabled && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Typ odosielateľa</Label>
+                    <Select 
+                      value={formData.systemSmsSenderType} 
+                      onValueChange={(v) => setFormData({...formData, systemSmsSenderType: v, systemSmsSenderValue: ""})}
+                    >
+                      <SelectTrigger data-testid="select-system-sms-sender-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {senderTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {selectedSenderType?.needsValue && (
+                    <div className="space-y-2">
+                      <Label>
+                        {formData.systemSmsSenderType === "gText" ? "Text odosielateľa (max 11 znakov)" : 
+                         formData.systemSmsSenderType === "gOwn" ? "Telefónne číslo" :
+                         formData.systemSmsSenderType === "gProfile" ? "BulkGate Profil ID" :
+                         "Hodnota"}
+                      </Label>
+                      <Input
+                        value={formData.systemSmsSenderValue}
+                        onChange={(e) => setFormData({...formData, systemSmsSenderValue: e.target.value})}
+                        placeholder={
+                          formData.systemSmsSenderType === "gText" ? "INDEXUS" : 
+                          formData.systemSmsSenderType === "gOwn" ? "+421..." :
+                          formData.systemSmsSenderType === "gProfile" ? "123456" :
+                          ""
+                        }
+                        maxLength={formData.systemSmsSenderType === "gText" ? 11 : undefined}
+                        data-testid="input-system-sms-sender-value"
+                      />
+                    </div>
+                  )}
+
+                  {currentGsmConfig && (
+                    <div className="p-3 bg-muted rounded-md">
+                      <p className="text-xs text-muted-foreground">
+                        Aktuálna GSM konfigurácia pre {selectedCountry}: {currentGsmConfig.senderIdType}
+                        {currentGsmConfig.senderIdValue && ` (${currentGsmConfig.senderIdValue})`}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Dodatočné nastavenia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Alerty</Label>
+                  <p className="text-sm text-muted-foreground">Povoliť automatické alerty pre túto krajinu</p>
+                </div>
+                <Switch
+                  checked={formData.alertsEnabled}
+                  onCheckedChange={(v) => setFormData({...formData, alertsEnabled: v})}
+                  data-testid="switch-alerts-enabled"
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Notifikácie</Label>
+                  <p className="text-sm text-muted-foreground">Povoliť automatické notifikácie pre túto krajinu</p>
+                </div>
+                <Switch
+                  checked={formData.notificationsEnabled}
+                  onCheckedChange={(v) => setFormData({...formData, notificationsEnabled: v})}
+                  data-testid="switch-notifications-enabled"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {selectedCountry && (
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-system-settings">
+            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Uložiť nastavenia
+          </Button>
+        </div>
+      )}
+
+      {!selectedCountry && (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          Vyberte krajinu pre zobrazenie systémových nastavení
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Billing Company Multi-Tab Dialog Component
 function BillingCompanyDialog({
   open,
@@ -13239,7 +13536,24 @@ export default function ConfiguratorPage() {
               <CardDescription>{t.konfigurator.billingCompaniesDescription || "Manage billing companies and their settings"}</CardDescription>
             </CardHeader>
             <CardContent>
-              <BillingCompaniesTab />
+              <Tabs defaultValue="companies" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="companies" data-testid="subtab-billing-companies">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Fakturačné spoločnosti
+                  </TabsTrigger>
+                  <TabsTrigger value="system-settings" data-testid="subtab-system-settings">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Systémové nastavenia
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="companies">
+                  <BillingCompaniesTab />
+                </TabsContent>
+                <TabsContent value="system-settings">
+                  <CountrySystemSettingsTab />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>

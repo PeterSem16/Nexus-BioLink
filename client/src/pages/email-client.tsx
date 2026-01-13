@@ -37,6 +37,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Inbox,
   Send,
   FileText,
@@ -82,6 +87,9 @@ import {
   AlertOctagon,
   CheckCircle2,
   XCircle,
+  Calendar as CalendarIcon,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import Editor from "react-simple-wysiwyg";
 
@@ -340,6 +348,15 @@ export default function EmailClientPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchMailbox, setSearchMailbox] = useState<string>("all");
+  
+  // Filters for message list
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+  const [filterHasAttachment, setFilterHasAttachment] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>(undefined);
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [localPage, setLocalPage] = useState(0);
+  const localPageSize = 25;
 
   const { data: mailboxes = [], isLoading: mailboxesLoading } = useQuery<Mailbox[]>({
     queryKey: ["/api/users", user?.id, "ms365-available-mailboxes"],
@@ -695,7 +712,49 @@ export default function EmailClientPage() {
     }
   }
   
-  unifiedMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  // Apply filters
+  let filteredMessages = unifiedMessages.filter(msg => {
+    // Unread filter
+    if (filterUnreadOnly && !msg.isUnread) return false;
+    
+    // Attachment filter
+    if (filterHasAttachment && !msg.hasAttachments) return false;
+    
+    // Date from filter
+    if (filterDateFrom) {
+      const msgDate = new Date(msg.timestamp);
+      const fromDate = new Date(filterDateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (msgDate < fromDate) return false;
+    }
+    
+    // Date to filter
+    if (filterDateTo) {
+      const msgDate = new Date(msg.timestamp);
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (msgDate > toDate) return false;
+    }
+    
+    return true;
+  });
+  
+  // Apply sort order
+  filteredMessages.sort((a, b) => {
+    const timeA = new Date(a.timestamp).getTime();
+    const timeB = new Date(b.timestamp).getTime();
+    return sortOrder === "newest" ? timeB - timeA : timeA - timeB;
+  });
+  
+  // Calculate pagination
+  const totalFilteredMessages = filteredMessages.length;
+  const totalLocalPages = Math.ceil(totalFilteredMessages / localPageSize);
+  const paginatedMessages = filteredMessages.slice(localPage * localPageSize, (localPage + 1) * localPageSize);
+  
+  // Reset page when filters change
+  useEffect(() => {
+    setLocalPage(0);
+  }, [filterUnreadOnly, filterHasAttachment, filterDateFrom, filterDateTo, sortOrder, selectedFolderId]);
 
   const handleSendEmail = () => {
     const toList = composeData.to.split(",").map(e => e.trim()).filter(Boolean);
@@ -1090,42 +1149,130 @@ export default function EmailClientPage() {
 
         {/* Unified message list */}
         <Card className="col-span-4">
-          <CardHeader className="py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              Správy
+          <CardHeader className="py-2 px-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium">
+                Správy ({totalFilteredMessages})
+              </CardTitle>
               <div className="flex items-center gap-1">
-                <Badge variant="outline" className="text-xs bg-slate-100 dark:bg-slate-800"><Mail className="h-3 w-3 mr-1" />{emails.length}</Badge>
-                <Badge variant="outline" className="text-xs bg-cyan-50 dark:bg-cyan-950/30 text-cyan-700"><MessageSquare className="h-3 w-3 mr-1" />{smsData?.length || 0}</Badge>
-                <Badge variant="outline" className="text-xs bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700"><ListTodo className="h-3 w-3 mr-1" />{tasksData?.length || 0}</Badge>
-                <Badge variant="outline" className="text-xs bg-violet-50 dark:bg-violet-950/30 text-violet-700"><MessagesSquare className="h-3 w-3 mr-1" />{chatsData?.length || 0}</Badge>
-              </div>
-            </CardTitle>
-            {totalPages > 1 && selectedFolderType === "email" && (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={localPage === 0} onClick={() => setLocalPage(p => p - 1)} data-testid="button-page-prev">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-xs">{page + 1}/{totalPages}</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                <span className="text-xs min-w-[50px] text-center">{totalLocalPages > 0 ? `${localPage + 1}/${totalLocalPages}` : "0/0"}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={localPage >= totalLocalPages - 1} onClick={() => setLocalPage(p => p + 1)} data-testid="button-page-next">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-            )}
+            </div>
+            
+            {/* Filters row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                variant={filterUnreadOnly ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-xs gap-1"
+                onClick={() => setFilterUnreadOnly(!filterUnreadOnly)}
+                data-testid="filter-unread"
+              >
+                <MailOpen className="h-3 w-3" />
+                Neprečítané
+              </Button>
+              
+              <Button 
+                variant={filterHasAttachment ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-xs gap-1"
+                onClick={() => setFilterHasAttachment(!filterHasAttachment)}
+                data-testid="filter-attachment"
+              >
+                <Paperclip className="h-3 w-3" />
+                S prílohou
+              </Button>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={`h-7 text-xs gap-1 ${filterDateFrom || filterDateTo ? "border-primary" : ""}`} data-testid="filter-date">
+                    <CalendarIcon className="h-3 w-3" />
+                    {filterDateFrom || filterDateTo ? (
+                      <>
+                        {filterDateFrom ? format(filterDateFrom, "d.M.") : "..."} - {filterDateTo ? format(filterDateTo, "d.M.") : "..."}
+                      </>
+                    ) : "Dátum"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3" align="start">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Od</label>
+                      <input 
+                        type="date" 
+                        className="w-full px-2 py-1 text-sm border rounded"
+                        value={filterDateFrom ? format(filterDateFrom, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setFilterDateFrom(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Do</label>
+                      <input 
+                        type="date" 
+                        className="w-full px-2 py-1 text-sm border rounded"
+                        value={filterDateTo ? format(filterDateTo, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </div>
+                    {(filterDateFrom || filterDateTo) && (
+                      <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => { setFilterDateFrom(undefined); setFilterDateTo(undefined); }}>
+                        Vymazať
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-xs gap-1"
+                onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+                data-testid="sort-toggle"
+              >
+                {sortOrder === "newest" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                {sortOrder === "newest" ? "Najnovšie" : "Najstaršie"}
+              </Button>
+              
+              {(filterUnreadOnly || filterHasAttachment || filterDateFrom || filterDateTo) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setFilterUnreadOnly(false);
+                    setFilterHasAttachment(false);
+                    setFilterDateFrom(undefined);
+                    setFilterDateTo(undefined);
+                  }}
+                  data-testid="clear-filters"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Vymazať filtre
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {(messagesLoading || tasksLoading || chatsLoading || smsLoading) ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
-            ) : unifiedMessages.length === 0 ? (
+            ) : paginatedMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Network className="h-8 w-8 mb-2 opacity-50" />
-                <span>Žiadne správy</span>
+                <span>{filterUnreadOnly || filterHasAttachment || filterDateFrom || filterDateTo ? "Žiadne správy zodpovedajú filtrom" : "Žiadne správy"}</span>
               </div>
             ) : (
-              <ScrollArea className="h-[calc(100vh-340px)]">
+              <ScrollArea className="h-[calc(100vh-400px)]">
                 <div className="divide-y">
-                  {unifiedMessages.map((msg) => (
+                  {paginatedMessages.map((msg) => (
                     <button
                       key={msg.id}
                       onClick={() => selectUnifiedMessage(msg)}

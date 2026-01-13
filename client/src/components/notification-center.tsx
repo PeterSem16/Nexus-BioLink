@@ -337,7 +337,7 @@ export function NotificationBell() {
   );
 }
 
-function NotificationRulesManager() {
+export function NotificationRulesManager() {
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<NotificationRule | null>(null);
@@ -366,7 +366,7 @@ function NotificationRulesManager() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/notification-rules", { method: "POST", body: JSON.stringify(data) });
+      return apiRequest("POST", "/api/notification-rules", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-rules"] });
@@ -381,7 +381,7 @@ function NotificationRulesManager() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return apiRequest(`/api/notification-rules/${id}`, { method: "PUT", body: JSON.stringify(data) });
+      return apiRequest("PUT", `/api/notification-rules/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-rules"] });
@@ -397,10 +397,7 @@ function NotificationRulesManager() {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      return apiRequest(`/api/notification-rules/${id}/toggle`, { 
-        method: "PATCH", 
-        body: JSON.stringify({ isActive }) 
-      });
+      return apiRequest("PATCH", `/api/notification-rules/${id}/toggle`, { isActive });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-rules"] });
@@ -412,7 +409,7 @@ function NotificationRulesManager() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/notification-rules/${id}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/notification-rules/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-rules"] });

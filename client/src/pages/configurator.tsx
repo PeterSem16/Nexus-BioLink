@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard, TrendingUp } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard, TrendingUp, Bell } from "lucide-react";
 import { COUNTRIES, CURRENCIES, getCurrencySymbol } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +34,7 @@ import { EMAIL_PRIORITIES, EMAIL_IMPORTANCE, EMAIL_CONDITION_TYPES, EMAIL_ACTION
 import { CRM_MODULES, DEPARTMENTS, type ModuleDefinition, type FieldPermission, type ModuleAccess } from "@shared/permissions-config";
 import { Building2, User, Mail, Phone, Smartphone, RefreshCw, Wallet } from "lucide-react";
 import { DepartmentTree } from "@/components/department-tree";
+import { NotificationRulesManager } from "@/components/notification-center";
 
 const serviceFormSchema = z.object({
   serviceCode: z.string().min(1, "Service code is required"),
@@ -10733,6 +10734,10 @@ const departmentFormSchema = z.object({
 
 type DepartmentFormData = z.infer<typeof departmentFormSchema>;
 
+function NotificationsTab() {
+  return <NotificationRulesManager />;
+}
+
 function PermissionsRolesTab() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -13486,7 +13491,7 @@ export default function ConfiguratorPage() {
       />
       
       <Tabs defaultValue="products" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 max-w-6xl">
+        <TabsList className="grid w-full grid-cols-8 max-w-7xl">
           <TabsTrigger value="products" className="flex items-center gap-2" data-testid="tab-products">
             <Package className="h-4 w-4" />
             {t.products.title}
@@ -13510,6 +13515,10 @@ export default function ConfiguratorPage() {
           <TabsTrigger value="email-router" className="flex items-center gap-2" data-testid="tab-email-router">
             <Mail className="h-4 w-4" />
             Email & GSM Router
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2" data-testid="tab-notifications">
+            <Bell className="h-4 w-4" />
+            Notifikácie
           </TabsTrigger>
           <TabsTrigger value="permissions" className="flex items-center gap-2" data-testid="tab-permissions">
             <Shield className="h-4 w-4" />
@@ -13653,6 +13662,18 @@ export default function ConfiguratorPage() {
                   <GsmSenderTab />
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifikačné pravidlá</CardTitle>
+              <CardDescription>Správa automatických notifikácií a upozornení</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NotificationsTab />
             </CardContent>
           </Card>
         </TabsContent>

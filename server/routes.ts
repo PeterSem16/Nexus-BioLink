@@ -1003,7 +1003,7 @@ export async function registerRoutes(
       }
       
       // Always use HTTPS for redirect URI (Replit runs behind a proxy)
-      const redirectUri = `https://${req.get("host")}/api/auth/microsoft/login-callback`;
+      const redirectUri = `https://${req.get("host")}/api/auth/microsoft/callback`;
       const scopes = ["openid", "profile", "email", "User.Read"];
       
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
@@ -1022,7 +1022,7 @@ export async function registerRoutes(
   });
 
   // MS365 login callback - handles authentication for users with authMethod = ms365
-  app.get("/api/auth/microsoft/login-callback", async (req, res) => {
+  app.get("/api/auth/microsoft/callback", async (req, res) => {
     try {
       const { code, error: authError, error_description } = req.query;
       
@@ -1045,7 +1045,7 @@ export async function registerRoutes(
       const clientSecret = process.env.MS365_CLIENT_SECRET!;
       const tenantId = process.env.MS365_TENANT_ID!;
       // Always use HTTPS for redirect URI (Replit runs behind a proxy)
-      const redirectUri = `https://${req.get("host")}/api/auth/microsoft/login-callback`;
+      const redirectUri = `https://${req.get("host")}/api/auth/microsoft/callback`;
       
       const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
         method: "POST",

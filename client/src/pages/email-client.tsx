@@ -1216,13 +1216,27 @@ export default function EmailClientPage() {
                     <p className="text-muted-foreground text-xs mt-1">
                       {format(new Date(emailDetail.receivedDateTime), "d. MMMM yyyy, HH:mm")}
                     </p>
-                    {emailDetail.linkedCustomer?.id && (
-                      <Link href={`/customers/${emailDetail.linkedCustomer.id}`} className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        Priradený zákazník: {emailDetail.linkedCustomer.firstName} {emailDetail.linkedCustomer.lastName}
-                      </Link>
-                    )}
                   </div>
+                  
+                  {/* Linked Customer Banner */}
+                  {emailDetail.linkedCustomer && (
+                    <Link 
+                      href={`/customers?view=${emailDetail.linkedCustomer.id}`}
+                      className="flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md hover:bg-green-100 dark:hover:bg-green-900 transition-colors cursor-pointer"
+                      data-testid="link-customer-detail"
+                    >
+                      <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        Priradené k zákazníkovi:
+                      </span>
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                        {emailDetail.linkedCustomer.firstName} {emailDetail.linkedCustomer.lastName}
+                      </span>
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        ({emailDetail.linkedCustomer.email})
+                      </span>
+                    </Link>
+                  )}
                   
                   {/* AI Analysis Alert */}
                   {(emailDetail as any).aiAnalysis && (emailDetail as any).aiAnalysis.alertLevel !== "none" && (
@@ -1425,13 +1439,24 @@ export default function EmailClientPage() {
                     <p className="text-muted-foreground text-xs mt-1">
                       {format(new Date(selectedSms.sentAt || selectedSms.createdAt), "d. MMMM yyyy, HH:mm")}
                     </p>
-                    {selectedSms.customer?.id && (
-                      <Link href={`/customers/${selectedSms.customer.id}`} className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        Zobraziť zákazníka: {selectedSms.customer.firstName} {selectedSms.customer.lastName}
-                      </Link>
-                    )}
                   </div>
+                  
+                  {/* Linked Customer Banner for SMS */}
+                  {selectedSms.customer?.id && (
+                    <Link 
+                      href={`/customers?view=${selectedSms.customer.id}`}
+                      className="flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md hover:bg-green-100 dark:hover:bg-green-900 transition-colors cursor-pointer"
+                      data-testid="sms-link-customer-detail"
+                    >
+                      <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        Priradené k zákazníkovi:
+                      </span>
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                        {selectedSms.customer.firstName} {selectedSms.customer.lastName}
+                      </span>
+                    </Link>
+                  )}
                   
                   {/* AI Analysis Alert for SMS */}
                   {selectedSms.aiAnalyzed && selectedSms.aiAlertLevel && selectedSms.aiAlertLevel !== "none" && (

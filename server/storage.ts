@@ -101,7 +101,8 @@ import {
   type EmailTag, type InsertEmailTag,
   type EmailMetadata, type InsertEmailMetadata,
   type CustomerEmailNotification, type InsertCustomerEmailNotification,
-  gsmSenderConfigs, type GsmSenderConfig, type InsertGsmSenderConfig
+  gsmSenderConfigs, type GsmSenderConfig, type InsertGsmSenderConfig,
+  countrySystemSettings, type CountrySystemSettings, type InsertCountrySystemSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, inArray, sql, desc, and, or, asc } from "drizzle-orm";
@@ -294,6 +295,12 @@ export interface IStorage {
   getGsmSenderConfigByCountry(countryCode: string): Promise<GsmSenderConfig | undefined>;
   upsertGsmSenderConfig(data: InsertGsmSenderConfig): Promise<GsmSenderConfig>;
   deleteGsmSenderConfig(id: string): Promise<boolean>;
+
+  // Country System Settings
+  getAllCountrySystemSettings(): Promise<CountrySystemSettings[]>;
+  getCountrySystemSettingsByCountry(countryCode: string): Promise<CountrySystemSettings | undefined>;
+  upsertCountrySystemSettings(data: InsertCountrySystemSettings): Promise<CountrySystemSettings>;
+  deleteCountrySystemSettings(id: string): Promise<boolean>;
 
   // Complaint Types
   getAllComplaintTypes(): Promise<ComplaintType[]>;
@@ -1748,6 +1755,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGsmSenderConfig(id: string): Promise<boolean> {
     const result = await db.delete(gsmSenderConfigs).where(eq(gsmSenderConfigs.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Country System Settings
+  async getAllCountrySystemSettings(): Promise<CountrySystemSettings[]> {
+    return db.select().from(countrySystemSettings).orderBy(countrySystemSettings.countryCode);
+  }
+
+  async getCountrySystemSettingsByCountry(countryCode: string): Promise<CountrySystemSettings | undefined> {
+    const [settings] = await db.select().from(countrySystemSettings)
+      .where(eq(countrySystemSettings.countryCode, countryCode));
+    return settings || undefined;
+  }
+
+  async upsertCountrySystemSettings(data: InsertCountrySystemSettings): Promise<CountrySystemSettings> {
+    const existing = await this.getCountrySystemSettingsByCountry(data.countryCode);
+    if (existing) {
+      const [updated] = await db.update(countrySystemSettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(countrySystemSettings.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(countrySystemSettings).values(data).returning();
+    return created;
+  }
+
+  async deleteCountrySystemSettings(id: string): Promise<boolean> {
+    const result = await db.delete(countrySystemSettings).where(eq(countrySystemSettings.id, id)).returning();
     return result.length > 0;
   }
 

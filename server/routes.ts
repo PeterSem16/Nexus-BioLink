@@ -6072,6 +6072,57 @@ export async function registerRoutes(
     }
   });
 
+  // ========== COUNTRY SYSTEM SETTINGS ==========
+  
+  // Get all country system settings
+  app.get("/api/config/country-system-settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getAllCountrySystemSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching country system settings:", error);
+      res.status(500).json({ error: "Failed to fetch country system settings" });
+    }
+  });
+
+  // Get country system settings by country code
+  app.get("/api/config/country-system-settings/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getCountrySystemSettingsByCountry(req.params.countryCode);
+      res.json(settings || null);
+    } catch (error) {
+      console.error("Error fetching country system settings:", error);
+      res.status(500).json({ error: "Failed to fetch country system settings" });
+    }
+  });
+
+  // Upsert country system settings (create or update by country)
+  app.post("/api/config/country-system-settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.upsertCountrySystemSettings(req.body);
+      await logActivity(req.session.user!.id, "upsert", "country_system_settings", settings.id, settings.countryCode);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error upserting country system settings:", error);
+      res.status(500).json({ error: "Failed to save country system settings" });
+    }
+  });
+
+  // Delete country system settings
+  app.delete("/api/config/country-system-settings/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCountrySystemSettings(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Settings not found" });
+      }
+      await logActivity(req.session.user!.id, "delete", "country_system_settings", req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting country system settings:", error);
+      res.status(500).json({ error: "Failed to delete country system settings" });
+    }
+  });
+
   // ========== CONFIGURATION TABLES ==========
 
   // Complaint Types

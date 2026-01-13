@@ -70,8 +70,20 @@ function getConfig() {
     applicationId: process.env.BULKGATE_APPLICATION_ID,
     applicationToken: process.env.BULKGATE_APPLICATION_TOKEN,
     webhookUrl: process.env.BULKGATE_WEBHOOK_URL,
+    webhookToken: process.env.BULKGATE_WEBHOOK_TOKEN,
     senderId: process.env.BULKGATE_SENDER_ID || "CBC",
   };
+}
+
+/**
+ * Verify webhook token for security
+ */
+export function verifyWebhookToken(token: string | undefined): boolean {
+  const config = getConfig();
+  if (!config.webhookToken) {
+    return true;
+  }
+  return token === config.webhookToken;
 }
 
 /**
@@ -315,20 +327,36 @@ export interface BulkGateWebhookData {
 }
 
 export function parseWebhook(body: any): BulkGateWebhookData {
-  if (body.status) {
+  const status = body.status?.toString();
+  
+  // Status 10 = incoming SMS / reply (BulkGate documentation)
+  if (status === "10") {
+    return {
+      type: "inbox",
+      smsId: body.smsid || body.sms_id,
+      number: body.from || body.sender || body.number,
+      text: body.message || body.text,
+      timestamp: body.timestamp || new Date().toISOString(),
+      rawData: body,
+    };
+  }
+  
+  // Other status values = delivery reports
+  if (status) {
     return {
       type: "delivery_report",
       smsId: body.smsid || body.sms_id,
-      status: body.status,
-      number: body.number,
+      status: status,
+      number: body.number || body.to,
       timestamp: body.timestamp,
       rawData: body,
     };
   }
   
+  // Fallback for payloads without status (legacy inbox format)
   return {
     type: "inbox",
-    number: body.sender || body.number,
+    number: body.from || body.sender || body.number,
     text: body.message || body.text,
     timestamp: body.timestamp || new Date().toISOString(),
     rawData: body,

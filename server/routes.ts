@@ -5792,13 +5792,26 @@ export async function registerRoutes(
     }
   });
   
-  // BulkGate webhook callback (delivery reports + incoming SMS)
-  app.post("/api/auth/bulkgate/callback", async (req, res) => {
+  // BulkGate DLR/webhook callback (delivery reports + incoming SMS)
+  // Supports both GET (low-level API) and POST (bulk API)
+  app.all("/api/auth/bulkgate/callback", async (req, res) => {
     try {
-      console.log("[BulkGate Webhook] Received:", JSON.stringify(req.body));
+      const { parseWebhook, verifyWebhookToken } = await import("./lib/bulkgate");
       
-      const { parseWebhook } = await import("./lib/bulkgate");
-      const webhookData = parseWebhook(req.body);
+      // Normalize payload - POST uses body, GET uses query params
+      const payload = req.method === "GET" ? req.query : req.body;
+      const token = (req.query.token as string) || payload.token;
+      
+      console.log(`[BulkGate DLR] ${req.method} received:`, JSON.stringify(payload));
+      
+      // Verify token if configured
+      if (!verifyWebhookToken(token)) {
+        console.warn("[BulkGate DLR] Invalid or missing token");
+        return res.status(403).json({ received: false, error: "Invalid token" });
+      }
+      
+      const webhookData = parseWebhook(payload);
+      console.log(`[BulkGate DLR] Parsed as: ${webhookData.type}, status=${payload.status}`);
       
       if (webhookData.type === "delivery_report") {
         // Update message status based on delivery report
@@ -5807,17 +5820,24 @@ export async function registerRoutes(
           const message = messages.find(m => m.externalId === webhookData.smsId);
           
           if (message) {
+            // Map BulkGate status codes to readable status
+            const statusMap: Record<string, string> = {
+              "1": "pending", "2": "sent", "3": "delivered",
+              "4": "failed", "5": "expired", "6": "rejected",
+            };
+            const readableStatus = statusMap[webhookData.status || ""] || webhookData.status;
+            
             await storage.updateCommunicationMessage(message.id, {
-              deliveryStatus: webhookData.status,
-              deliveredAt: webhookData.status === "delivered" ? new Date() : undefined,
-              status: webhookData.status === "delivered" ? "delivered" : 
-                      webhookData.status === "failed" ? "failed" : message.status,
+              deliveryStatus: readableStatus,
+              deliveredAt: readableStatus === "delivered" ? new Date() : undefined,
+              status: readableStatus === "delivered" ? "delivered" : 
+                      readableStatus === "failed" ? "failed" : message.status,
             });
-            console.log(`[BulkGate Webhook] Updated message ${message.id} with status: ${webhookData.status}`);
+            console.log(`[BulkGate DLR] Updated message ${message.id} with status: ${readableStatus}`);
           }
         }
       } else if (webhookData.type === "inbox") {
-        // Store incoming SMS
+        // Store incoming SMS (status = 10)
         const incomingMessage = await storage.createCommunicationMessage({
           type: "sms",
           direction: "inbound",
@@ -5825,9 +5845,10 @@ export async function registerRoutes(
           senderPhone: webhookData.number,
           status: "received",
           provider: "bulkgate",
+          externalId: webhookData.smsId,
         });
         
-        console.log(`[BulkGate Webhook] Stored incoming SMS from ${webhookData.number}: ${incomingMessage.id}`);
+        console.log(`[BulkGate DLR] Stored incoming SMS from ${webhookData.number}: ${incomingMessage.id}`);
         
         // Try to link to customer by phone number
         if (webhookData.number) {
@@ -5836,16 +5857,16 @@ export async function registerRoutes(
             await storage.updateCommunicationMessage(incomingMessage.id, {
               customerId: customers[0].id,
             });
-            console.log(`[BulkGate Webhook] Linked incoming SMS to customer ${customers[0].firstName} ${customers[0].lastName}`);
+            console.log(`[BulkGate DLR] Linked incoming SMS to customer ${customers[0].firstName} ${customers[0].lastName}`);
           }
         }
       }
       
-      // Always respond with 200 OK to acknowledge webhook
+      // Always respond with 200 OK to acknowledge callback
       res.status(200).json({ received: true });
     } catch (error) {
-      console.error("[BulkGate Webhook] Error processing webhook:", error);
-      // Still return 200 to prevent webhook retries
+      console.error("[BulkGate DLR] Error processing callback:", error);
+      // Still return 200 to prevent callback retries
       res.status(200).json({ received: true, error: "Processing error" });
     }
   });

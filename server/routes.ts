@@ -50,8 +50,68 @@ import { PDFDocument as PDFLibDocument, rgb, degrees, StandardFonts } from "pdf-
 const uploadsDir = path.join(process.cwd(), "uploads");
 
 // OpenAI client for AI-powered PDF conversion
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// AI-powered email content analysis for sentiment and inappropriate content detection
+interface EmailAnalysisResult {
+  sentiment: "positive" | "neutral" | "negative" | "angry";
+  hasInappropriateContent: boolean;
+  alertLevel: "none" | "warning" | "critical";
+  note: string;
+}
+
+async function analyzeEmailContent(content: string, subject: string): Promise<EmailAnalysisResult | null> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.log("[AI Analysis] OpenAI API key not configured, skipping analysis");
+    return null;
+  }
+
+  try {
+    // Strip HTML tags and limit content length
+    const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 2000);
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an email sentiment analyzer for a customer service system. Analyze emails for:
+1. Sentiment: positive, neutral, negative, or angry (frustrated/upset customer)
+2. Inappropriate content: profanity, threats, harassment, offensive language
+3. Alert level: none (normal email), warning (upset customer needs attention), critical (very angry or inappropriate content)
+
+Respond ONLY with valid JSON in this format:
+{"sentiment":"neutral","hasInappropriateContent":false,"alertLevel":"none","note":"Brief explanation in Slovak language"}
+
+Common Slovak anger indicators: "nespokojný", "sťažujem", "hanba", "katastrofa", "nekompetentní", "reklamácia", "okamžite", "právnik"
+Common Slovak profanity: check for vulgar words and offensive expressions`
+        },
+        {
+          role: "user",
+          content: `Analyze this email:\n\nSubject: ${subject}\n\nContent: ${cleanContent}`
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 200,
+    });
+
+    const resultText = response.choices[0]?.message?.content?.trim();
+    if (!resultText) return null;
+
+    // Parse JSON response
+    const parsed = JSON.parse(resultText);
+    return {
+      sentiment: parsed.sentiment || "neutral",
+      hasInappropriateContent: parsed.hasInappropriateContent === true,
+      alertLevel: parsed.alertLevel || "none",
+      note: parsed.note || "",
+    };
+  } catch (error) {
+    console.error("[AI Analysis] Error analyzing email:", error);
+    return null;
+  }
+}
 
 // Configure multer for agreement file uploads
 const agreementStorage = multer.diskStorage({
@@ -2639,12 +2699,24 @@ export async function registerRoutes(
       
       // Auto-link inbound email to customer based on sender email
       let linkedCustomer = null;
+      let aiAnalysisResult = null;
       try {
         const senderEmail = email.from?.emailAddress?.address;
         const receivedDateTime = email.receivedDateTime ? new Date(email.receivedDateTime) : new Date();
         const actualMailbox = mailboxEmail === "personal" ? ms365Connection.email : mailboxEmail;
         
-        if (senderEmail && actualMailbox) {
+        // Check if there's a routing rule that enables auto-assign customer
+        const routingRules = await storage.getAllEmailRoutingRules();
+        const activeRules = routingRules.filter(r => r.isActive);
+        
+        // Check if any active rule has autoAssignCustomer enabled (default is true)
+        // If no rules exist, default to auto-assign enabled
+        const shouldAutoAssign = activeRules.length === 0 || activeRules.some(r => r.autoAssignCustomer !== false);
+        
+        // Check if AI analysis is enabled in any active rule
+        const shouldAnalyzeWithAI = activeRules.some(r => r.enableAiAnalysis === true);
+        
+        if (senderEmail && actualMailbox && shouldAutoAssign) {
           // Search for customer by sender email
           const matchingCustomers = await storage.findCustomersByEmail(senderEmail);
           
@@ -2680,12 +2752,63 @@ export async function registerRoutes(
             }
           }
         }
+        
+        // AI Content Analysis if enabled
+        if (shouldAnalyzeWithAI && actualMailbox) {
+          try {
+            const emailContent = email.body?.content || email.bodyPreview || "";
+            const analysisResult = await analyzeEmailContent(emailContent, email.subject || "");
+            
+            if (analysisResult) {
+              // Store AI analysis in email metadata
+              const existingMetadata = await storage.getEmailMetadataByMessageId(emailId, actualMailbox);
+              const metadataData = {
+                messageId: emailId,
+                mailboxEmail: actualMailbox,
+                aiAnalyzed: true,
+                aiSentiment: analysisResult.sentiment,
+                aiHasInappropriateContent: analysisResult.hasInappropriateContent,
+                aiAlertLevel: analysisResult.alertLevel,
+                aiAnalysisNote: analysisResult.note,
+                aiAnalyzedAt: new Date(),
+              };
+              
+              if (existingMetadata) {
+                await storage.updateEmailMetadata(existingMetadata.id, metadataData);
+              } else {
+                await storage.createEmailMetadata(metadataData as any);
+              }
+              
+              aiAnalysisResult = analysisResult;
+              console.log(`[EmailRouter] AI analyzed email ${emailId}: sentiment=${analysisResult.sentiment}, alert=${analysisResult.alertLevel}`);
+            }
+          } catch (aiError) {
+            console.error("[EmailRouter] AI analysis error:", aiError);
+          }
+        }
       } catch (linkError) {
         console.error("[EmailRouter] Error linking email to customer:", linkError);
         // Don't fail the request, just log the error
       }
       
-      res.json({ ...email, linkedCustomer });
+      // Also fetch existing AI analysis if not just analyzed
+      let existingAiAnalysis = aiAnalysisResult;
+      if (!existingAiAnalysis) {
+        const actualMailbox = mailboxEmail === "personal" ? ms365Connection.email : mailboxEmail;
+        if (actualMailbox) {
+          const metadata = await storage.getEmailMetadata(emailId, actualMailbox);
+          if (metadata?.aiAnalyzed) {
+            existingAiAnalysis = {
+              sentiment: metadata.aiSentiment as any,
+              hasInappropriateContent: metadata.aiHasInappropriateContent,
+              alertLevel: metadata.aiAlertLevel as any,
+              note: metadata.aiAnalysisNote || "",
+            };
+          }
+        }
+      }
+      
+      res.json({ ...email, linkedCustomer, aiAnalysis: existingAiAnalysis });
     } catch (error) {
       console.error("Error fetching email:", error);
       res.status(500).json({ error: "Failed to fetch email" });

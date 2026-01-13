@@ -4322,6 +4322,23 @@ export class DatabaseStorage implements IStorage {
     return metadata || undefined;
   }
 
+  async getEmailMetadataByMessageId(messageId: string, mailboxEmail: string): Promise<EmailMetadata | undefined> {
+    return this.getEmailMetadata(messageId, mailboxEmail);
+  }
+
+  async createEmailMetadata(data: InsertEmailMetadata): Promise<EmailMetadata> {
+    const [created] = await db.insert(emailMetadata).values(data).returning();
+    return created;
+  }
+
+  async updateEmailMetadata(id: string, data: Partial<InsertEmailMetadata>): Promise<EmailMetadata | undefined> {
+    const [updated] = await db.update(emailMetadata)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(emailMetadata.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   async upsertEmailMetadata(data: InsertEmailMetadata): Promise<EmailMetadata> {
     const existing = await this.getEmailMetadata(data.messageId, data.mailboxEmail);
     if (existing) {

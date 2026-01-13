@@ -1676,18 +1676,18 @@ export default function EmailClientPage() {
 
       {/* Folder Settings Dialog */}
       <Dialog open={folderSettingsOpen} onOpenChange={setFolderSettingsOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
               Nastavenie zložiek
             </DialogTitle>
             <DialogDescription>
-              Vyberte, ktoré zložky chcete zobraziť v ľavom paneli
+              Vyberte, ktoré zložky chcete zobraziť v ľavom paneli. Použite šípky na zmenu poradia.
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-auto max-h-[60vh] pr-2">
             <div className="space-y-4">
               {/* System Folders Section */}
               <div className="space-y-2">
@@ -1787,30 +1787,68 @@ export default function EmailClientPage() {
                                 </span>
                               </div>
                             </div>
-                            <Button 
-                              variant={isVisible ? "default" : "outline"} 
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => {
-                                if (!folderSettings.find(fs => fs.id === folderId)) {
-                                  const newSettings = [...folderSettings, { 
-                                    id: folderId, 
-                                    type: "email" as const, 
-                                    displayName: folder.displayName, 
-                                    visible: false, 
-                                    order: 50, 
-                                    icon: folder.displayName, 
-                                    color: "default" 
-                                  }];
+                            <div className="flex items-center gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  const currentOrder = folderSettings.find(fs => fs.id === folderId)?.order ?? 50;
+                                  const newSettings = folderSettings.map(fs => 
+                                    fs.id === folderId ? { ...fs, order: currentOrder - 1 } : fs
+                                  );
+                                  if (!folderSettings.find(fs => fs.id === folderId)) {
+                                    newSettings.push({ id: folderId, type: "email" as const, displayName: folder.displayName, visible: true, order: 49, icon: folder.displayName, color: "default" });
+                                  }
                                   setFolderSettings(newSettings);
                                   localStorage.setItem("nexus-folder-settings", JSON.stringify(newSettings));
-                                } else {
-                                  toggleFolderVisibility(folderId);
-                                }
-                              }}
-                            >
-                              {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                            </Button>
+                                }}
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  const currentOrder = folderSettings.find(fs => fs.id === folderId)?.order ?? 50;
+                                  const newSettings = folderSettings.map(fs => 
+                                    fs.id === folderId ? { ...fs, order: currentOrder + 1 } : fs
+                                  );
+                                  if (!folderSettings.find(fs => fs.id === folderId)) {
+                                    newSettings.push({ id: folderId, type: "email" as const, displayName: folder.displayName, visible: true, order: 51, icon: folder.displayName, color: "default" });
+                                  }
+                                  setFolderSettings(newSettings);
+                                  localStorage.setItem("nexus-folder-settings", JSON.stringify(newSettings));
+                                }}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant={isVisible ? "default" : "outline"} 
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => {
+                                  if (!folderSettings.find(fs => fs.id === folderId)) {
+                                    const newSettings = [...folderSettings, { 
+                                      id: folderId, 
+                                      type: "email" as const, 
+                                      displayName: folder.displayName, 
+                                      visible: false, 
+                                      order: 50, 
+                                      icon: folder.displayName, 
+                                      color: "default" 
+                                    }];
+                                    setFolderSettings(newSettings);
+                                    localStorage.setItem("nexus-folder-settings", JSON.stringify(newSettings));
+                                  } else {
+                                    toggleFolderVisibility(folderId);
+                                  }
+                                }}
+                              >
+                                {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
                           </div>
                           
                           {/* Child folders with indentation */}
@@ -1917,7 +1955,7 @@ export default function EmailClientPage() {
                 })}
               </div>
             </div>
-          </ScrollArea>
+          </div>
           
           <DialogFooter className="mt-4 pt-4 border-t">
             <Button variant="outline" onClick={() => {

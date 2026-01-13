@@ -936,6 +936,41 @@ export async function registerRoutes(
   };
 
   // Auth routes
+  
+  // Check auth method for a user (step 1 of login flow)
+  app.post("/api/auth/check-auth-method", async (req, res) => {
+    try {
+      const { username } = req.body;
+      
+      if (!username) {
+        return res.status(400).json({ error: "Username is required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(404).json({ error: "Používateľ neexistuje" });
+      }
+      
+      if (!user.isActive) {
+        return res.status(401).json({ error: "Účet je deaktivovaný" });
+      }
+      
+      const authMethod = (user as any).authMethod || "classic";
+      
+      console.log(`[Auth] Checking auth method for user: ${username} -> ${authMethod}`);
+      
+      res.json({ 
+        authMethod,
+        userId: user.id,
+        fullName: user.fullName
+      });
+    } catch (error) {
+      console.error("Check auth method error:", error);
+      res.status(500).json({ error: "Chyba pri overovaní používateľa" });
+    }
+  });
+  
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
@@ -964,8 +999,9 @@ export async function registerRoutes(
       const { passwordHash, ...safeUser } = user;
       req.session.user = safeUser;
       
-      // Log login activity
-      await logActivity(user.id, "login", "user", user.id, user.fullName, undefined, req.ip);
+      // Log login activity with auth method
+      console.log(`[Auth] User logged in via classic auth: ${user.username} (${user.fullName})`);
+      await logActivity(user.id, "login", "user", user.id, `${user.fullName} (classic auth)`, undefined, req.ip);
       
       res.json({ user: safeUser });
     } catch (error) {
@@ -1104,8 +1140,9 @@ export async function registerRoutes(
       req.session.user = safeUser;
       delete req.session.pendingMs365UserId;
       
-      // Log login activity
-      await logActivity(user.id, "login", "user", user.id, user.fullName, JSON.stringify({ method: "ms365" }), req.ip);
+      // Log login activity with MS365 auth method
+      console.log(`[Auth] User logged in via MS365: ${user.username} (${user.fullName})`);
+      await logActivity(user.id, "login", "user", user.id, `${user.fullName} (MS365 auth)`, JSON.stringify({ method: "ms365", msEmail }), req.ip);
       
       // Redirect to main app
       res.redirect("/");

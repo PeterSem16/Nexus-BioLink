@@ -15,8 +15,9 @@ export default function LandingPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [requireMs365, setRequireMs365] = useState(false);
-  const [ms365Message, setMs365Message] = useState("");
+  const [step, setStep] = useState<"username" | "password" | "ms365">("username");
+  const [authMethod, setAuthMethod] = useState<"classic" | "ms365">("classic");
+  const [userFullName, setUserFullName] = useState("");
 
   // Check for MS365 auth errors in URL
   useEffect(() => {
@@ -44,36 +45,50 @@ export default function LandingPage() {
     }
   }, [toast]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Step 1: Check auth method by username
+  const handleCheckAuthMethod = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
+    if (!username) {
       toast({
         title: "Chyba",
-        description: "Zadajte používateľské meno a heslo",
+        description: "Zadajte používateľské meno",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
-    setRequireMs365(false);
     try {
-      const result = await login(username, password);
+      const response = await fetch("/api/auth/check-auth-method", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+        credentials: "include",
+      });
       
-      if (result.requireMs365) {
-        // User needs to login via MS365
-        setRequireMs365(true);
-        setMs365Message(result.message || "Tento účet vyžaduje prihlásenie cez Microsoft 365");
+      const data = await response.json();
+      
+      if (!response.ok) {
+        toast({
+          title: "Chyba",
+          description: data.error || "Používateľ neexistuje",
+          variant: "destructive",
+        });
         return;
       }
       
-      if (result.user) {
-        setLocation("/");
+      setAuthMethod(data.authMethod);
+      setUserFullName(data.fullName);
+      
+      if (data.authMethod === "ms365") {
+        setStep("ms365");
+      } else {
+        setStep("password");
       }
     } catch (error: any) {
       toast({
-        title: "Prihlásenie zlyhalo",
-        description: error.message || "Neplatné prihlasovacie údaje",
+        title: "Chyba",
+        description: error.message || "Nepodarilo sa overiť používateľa",
         variant: "destructive",
       });
     } finally {
@@ -81,6 +96,37 @@ export default function LandingPage() {
     }
   };
 
+  // Step 2a: Classic password login
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      toast({
+        title: "Chyba",
+        description: "Zadajte heslo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await login(username, password);
+      
+      if (result.user) {
+        setLocation("/");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Prihlásenie zlyhalo",
+        description: error.message || "Neplatné heslo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2b: MS365 login
   const handleMs365Login = async () => {
     setIsLoading(true);
     try {
@@ -93,6 +139,12 @@ export default function LandingPage() {
       });
       setIsLoading(false);
     }
+  };
+  
+  // Go back to username step
+  const handleBack = () => {
+    setStep("username");
+    setPassword("");
   };
 
   const features = [
@@ -179,60 +231,109 @@ export default function LandingPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        placeholder="Enter your username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        disabled={isLoading}
-                        data-testid="input-login-username"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading}
-                        data-testid="input-login-password"
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoading}
-                      data-testid="button-login"
-                    >
-                      {isLoading ? "Prihlasujem..." : "Prihlásiť sa"}
-                      {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-                    </Button>
+                  {/* Step 1: Username */}
+                  {step === "username" && (
+                    <form onSubmit={handleCheckAuthMethod} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Používateľské meno</Label>
+                        <Input
+                          id="username"
+                          placeholder="Zadajte používateľské meno"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          disabled={isLoading}
+                          autoFocus
+                          data-testid="input-login-username"
+                        />
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={isLoading || !username}
+                        data-testid="button-continue"
+                      >
+                        {isLoading ? "Overujem..." : "Pokračovať"}
+                        {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                      </Button>
+                    </form>
+                  )}
 
-                    {/* MS365 Login Section */}
-                    {requireMs365 && (
-                      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                          {ms365Message}
+                  {/* Step 2a: Password for classic auth */}
+                  {step === "password" && (
+                    <form onSubmit={handlePasswordLogin} className="space-y-4">
+                      <div className="text-center mb-4">
+                        <p className="text-sm text-muted-foreground">Prihlásenie ako</p>
+                        <p className="font-semibold">{userFullName || username}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Heslo</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Zadajte heslo"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          disabled={isLoading}
+                          autoFocus
+                          data-testid="input-login-password"
+                        />
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={isLoading || !password}
+                        data-testid="button-login"
+                      >
+                        {isLoading ? "Prihlasujem..." : "Prihlásiť sa"}
+                        {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={handleBack}
+                        disabled={isLoading}
+                        data-testid="button-back"
+                      >
+                        Späť
+                      </Button>
+                    </form>
+                  )}
+
+                  {/* Step 2b: MS365 login */}
+                  {step === "ms365" && (
+                    <div className="space-y-4">
+                      <div className="text-center mb-4">
+                        <p className="text-sm text-muted-foreground">Prihlásenie ako</p>
+                        <p className="font-semibold">{userFullName || username}</p>
+                      </div>
+                      <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-700 dark:text-blue-300 mb-3 text-center">
+                          Tento účet vyžaduje prihlásenie cez Microsoft 365
                         </p>
                         <Button 
                           type="button"
-                          variant="outline"
-                          className="w-full border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900"
+                          className="w-full bg-blue-600 hover:bg-blue-700"
                           onClick={handleMs365Login}
                           disabled={isLoading}
                           data-testid="button-login-ms365"
                         >
                           <Building2 className="mr-2 h-4 w-4" />
-                          Prihlásiť sa cez Microsoft 365
+                          {isLoading ? "Prihlasujem..." : "Prihlásiť sa cez Microsoft 365"}
                         </Button>
                       </div>
-                    )}
-                  </form>
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={handleBack}
+                        disabled={isLoading}
+                        data-testid="button-back-ms365"
+                      >
+                        Späť
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

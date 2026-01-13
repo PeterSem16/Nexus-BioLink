@@ -9479,6 +9479,17 @@ function InflationTab() {
 // GSM SENDER TAB
 // ============================================
 
+const GSM_COUNTRIES = [
+  { code: "SK", name: "Slovensko", flag: "🇸🇰" },
+  { code: "CZ", name: "Česko", flag: "🇨🇿" },
+  { code: "HU", name: "Maďarsko", flag: "🇭🇺" },
+  { code: "RO", name: "Rumunsko", flag: "🇷🇴" },
+  { code: "IT", name: "Taliansko", flag: "🇮🇹" },
+  { code: "DE", name: "Nemecko", flag: "🇩🇪" },
+  { code: "US", name: "USA", flag: "🇺🇸" },
+  { code: "CH", name: "Švajčiarsko", flag: "🇨🇭" },
+];
+
 function GsmSenderTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -9615,7 +9626,7 @@ function GsmSenderTab() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {COUNTRIES.map((country) => {
+                {GSM_COUNTRIES.map((country) => {
                   const config = getConfigForCountry(country.code);
                   const isEditing = editingCountry === country.code;
 

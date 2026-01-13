@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -10,9 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -28,7 +27,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Inbox,
   Send,
@@ -55,6 +61,13 @@ import {
   UserCheck,
   Flame,
   ShieldAlert,
+  Columns3,
+  Upload,
+  ArrowRight,
+  Zap,
+  MessageSquare,
+  CheckSquare,
+  Network,
 } from "lucide-react";
 import Editor from "react-simple-wysiwyg";
 
@@ -86,6 +99,27 @@ interface EmailMessage {
   body?: { content: string; contentType: string };
   hasAttachments: boolean;
   importance: string;
+  linkedCustomer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  aiAnalysis?: {
+    sentiment: string;
+    hasInappropriateContent: boolean;
+    alertLevel: string;
+    note: string;
+    hasAngryTone?: boolean;
+    hasRudeExpressions?: boolean;
+    wantsToCancel?: boolean;
+    wantsConsent?: boolean;
+    doesNotAcceptContract?: boolean;
+    pipelineActionTaken?: boolean;
+    pipelineStageId?: string;
+    pipelineStageName?: string;
+    pipelineActionReason?: string;
+  };
 }
 
 interface EmailSignature {
@@ -96,12 +130,22 @@ interface EmailSignature {
   isActive: boolean;
 }
 
-interface AiAnalysis {
-  sentiment: "positive" | "neutral" | "negative" | "angry";
-  hasInappropriateContent: boolean;
-  alertLevel: "none" | "warning" | "critical";
-  note: string;
+interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  order: number;
 }
+
+const defaultColumns: ColumnConfig[] = [
+  { id: "status", label: "Stav", visible: true, order: 0 },
+  { id: "from", label: "Odosielateľ", visible: true, order: 1 },
+  { id: "subject", label: "Predmet", visible: true, order: 2 },
+  { id: "date", label: "Dátum", visible: true, order: 3 },
+  { id: "attachments", label: "Prílohy", visible: true, order: 4 },
+  { id: "importance", label: "Dôležitosť", visible: false, order: 5 },
+  { id: "preview", label: "Náhľad", visible: true, order: 6 },
+];
 
 const folderIcons: Record<string, React.ReactNode> = {
   Inbox: <Inbox className="h-4 w-4" />,
@@ -113,6 +157,7 @@ const folderIcons: Record<string, React.ReactNode> = {
 export default function EmailClientPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [selectedMailbox, setSelectedMailbox] = useState<string>("personal");
   const [selectedFolderId, setSelectedFolderId] = useState<string>("");
@@ -122,6 +167,13 @@ export default function EmailClientPage() {
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [page, setPage] = useState(0);
   const pageSize = 25;
+  
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    const saved = localStorage.getItem("nexus-email-columns");
+    return saved ? JSON.parse(saved) : defaultColumns;
+  });
+  
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const [composeData, setComposeData] = useState({
     to: "",
@@ -170,7 +222,7 @@ export default function EmailClientPage() {
 
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   
-  const { data: searchResults, isLoading: searchLoading, refetch: refetchSearch } = useQuery<{ emails: EmailMessage[]; mailbox: string }[]>({
+  const { data: searchResults, isLoading: searchLoading } = useQuery<{ emails: EmailMessage[]; mailbox: string }[]>({
     queryKey: ["/api/users", user?.id, "ms365-search-emails", debouncedSearchQuery, searchMailbox],
     queryFn: async () => {
       if (!debouncedSearchQuery || debouncedSearchQuery.trim().length < 2) return [];
@@ -216,13 +268,14 @@ export default function EmailClientPage() {
       return apiRequest("POST", `/api/users/${user?.id}/ms365-send-email`, data);
     },
     onSuccess: () => {
-      toast({ title: "Odoslané", description: "Email bol úspešne odoslaný" });
+      toast({ title: "Odoslané", description: "Správa bola úspešne odoslaná" });
       setComposeOpen(false);
       setComposeData({ to: "", cc: "", bcc: "", subject: "", body: "" });
+      setAttachments([]);
       refetchMessages();
     },
     onError: () => {
-      toast({ title: "Chyba", description: "Nepodarilo sa odoslať email", variant: "destructive" });
+      toast({ title: "Chyba", description: "Nepodarilo sa odoslať správu", variant: "destructive" });
     },
   });
 
@@ -246,13 +299,13 @@ export default function EmailClientPage() {
       return apiRequest("POST", `/api/users/${user?.id}/ms365-forward/${data.emailId}`, data);
     },
     onSuccess: () => {
-      toast({ title: "Odoslané", description: "Email bol úspešne preposlaný" });
+      toast({ title: "Odoslané", description: "Správa bola úspešne preposlaná" });
       setReplyMode(null);
       setComposeData({ to: "", cc: "", bcc: "", subject: "", body: "" });
       refetchMessages();
     },
     onError: () => {
-      toast({ title: "Chyba", description: "Nepodarilo sa preposlať email", variant: "destructive" });
+      toast({ title: "Chyba", description: "Nepodarilo sa preposlať správu", variant: "destructive" });
     },
   });
 
@@ -261,12 +314,12 @@ export default function EmailClientPage() {
       return apiRequest("DELETE", `/api/users/${user?.id}/ms365-email/${emailId}?mailbox=${selectedMailbox}`);
     },
     onSuccess: () => {
-      toast({ title: "Zmazané", description: "Email bol zmazaný" });
+      toast({ title: "Zmazané", description: "Správa bola odstránená" });
       setSelectedEmail(null);
       refetchMessages();
     },
     onError: () => {
-      toast({ title: "Chyba", description: "Nepodarilo sa zmazať email", variant: "destructive" });
+      toast({ title: "Chyba", description: "Nepodarilo sa zmazať správu", variant: "destructive" });
     },
   });
 
@@ -288,8 +341,9 @@ export default function EmailClientPage() {
   const emails = messagesData?.emails || [];
   const totalCount = messagesData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / pageSize);
+  
+  const visibleColumns = columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
 
-  // Select Inbox by default
   if (folders.length > 0 && !selectedFolderId) {
     const inbox = folders.find(f => f.displayName === "Inbox");
     if (inbox) {
@@ -347,12 +401,29 @@ export default function EmailClientPage() {
     setSignatureActive(signatureData?.isActive !== false);
     setSignatureDialogOpen(true);
   };
+  
+  const toggleColumn = (columnId: string) => {
+    const newColumns = columns.map(c => 
+      c.id === columnId ? { ...c, visible: !c.visible } : c
+    );
+    setColumns(newColumns);
+    localStorage.setItem("nexus-email-columns", JSON.stringify(newColumns));
+  };
+  
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAttachments(prev => [...prev, ...files]);
+  };
+  
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   if (!user) {
     return (
       <div className="flex items-center justify-center h-96">
         <AlertCircle className="h-8 w-8 text-muted-foreground mr-2" />
-        <span>Prihláste sa pre prístup k emailom</span>
+        <span>Prihláste sa pre prístup do NEXUS</span>
       </div>
     );
   }
@@ -360,15 +431,20 @@ export default function EmailClientPage() {
   if (mailboxes.length === 0 && !mailboxesLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">Emailový klient</h1>
-          <p className="text-muted-foreground mt-1">Pripojte svoj MS365 účet pre čítanie a odosielanie emailov</p>
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+            <Network className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">NEXUS</h1>
+            <p className="text-muted-foreground">Komunikačné centrum</p>
+          </div>
         </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Mail className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium mb-2">MS365 nie je pripojený</p>
-            <p className="text-muted-foreground mb-4">Pre použitie emailového klienta pripojte svoj MS365 účet v nastaveniach profilu</p>
+            <p className="text-muted-foreground mb-4">Pre použitie NEXUS pripojte svoj MS365 účet</p>
             <Button onClick={() => window.location.href = "/ms365"} data-testid="button-connect-ms365">
               Pripojiť MS365
             </Button>
@@ -380,10 +456,19 @@ export default function EmailClientPage() {
 
   return (
     <div className="space-y-4">
+      {/* Header with NEXUS branding */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Emailový klient</h1>
-          <p className="text-muted-foreground mt-1">Čítanie a odosielanie emailov cez MS365</p>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
+            <Network className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              NEXUS
+              <Badge variant="outline" className="text-xs font-normal">Komunikačné centrum</Badge>
+            </h1>
+            <p className="text-sm text-muted-foreground">Zjednotená správa emailov, úloh a komunikácie</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Select value={selectedMailbox} onValueChange={(v) => { setSelectedMailbox(v); setSelectedFolderId(""); setSelectedEmail(null); setPage(0); }}>
@@ -402,17 +487,57 @@ export default function EmailClientPage() {
               ))}
             </SelectContent>
           </Select>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" data-testid="button-columns">
+                <Columns3 className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Viditeľné stĺpce</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {columns.map((col) => (
+                <DropdownMenuCheckboxItem
+                  key={col.id}
+                  checked={col.visible}
+                  onCheckedChange={() => toggleColumn(col.id)}
+                >
+                  {col.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Button variant="outline" size="icon" onClick={() => { refetchFolders(); refetchMessages(); }} data-testid="button-refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="icon" onClick={openSignatureEditor} data-testid="button-signature">
             <Settings className="h-4 w-4" />
           </Button>
-          <Button onClick={() => { setComposeOpen(true); setReplyMode(null); setComposeData({ to: "", cc: "", bcc: "", subject: "", body: "" }); }} data-testid="button-compose">
+          <Button onClick={() => { setComposeOpen(true); setReplyMode(null); setComposeData({ to: "", cc: "", bcc: "", subject: "", body: "" }); setAttachments([]); }} data-testid="button-compose">
             <PenSquare className="h-4 w-4 mr-2" />
-            Nový email
+            Nová správa
           </Button>
         </div>
+      </div>
+
+      {/* Quick channel tabs - Email / Tasks / Chat */}
+      <div className="flex items-center gap-2">
+        <Button variant="default" size="sm" className="gap-2">
+          <Mail className="h-4 w-4" />
+          Email
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-2 opacity-50" disabled>
+          <CheckSquare className="h-4 w-4" />
+          Úlohy
+          <Badge variant="secondary" className="text-xs">Čoskoro</Badge>
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-2 opacity-50" disabled>
+          <MessageSquare className="h-4 w-4" />
+          Chat
+          <Badge variant="secondary" className="text-xs">Čoskoro</Badge>
+        </Button>
       </div>
 
       {/* Search bar */}
@@ -421,7 +546,7 @@ export default function EmailClientPage() {
           <div className="flex items-center gap-2 flex-1">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Hľadať v emailoch (predmet, odosielateľ, obsah)..."
+              placeholder="Hľadať v správach (predmet, odosielateľ, obsah)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -457,7 +582,7 @@ export default function EmailClientPage() {
 
       {/* Search results */}
       {isSearching ? (
-        <Card className="h-[calc(100vh-320px)]">
+        <Card className="h-[calc(100vh-350px)]">
           <CardHeader className="py-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Search className="h-4 w-4" />
@@ -466,7 +591,7 @@ export default function EmailClientPage() {
             {searchLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[calc(100vh-420px)]">
+            <ScrollArea className="h-[calc(100vh-450px)]">
               {searchLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -497,7 +622,7 @@ export default function EmailClientPage() {
                                 setSelectedEmail(email);
                               }}
                               className={`w-full text-left px-4 py-3 transition-colors hover-elevate ${
-                                !email.isRead ? "bg-primary/5" : ""
+                                !email.isRead ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500" : ""
                               } ${selectedEmail?.id === email.id ? "bg-primary/10" : ""}`}
                               data-testid={`search-result-${email.id}`}
                             >
@@ -505,36 +630,22 @@ export default function EmailClientPage() {
                                 {email.isRead ? (
                                   <MailOpen className="h-4 w-4 mt-1 text-muted-foreground" />
                                 ) : (
-                                  <Mail className="h-4 w-4 mt-1 text-primary" />
+                                  <Mail className="h-4 w-4 mt-1 text-blue-500" />
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-2 mb-1">
-                                    <span className={`text-sm truncate ${!email.isRead ? "font-semibold" : ""}`}>
+                                    <span className={`text-sm truncate ${!email.isRead ? "font-bold text-foreground" : ""}`}>
                                       {email.from?.emailAddress?.name || email.from?.emailAddress?.address}
                                     </span>
                                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                                       {format(new Date(email.receivedDateTime), "dd.MM.yyyy HH:mm")}
                                     </span>
                                   </div>
-                                  <div className={`text-sm truncate ${!email.isRead ? "font-medium" : ""}`}>
+                                  <div className={`text-sm truncate ${!email.isRead ? "font-semibold" : ""}`}>
                                     {email.subject || "(bez predmetu)"}
                                   </div>
                                   <div className="text-xs text-muted-foreground truncate mt-1">
                                     {email.bodyPreview}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                                    {email.importance === "high" && (
-                                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
-                                        <Star className="h-2.5 w-2.5 mr-0.5" />
-                                        Vysoká
-                                      </Badge>
-                                    )}
-                                    {email.importance === "low" && (
-                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 opacity-60">
-                                        Nízka
-                                      </Badge>
-                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -544,12 +655,6 @@ export default function EmailClientPage() {
                       )}
                     </div>
                   ))}
-                  {searchResults.every(r => r.emails.length === 0) && (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <Search className="h-8 w-8 mb-2" />
-                      <span>Žiadne výsledky pre "{searchQuery}"</span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -561,7 +666,7 @@ export default function EmailClientPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-12 gap-4 h-[calc(100vh-280px)]">
+        <div className="grid grid-cols-12 gap-4 h-[calc(100vh-320px)]">
         {/* Folders panel */}
         <Card className="col-span-2">
           <CardHeader className="py-3">
@@ -573,7 +678,7 @@ export default function EmailClientPage() {
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : (
-              <ScrollArea className="h-[calc(100vh-320px)]">
+              <ScrollArea className="h-[calc(100vh-380px)]">
                 <div className="space-y-1 p-2">
                   {folders.map((folder) => (
                     <button
@@ -589,7 +694,7 @@ export default function EmailClientPage() {
                         <span className="truncate">{folder.displayName}</span>
                       </div>
                       {folder.unreadItemCount > 0 && (
-                        <Badge variant="secondary" className="text-xs">{folder.unreadItemCount}</Badge>
+                        <Badge variant="destructive" className="text-xs animate-pulse">{folder.unreadItemCount}</Badge>
                       )}
                     </button>
                   ))}
@@ -602,7 +707,7 @@ export default function EmailClientPage() {
         {/* Emails list */}
         <Card className="col-span-4">
           <CardHeader className="py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Emaily ({totalCount})</CardTitle>
+            <CardTitle className="text-sm font-medium">Správy ({totalCount})</CardTitle>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
@@ -623,52 +728,62 @@ export default function EmailClientPage() {
             ) : emails.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Mail className="h-8 w-8 mb-2" />
-                <span>Žiadne emaily</span>
+                <span>Žiadne správy</span>
               </div>
             ) : (
-              <ScrollArea className="h-[calc(100vh-320px)]">
+              <ScrollArea className="h-[calc(100vh-380px)]">
                 <div className="divide-y">
                   {emails.map((email) => (
                     <button
                       key={email.id}
                       onClick={() => setSelectedEmail(email)}
-                      className={`w-full text-left p-3 transition-colors hover-elevate ${
+                      className={`w-full text-left p-3 transition-all hover-elevate ${
                         selectedEmail?.id === email.id ? "bg-accent" : ""
-                      } ${!email.isRead ? "bg-accent/50" : ""}`}
+                      } ${!email.isRead 
+                        ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500 font-medium" 
+                        : "border-l-4 border-l-transparent"
+                      }`}
                       data-testid={`email-item-${email.id}`}
                     >
                       <div className="flex items-start gap-2">
-                        {email.isRead ? (
-                          <MailOpen className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
-                        ) : (
-                          <Mail className="h-4 w-4 text-primary mt-1 shrink-0" />
+                        {visibleColumns.find(c => c.id === "status") && (
+                          email.isRead ? (
+                            <MailOpen className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                          ) : (
+                            <Mail className="h-4 w-4 text-blue-500 mt-1 shrink-0" />
+                          )
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className={`text-sm truncate ${!email.isRead ? "font-semibold" : ""}`}>
-                              {email.from?.emailAddress?.name || email.from?.emailAddress?.address || "Neznámy odosielateľ"}
-                            </span>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {format(new Date(email.receivedDateTime), "d.M. HH:mm")}
-                            </span>
+                            {visibleColumns.find(c => c.id === "from") && (
+                              <span className={`text-sm truncate ${!email.isRead ? "font-bold" : ""}`}>
+                                {email.from?.emailAddress?.name || email.from?.emailAddress?.address || "Neznámy"}
+                              </span>
+                            )}
+                            {visibleColumns.find(c => c.id === "date") && (
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {format(new Date(email.receivedDateTime), "d.M. HH:mm")}
+                              </span>
+                            )}
                           </div>
-                          <p className={`text-sm truncate ${!email.isRead ? "font-medium" : "text-muted-foreground"}`}>
-                            {email.subject || "(Bez predmetu)"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            {email.bodyPreview}
-                          </p>
+                          {visibleColumns.find(c => c.id === "subject") && (
+                            <p className={`text-sm truncate ${!email.isRead ? "font-semibold" : "text-muted-foreground"}`}>
+                              {email.subject || "(Bez predmetu)"}
+                            </p>
+                          )}
+                          {visibleColumns.find(c => c.id === "preview") && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">
+                              {email.bodyPreview}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                            {email.importance === "high" && (
+                            {visibleColumns.find(c => c.id === "attachments") && email.hasAttachments && (
+                              <Paperclip className="h-3 w-3 text-muted-foreground" />
+                            )}
+                            {visibleColumns.find(c => c.id === "importance") && email.importance === "high" && (
                               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
                                 <Star className="h-2.5 w-2.5 mr-0.5" />
                                 Vysoká
-                              </Badge>
-                            )}
-                            {email.importance === "low" && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 opacity-60">
-                                Nízka
                               </Badge>
                             )}
                           </div>
@@ -698,11 +813,8 @@ export default function EmailClientPage() {
                       {emailDetail.importance === "high" && (
                         <Badge variant="destructive" className="text-xs">
                           <Star className="h-3 w-3 mr-1" />
-                          Vysoká dôležitosť
+                          Vysoká
                         </Badge>
-                      )}
-                      {emailDetail.importance === "low" && (
-                        <Badge variant="secondary" className="text-xs opacity-60">Nízka dôležitosť</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -732,9 +844,9 @@ export default function EmailClientPage() {
                   </div>
                   
                   {/* Linked Customer Banner */}
-                  {emailDetail.linkedCustomer && (
+                  {(emailDetail as any).linkedCustomer && (
                     <Link 
-                      href={`/customers?view=${emailDetail.linkedCustomer.id}`}
+                      href={`/customers?view=${(emailDetail as any).linkedCustomer.id}`}
                       className="flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md hover:bg-green-100 dark:hover:bg-green-900 transition-colors cursor-pointer"
                       data-testid="link-customer-detail"
                     >
@@ -743,10 +855,7 @@ export default function EmailClientPage() {
                         Priradené k zákazníkovi:
                       </span>
                       <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                        {emailDetail.linkedCustomer.firstName} {emailDetail.linkedCustomer.lastName}
-                      </span>
-                      <span className="text-sm text-green-600 dark:text-green-400">
-                        ({emailDetail.linkedCustomer.email})
+                        {(emailDetail as any).linkedCustomer.firstName} {(emailDetail as any).linkedCustomer.lastName}
                       </span>
                     </Link>
                   )}
@@ -775,26 +884,6 @@ export default function EmailClientPage() {
                           }`}>
                             {(emailDetail as any).aiAnalysis.alertLevel === "critical" ? "Kritické upozornenie" : "Upozornenie"}
                           </span>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              (emailDetail as any).aiAnalysis.sentiment === "angry" 
-                                ? "border-red-400 text-red-600 dark:text-red-400"
-                                : (emailDetail as any).aiAnalysis.sentiment === "negative"
-                                ? "border-amber-400 text-amber-600 dark:text-amber-400"
-                                : ""
-                            }`}
-                          >
-                            {(emailDetail as any).aiAnalysis.sentiment === "angry" && (
-                              <><Flame className="h-3 w-3 mr-1" />Nahnevaný tón</>
-                            )}
-                            {(emailDetail as any).aiAnalysis.sentiment === "negative" && "Negatívny tón"}
-                          </Badge>
-                          {(emailDetail as any).aiAnalysis.hasInappropriateContent && (
-                            <Badge variant="destructive" className="text-xs">
-                              Nevhodný obsah
-                            </Badge>
-                          )}
                           {(emailDetail as any).aiAnalysis.hasAngryTone && (
                             <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 dark:text-orange-400">
                               <Flame className="h-3 w-3 mr-1" />
@@ -831,13 +920,18 @@ export default function EmailClientPage() {
                             {(emailDetail as any).aiAnalysis.note}
                           </p>
                         )}
-                        {(emailDetail as any).aiAnalysis.pipelineActionTaken && (emailDetail as any).aiAnalysis.pipelineStageName && (
+                        {/* Pipeline Stage Action Display */}
+                        {(emailDetail as any).aiAnalysis.pipelineActionTaken && (
                           <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                            <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                              Automatický presun do fázy: {(emailDetail as any).aiAnalysis.pipelineStageName}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                                Automatický presun do fázy: {(emailDetail as any).aiAnalysis.pipelineStageName || "Načítavam..."}
+                              </p>
+                            </div>
                             {(emailDetail as any).aiAnalysis.pipelineActionReason && (
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                                <ArrowRight className="h-3 w-3" />
                                 {(emailDetail as any).aiAnalysis.pipelineActionReason}
                               </p>
                             )}
@@ -849,7 +943,7 @@ export default function EmailClientPage() {
                 </div>
                 
                 {replyMode ? (
-                  <div className="flex-1 p-4 space-y-4">
+                  <div className="flex-1 p-4 space-y-4 overflow-auto">
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium">
                         {replyMode === "reply" && "Odpoveď"}
@@ -907,8 +1001,9 @@ export default function EmailClientPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <Mail className="h-12 w-12 mb-4" />
-                <p>Vyberte email pre zobrazenie detailu</p>
+                <Network className="h-12 w-12 mb-4 opacity-50" />
+                <p className="font-medium">NEXUS</p>
+                <p className="text-sm">Vyberte správu pre zobrazenie detailu</p>
               </div>
             )}
           </CardContent>
@@ -918,9 +1013,12 @@ export default function EmailClientPage() {
 
       {/* Compose Dialog */}
       <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Nový email</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <PenSquare className="h-5 w-5" />
+              Nová správa
+            </DialogTitle>
             <DialogDescription>
               Odoslať z: {mailboxes.find(m => (m.type === "personal" ? "personal" : m.email) === selectedMailbox)?.email || selectedMailbox}
             </DialogDescription>
@@ -932,12 +1030,20 @@ export default function EmailClientPage() {
               onChange={(e) => setComposeData({ ...composeData, to: e.target.value })}
               data-testid="input-compose-to"
             />
-            <Input
-              placeholder="Cc (voliteľné)"
-              value={composeData.cc}
-              onChange={(e) => setComposeData({ ...composeData, cc: e.target.value })}
-              data-testid="input-compose-cc"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Cc (voliteľné)"
+                value={composeData.cc}
+                onChange={(e) => setComposeData({ ...composeData, cc: e.target.value })}
+                data-testid="input-compose-cc"
+              />
+              <Input
+                placeholder="Bcc (voliteľné)"
+                value={composeData.bcc}
+                onChange={(e) => setComposeData({ ...composeData, bcc: e.target.value })}
+                data-testid="input-compose-bcc"
+              />
+            </div>
             <Input
               placeholder="Predmet"
               value={composeData.subject}
@@ -948,12 +1054,59 @@ export default function EmailClientPage() {
               <Editor
                 value={composeData.body}
                 onChange={(e) => setComposeData({ ...composeData, body: e.target.value })}
-                style={{ minHeight: "200px" }}
+                style={{ minHeight: "250px" }}
                 data-testid="editor-compose-body"
               />
             </div>
+            
+            {/* Attachments section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  multiple
+                  className="hidden"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  data-testid="button-add-attachment"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Pridať prílohu
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {attachments.length > 0 ? `${attachments.length} súbor(ov)` : "Žiadne prílohy"}
+                </span>
+              </div>
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((file, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1 pr-1">
+                      <Paperclip className="h-3 w-3" />
+                      <span className="max-w-32 truncate">{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 ml-1"
+                        onClick={() => removeAttachment(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            
             {signatureData?.isActive && signatureData?.htmlContent && (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <CheckSquare className="h-3 w-3" />
                 Podpis bude automaticky pridaný
               </div>
             )}
@@ -982,12 +1135,10 @@ export default function EmailClientPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 id="signature-active"
                 checked={signatureActive}
-                onChange={(e) => setSignatureActive(e.target.checked)}
-                className="rounded border-gray-300"
+                onCheckedChange={(checked) => setSignatureActive(!!checked)}
               />
               <label htmlFor="signature-active" className="text-sm">Aktívny podpis</label>
             </div>

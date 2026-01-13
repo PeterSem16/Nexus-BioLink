@@ -2908,6 +2908,20 @@ export async function registerRoutes(
         if (actualMailbox) {
           const metadata = await storage.getEmailMetadata(emailId, actualMailbox);
           if (metadata?.aiAnalyzed) {
+            // Get pipeline stage name dynamically if not stored
+            let pipelineStageName = metadata.aiPipelineStageName;
+            if (!pipelineStageName && metadata.aiPipelineStageId) {
+              try {
+                const stage = await storage.getPipelineStage(metadata.aiPipelineStageId);
+                if (stage) {
+                  const pipeline = await storage.getPipeline(stage.pipelineId);
+                  pipelineStageName = `${pipeline?.name || "Neznámy"} → ${stage.name}`;
+                }
+              } catch (e) {
+                console.error("Error loading pipeline stage name:", e);
+              }
+            }
+            
             existingAiAnalysis = {
               sentiment: metadata.aiSentiment as any,
               hasInappropriateContent: metadata.aiHasInappropriateContent,
@@ -2920,7 +2934,7 @@ export async function registerRoutes(
               doesNotAcceptContract: metadata.aiDoesNotAcceptContract || false,
               pipelineActionTaken: metadata.aiPipelineActionTaken || false,
               pipelineStageId: metadata.aiPipelineStageId || null,
-              pipelineStageName: metadata.aiPipelineStageName || null,
+              pipelineStageName: pipelineStageName || null,
               pipelineActionReason: metadata.aiPipelineActionReason || null,
             };
           }

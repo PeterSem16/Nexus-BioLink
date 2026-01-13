@@ -92,11 +92,24 @@ The system includes comprehensive campaign management for marketing and sales:
 - **Calendar View**: Month-based calendar showing campaign timelines
 - **Campaign Comparison**: Side-by-side comparison of up to 4 campaigns
 
+### Real-time Notification Center
+The system includes a comprehensive notification center with real-time push notifications:
+- **WebSocket Service**: `server/lib/notification-service.ts` provides real-time notifications via `/ws/notifications`
+- **Notification Bell**: Header component showing unread count with popover for quick access
+- **Notification Center Page**: Full page at `/notifications` with:
+  - History tab: View, filter, mark read/dismiss notifications
+  - Rules tab: Create/edit/delete automated notification rules
+- **Notification Types**: new_email, new_sms, new_customer, status_change, sentiment_alert, task_assigned, task_due, task_completed, mention, system
+- **Priority Levels**: low, normal, high, urgent (with color coding)
+- **Database Tables**: `notifications`, `notification_rules`
+- **Hook**: `useNotifications` hook for real-time WebSocket connection and notification management
+
 ### Key Design Patterns
 - Shared schema definitions between frontend and backend via `@shared/*` path alias
 - Zod schemas generated from Drizzle for validation (drizzle-zod)
 - Storage interface pattern for database operations (allows swapping implementations)
 - React Context for global state (CountryFilter, Theme)
+- WebSocket for real-time features (notifications, chat)
 
 ## External Dependencies
 

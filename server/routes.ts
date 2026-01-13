@@ -13151,6 +13151,17 @@ Odpovedz v slovenčine, profesionálne a stručne.`;
     }
   });
 
+  // Get all pipeline stages with their pipeline info (for AI automation configurator)
+  app.get("/api/pipeline-stages", requireAuth, async (req, res) => {
+    try {
+      const stages = await storage.getAllPipelineStagesWithPipeline();
+      res.json(stages);
+    } catch (error) {
+      console.error("Error fetching all pipeline stages:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline stages" });
+    }
+  });
+
   app.get("/api/pipelines/:id", requireAuth, async (req, res) => {
     try {
       const pipeline = await storage.getPipeline(req.params.id);

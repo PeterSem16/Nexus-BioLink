@@ -655,6 +655,7 @@ export interface IStorage {
   deletePipeline(id: string): Promise<boolean>;
 
   // Sales Pipeline - Stages
+  getAllPipelineStagesWithPipeline(): Promise<(PipelineStage & { pipeline: Pipeline })[]>;
   getPipelineStages(pipelineId: string): Promise<PipelineStage[]>;
   getPipelineStage(id: string): Promise<PipelineStage | undefined>;
   createPipelineStage(data: InsertPipelineStage): Promise<PipelineStage>;
@@ -3807,6 +3808,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sales Pipeline - Stages
+  async getAllPipelineStagesWithPipeline(): Promise<(PipelineStage & { pipeline: Pipeline })[]> {
+    const results = await db.select({
+      stage: pipelineStages,
+      pipeline: pipelines,
+    })
+      .from(pipelineStages)
+      .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+      .orderBy(pipelines.name, asc(pipelineStages.order));
+    
+    return results.map(r => ({
+      ...r.stage,
+      pipeline: r.pipeline,
+    }));
+  }
+
   async getPipelineStages(pipelineId: string): Promise<PipelineStage[]> {
     return db.select().from(pipelineStages)
       .where(eq(pipelineStages.pipelineId, pipelineId))

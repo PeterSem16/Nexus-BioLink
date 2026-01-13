@@ -5920,7 +5920,18 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       }
-      const config = await storage.upsertGsmSenderConfig(parsed.data);
+      
+      // Server-side guard: Clear senderIdValue for types that don't need it
+      // gSystem, gShort, gPush don't need values - BulkGate generates them automatically
+      const typesWithoutValue = ["gSystem", "gShort", "gPush"];
+      const dataToSave = {
+        ...parsed.data,
+        senderIdValue: typesWithoutValue.includes(parsed.data.senderIdType) 
+          ? null 
+          : parsed.data.senderIdValue,
+      };
+      
+      const config = await storage.upsertGsmSenderConfig(dataToSave);
       await logActivity(req.session.user!.id, "upsert", "gsm_sender_config", config.id, config.countryCode);
       res.json(config);
     } catch (error) {

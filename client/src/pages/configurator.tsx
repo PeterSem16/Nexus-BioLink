@@ -9550,10 +9550,12 @@ function GsmSenderTab() {
   };
 
   const handleSave = (countryCode: string) => {
+    // Don't send value for sender types that don't need it (gSystem, gShort, gPush)
+    const sendValue = needsValue(formData.senderIdType) ? formData.senderIdValue : undefined;
     upsertMutation.mutate({
       countryCode,
       senderIdType: formData.senderIdType,
-      senderIdValue: formData.senderIdValue || undefined,
+      senderIdValue: sendValue || undefined,
     });
     setEditingCountry(null);
   };
@@ -9561,6 +9563,15 @@ function GsmSenderTab() {
   const handleAddCountry = (countryCode: string) => {
     setEditingCountry(countryCode);
     setFormData({ senderIdType: "gText", senderIdValue: "CBC" });
+  };
+
+  // Handle sender type change - clear value for types that don't need it
+  const handleSenderTypeChange = (newType: string) => {
+    if (!needsValue(newType)) {
+      setFormData({ senderIdType: newType, senderIdValue: "" });
+    } else {
+      setFormData(prev => ({ ...prev, senderIdType: newType }));
+    }
   };
 
   const getConfigForCountry = (countryCode: string) => 
@@ -9644,7 +9655,7 @@ function GsmSenderTab() {
                         {isEditing ? (
                           <Select
                             value={formData.senderIdType}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, senderIdType: value }))}
+                            onValueChange={handleSenderTypeChange}
                           >
                             <SelectTrigger className="w-48" data-testid={`select-sender-type-${country.code}`}>
                               <SelectValue />

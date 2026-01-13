@@ -896,6 +896,7 @@ const TIMELINE_ACTION_TYPES = [
   { value: "pipeline", label: "Pipeline", icon: ArrowRight, activeClass: "bg-gradient-to-br from-cyan-500 to-cyan-600 border-cyan-600 shadow-lg shadow-cyan-500/25", textColor: "text-white", inactiveClass: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 hover:shadow-sm", inactiveTextColor: "text-cyan-600 dark:text-cyan-400" },
   { value: "consent", label: "Súhlasy", icon: Shield, activeClass: "bg-gradient-to-br from-teal-500 to-teal-600 border-teal-600 shadow-lg shadow-teal-500/25", textColor: "text-white", inactiveClass: "bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 hover:border-teal-400 dark:hover:border-teal-600 hover:shadow-sm", inactiveTextColor: "text-teal-600 dark:text-teal-400" },
   { value: "campaign", label: "Kampane", icon: Target, activeClass: "bg-gradient-to-br from-violet-500 to-violet-600 border-violet-600 shadow-lg shadow-violet-500/25", textColor: "text-white", inactiveClass: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 hover:shadow-sm", inactiveTextColor: "text-violet-600 dark:text-violet-400" },
+  { value: "email", label: "Emaily", icon: MailOpen, activeClass: "bg-gradient-to-br from-sky-500 to-sky-600 border-sky-600 shadow-lg shadow-sky-500/25", textColor: "text-white", inactiveClass: "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-sm", inactiveTextColor: "text-sky-600 dark:text-sky-400" },
 ] as const;
 
 // Field label translations for displaying changes
@@ -1004,6 +1005,16 @@ function CustomerHistoryTimeline({
     queryKey: ["/api/products"],
     queryFn: async () => {
       const res = await fetch("/api/products", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Fetch customer emails for timeline
+  const { data: customerEmails = [] } = useQuery<CustomerEmailNotification[]>({
+    queryKey: ["/api/customers", customerId, "emails"],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customerId}/emails`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1266,8 +1277,32 @@ function CustomerHistoryTimeline({
       });
     });
 
+    // Add customer emails (inbound and outbound)
+    customerEmails.forEach((email: CustomerEmailNotification) => {
+      const isOutbound = email.direction === "outbound";
+      events.push({
+        id: `email-${email.id}`,
+        type: "email",
+        action: isOutbound ? "email_sent" : "email_received",
+        title: isOutbound ? "Odoslaný email" : "Prijatý email",
+        description: email.subject || "(bez predmetu)",
+        details: { 
+          subject: email.subject,
+          bodyPreview: email.bodyPreview,
+          senderEmail: email.senderEmail,
+          recipientEmail: email.recipientEmail,
+          direction: email.direction,
+          mailboxEmail: email.mailboxEmail,
+        },
+        createdAt: email.receivedAt,
+        userId: undefined,
+        icon: isOutbound ? ArrowUpRight : ArrowDownLeft,
+        color: isOutbound ? "text-blue-500" : "text-green-500",
+      });
+    });
+
     return events;
-  }, [activityLogs, documents, notes, messages, customerProducts, customerId, customerName, pipelineStages, products]);
+  }, [activityLogs, documents, notes, messages, customerProducts, customerEmails, customerId, customerName, pipelineStages, products]);
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
@@ -3006,105 +3041,7 @@ function CustomerDetailsContent({
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 mt-4">
-          {/* Email History Section */}
-          {emailsLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : emailsError ? (
-            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-700 dark:text-red-300">
-              <AlertCircle className="h-4 w-4" />
-              <span>Nepodarilo sa načítať emailovú históriu</span>
-            </div>
-          ) : customerEmails.length > 0 && (
-            <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Mail className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold">Emailová komunikácia ({customerEmails.length})</h4>
-              </div>
-              <div className="relative">
-                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-blue-200 dark:bg-blue-800" />
-                <div className="space-y-3">
-                  {customerEmails.slice(0, 10).map((email) => (
-                    <div key={email.id} className="relative pl-10">
-                      <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 ${
-                        email.direction === "outbound" 
-                          ? "bg-blue-500 border-blue-500" 
-                          : "bg-green-500 border-green-500"
-                      }`} />
-                      
-                      <div className={`border rounded-lg p-4 bg-card ${
-                        email.direction === "outbound" 
-                          ? "border-l-4 border-l-blue-500" 
-                          : "border-l-4 border-l-green-500"
-                      }`} data-testid={`email-history-${email.id}`}>
-                        <div className="flex items-start gap-3">
-                          <div className={`flex-shrink-0 mt-0.5 p-2 rounded-full ${
-                            email.direction === "outbound" 
-                              ? "bg-blue-100 dark:bg-blue-900" 
-                              : "bg-green-100 dark:bg-green-900"
-                          }`}>
-                            {email.direction === "outbound" ? (
-                              <ArrowUpRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                            ) : (
-                              <ArrowDownLeft className="h-4 w-4 text-green-600 dark:text-green-400" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">
-                                  {email.direction === "outbound" ? "Odoslaný email" : "Prijatý email"}
-                                </span>
-                                <Badge variant={email.direction === "outbound" ? "default" : "secondary"} className="text-xs">
-                                  {email.direction === "outbound" ? "odchádzajúci" : "prichádzajúci"}
-                                </Badge>
-                              </div>
-                            </div>
-                            
-                            <p className="text-sm font-medium mt-1">{email.subject}</p>
-                            
-                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-                              <div className="flex items-center gap-1">
-                                {email.direction === "outbound" ? (
-                                  <>
-                                    <span>Komu:</span>
-                                    <span>{email.recipientEmail || email.senderEmail}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>Od:</span>
-                                    <span>{email.senderName || email.senderEmail}</span>
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>{format(new Date(email.receivedAt), "d.M.yyyy HH:mm")}</span>
-                              </div>
-                            </div>
-                            
-                            {email.bodyPreview && (
-                              <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                {email.bodyPreview}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {customerEmails.length > 10 && (
-                <p className="text-sm text-muted-foreground text-center">
-                  ... a ďalších {customerEmails.length - 10} emailov
-                </p>
-              )}
-            </div>
-          )}
-          
-          {/* Activity Logs Section */}
+          {/* Combined Activity and Email Logs Section */}
           {activityLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -3114,21 +3051,47 @@ function CustomerDetailsContent({
               <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p className="font-medium">{t.activity?.noActivity || "Žiadna aktivita"}</p>
             </div>
-          ) : activityLogs.length > 0 && (
+          ) : (
             <div className="relative">
               <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
               
               <div className="space-y-6">
                 {(() => {
-                  const groupedLogs = activityLogs.reduce((groups, log) => {
-                    const date = new Date(log.createdAt);
-                    const key = format(date, "MMMM yyyy", { locale: sk });
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(log);
-                    return groups;
-                  }, {} as Record<string, typeof activityLogs>);
+                  // Combine activity logs and emails into unified timeline
+                  type TimelineItem = { 
+                    id: string; 
+                    type: 'log' | 'email'; 
+                    date: Date; 
+                    data: any;
+                  };
                   
-                  return Object.entries(groupedLogs).map(([monthYear, logs]) => (
+                  const allItems: TimelineItem[] = [
+                    ...activityLogs.map(log => ({
+                      id: `log-${log.id}`,
+                      type: 'log' as const,
+                      date: new Date(log.createdAt),
+                      data: log
+                    })),
+                    ...customerEmails.map(email => ({
+                      id: `email-${email.id}`,
+                      type: 'email' as const,
+                      date: new Date(email.receivedAt),
+                      data: email
+                    }))
+                  ];
+                  
+                  // Sort by date descending
+                  allItems.sort((a, b) => b.date.getTime() - a.date.getTime());
+                  
+                  // Group by month
+                  const groupedItems = allItems.reduce((groups, item) => {
+                    const key = format(item.date, "MMMM yyyy", { locale: sk });
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(item);
+                    return groups;
+                  }, {} as Record<string, TimelineItem[]>);
+                  
+                  return Object.entries(groupedItems).map(([monthYear, items]) => (
                     <div key={monthYear}>
                       <div className="relative pl-10 mb-3">
                         <div className="absolute left-1.5 w-5 h-5 rounded-full bg-muted border-2 border-border flex items-center justify-center">
@@ -3140,46 +3103,108 @@ function CustomerDetailsContent({
                       </div>
                       
                       <div className="space-y-4">
-                        {logs.map((log) => {
-                          const details = parseDetails(log.details);
-                          return (
-                            <div key={log.id} className="relative pl-10">
-                              <div className="absolute left-2.5 w-3 h-3 rounded-full border-2 bg-emerald-500 border-emerald-500" />
-                              
-                              <div className="border rounded-lg p-4 bg-card" data-testid={`activity-log-${log.id}`}>
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 mt-0.5 p-2 rounded-full bg-muted">
-                                    {getActionIcon(log.action)}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-sm">
-                                          {getActionLabel(log.action)}
-                                        </span>
-                                        <Badge variant="outline" className="text-xs">
-                                          {log.entityType || "customer"}
-                                        </Badge>
-                                      </div>
+                        {items.map((item) => {
+                          if (item.type === 'log') {
+                            const log = item.data;
+                            const details = parseDetails(log.details);
+                            return (
+                              <div key={item.id} className="relative pl-10">
+                                <div className="absolute left-2.5 w-3 h-3 rounded-full border-2 bg-emerald-500 border-emerald-500" />
+                                
+                                <div className="border rounded-lg p-4 bg-card" data-testid={`activity-log-${log.id}`}>
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 mt-0.5 p-2 rounded-full bg-muted">
+                                      {getActionIcon(log.action)}
                                     </div>
-                                    
-                                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                      <div className="flex items-center gap-1">
-                                        <UserCircle className="h-3.5 w-3.5" />
-                                        <span>{getUserName(log.userId)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-sm">
+                                            {getActionLabel(log.action)}
+                                          </span>
+                                          <Badge variant="outline" className="text-xs">
+                                            {log.entityType || "customer"}
+                                          </Badge>
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <Clock className="h-3.5 w-3.5" />
-                                        <span>{format(new Date(log.createdAt), "d.M.yyyy HH:mm:ss")}</span>
+                                      
+                                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-1">
+                                          <UserCircle className="h-3.5 w-3.5" />
+                                          <span>{getUserName(log.userId)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="h-3.5 w-3.5" />
+                                          <span>{format(new Date(log.createdAt), "d.M.yyyy HH:mm:ss")}</span>
+                                        </div>
                                       </div>
+                                      
+                                      {renderFieldChanges(details, log.action)}
                                     </div>
-                                    
-                                    {renderFieldChanges(details, log.action)}
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          );
+                            );
+                          } else {
+                            // Email item
+                            const email = item.data as CustomerEmailNotification;
+                            const isOutbound = email.direction === "outbound";
+                            return (
+                              <div key={item.id} className="relative pl-10">
+                                <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 ${
+                                  isOutbound ? "bg-blue-500 border-blue-500" : "bg-green-500 border-green-500"
+                                }`} />
+                                
+                                <div className={`border rounded-lg p-4 bg-card ${
+                                  isOutbound ? "border-l-4 border-l-blue-500" : "border-l-4 border-l-green-500"
+                                }`} data-testid={`activity-email-${email.id}`}>
+                                  <div className="flex items-start gap-3">
+                                    <div className={`flex-shrink-0 mt-0.5 p-2 rounded-full ${
+                                      isOutbound ? "bg-blue-100 dark:bg-blue-900" : "bg-green-100 dark:bg-green-900"
+                                    }`}>
+                                      {isOutbound ? (
+                                        <ArrowUpRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                      ) : (
+                                        <ArrowDownLeft className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-medium text-sm">
+                                          {isOutbound ? "Odoslaný email" : "Prijatý email"}
+                                        </span>
+                                        <Badge variant={isOutbound ? "default" : "secondary"} className="text-xs">
+                                          {isOutbound ? "odchádzajúci" : "prichádzajúci"}
+                                        </Badge>
+                                      </div>
+                                      
+                                      <p className="text-sm font-medium mt-1">{email.subject || "(bez predmetu)"}</p>
+                                      
+                                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+                                        <div className="flex items-center gap-1">
+                                          {isOutbound ? (
+                                            <><span>Komu:</span><span>{email.recipientEmail}</span></>
+                                          ) : (
+                                            <><span>Od:</span><span>{email.senderEmail}</span></>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="h-3.5 w-3.5" />
+                                          <span>{format(new Date(email.receivedAt), "d.M.yyyy HH:mm")}</span>
+                                        </div>
+                                      </div>
+                                      
+                                      {email.bodyPreview && (
+                                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                          {email.bodyPreview}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
                         })}
                       </div>
                     </div>

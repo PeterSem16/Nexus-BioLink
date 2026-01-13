@@ -80,17 +80,16 @@ export function AppSidebar() {
     { title: t.nav.users, url: "/users", icon: UserCog, testId: "users", moduleKey: "users" },
     { title: t.nav.settings, url: "/settings", icon: Settings, testId: "settings", moduleKey: "settings" },
     { title: t.nav.konfigurator, url: "/configurator", icon: Cog, testId: "konfigurator", moduleKey: "configurator" },
-    { title: "Microsoft 365", url: "/ms365", icon: Cloud, testId: "ms365", moduleKey: "settings" },
   ];
 
-  const toolsNavItems = [
-    { title: t.nav.tasks, url: "/tasks", icon: CheckSquare, testId: "tasks", moduleKey: "tasks" },
-    { title: "NEXUS", url: "/email", icon: Network, testId: "nexus", moduleKey: "email" },
+  const nexusSubItems = [
+    { title: "Komunikácia", url: "/email", testId: "nexus-email", moduleKey: "email" },
+    { title: t.nav.tasks, url: "/tasks", testId: "nexus-tasks", moduleKey: "tasks" },
   ];
 
   const visibleMainItems = mainNavItems.filter(item => canAccessModule(item.moduleKey));
   const visibleAdminItems = adminNavItems.filter(item => canAccessModule(item.moduleKey));
-  const visibleToolsItems = toolsNavItems.filter(item => canAccessModule(item.moduleKey));
+  const visibleNexusItems = nexusSubItems.filter(item => canAccessModule(item.moduleKey));
 
   const handleLogout = async () => {
     await logout();
@@ -207,25 +206,36 @@ export function AppSidebar() {
           </>
         )}
 
-        {visibleToolsItems.length > 0 && (
+        {visibleNexusItems.length > 0 && (
           <>
             <SidebarSeparator className="my-2" />
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {visibleToolsItems.map((item) => (
-                    <SidebarMenuItem key={item.testId}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={location === item.url}
-                      >
-                        <Link href={item.url} data-testid={`nav-${item.testId}`}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
+                  <Collapsible defaultOpen className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton isActive={location === "/email" || location === "/tasks"}>
+                          <Network className="h-4 w-4" />
+                          <span>NEXUS</span>
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {visibleNexusItems.map((item) => (
+                            <SidebarMenuSubItem key={item.testId}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`nav-${item.testId}`}>
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
                     </SidebarMenuItem>
-                  ))}
+                  </Collapsible>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

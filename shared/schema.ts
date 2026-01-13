@@ -743,6 +743,17 @@ export const communicationMessages = pgTable("communication_messages", {
   sentAt: timestamp("sent_at"),
   deliveredAt: timestamp("delivered_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  // AI Analysis fields for incoming SMS
+  aiAnalyzed: boolean("ai_analyzed").default(false),
+  aiSentiment: text("ai_sentiment"), // positive, neutral, negative, angry
+  aiAlertLevel: text("ai_alert_level"), // none, warning, critical
+  aiHasAngryTone: boolean("ai_has_angry_tone"),
+  aiHasRudeExpressions: boolean("ai_has_rude_expressions"),
+  aiWantsToCancel: boolean("ai_wants_to_cancel"),
+  aiWantsConsent: boolean("ai_wants_consent"),
+  aiDoesNotAcceptContract: boolean("ai_does_not_accept_contract"),
+  aiAnalysisNote: text("ai_analysis_note"),
+  aiAnalyzedAt: timestamp("ai_analyzed_at"),
 });
 
 // Saved searches - user saved filter presets

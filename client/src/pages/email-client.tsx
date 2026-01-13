@@ -203,6 +203,16 @@ interface SmsMessage {
     firstName: string;
     lastName: string;
   };
+  // AI Analysis fields
+  aiAnalyzed?: boolean;
+  aiSentiment?: string;
+  aiAlertLevel?: string;
+  aiHasAngryTone?: boolean;
+  aiHasRudeExpressions?: boolean;
+  aiWantsToCancel?: boolean;
+  aiWantsConsent?: boolean;
+  aiDoesNotAcceptContract?: boolean;
+  aiAnalysisNote?: string;
 }
 
 type UnifiedMessage = {
@@ -218,6 +228,10 @@ type UnifiedMessage = {
   hasAttachments?: boolean;
   direction?: "inbound" | "outbound";
   originalData: EmailMessage | Task | ChatConversation | SmsMessage;
+  // AI Analysis for SMS
+  aiAlertLevel?: string;
+  aiHasAngryTone?: boolean;
+  aiWantsToCancel?: boolean;
 };
 
 const defaultColumns: ColumnConfig[] = [
@@ -667,6 +681,10 @@ export default function EmailClientPage() {
         direction: sms.direction,
         from: customerName,
         originalData: sms,
+        // AI Analysis fields
+        aiAlertLevel: sms.aiAlertLevel,
+        aiHasAngryTone: sms.aiHasAngryTone,
+        aiWantsToCancel: sms.aiWantsToCancel,
       });
     }
   }
@@ -1129,6 +1147,26 @@ export default function EmailClientPage() {
                                 {msg.status}
                               </Badge>
                             )}
+                            {/* AI Alert badges for SMS */}
+                            {msg.type === "sms" && msg.aiAlertLevel && msg.aiAlertLevel !== "none" && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] px-1.5 py-0 h-4 gap-1 ${
+                                  msg.aiAlertLevel === "critical" 
+                                    ? "border-red-500 text-red-600 bg-red-50 dark:bg-red-950" 
+                                    : "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950"
+                                }`}
+                              >
+                                {msg.aiAlertLevel === "critical" ? (
+                                  <ShieldAlert className="h-3 w-3" />
+                                ) : (
+                                  <AlertTriangle className="h-3 w-3" />
+                                )}
+                                {msg.aiHasAngryTone && "Nahnevaný"}
+                                {msg.aiWantsToCancel && "Zrušenie"}
+                                {!msg.aiHasAngryTone && !msg.aiWantsToCancel && (msg.aiAlertLevel === "critical" ? "Kritické" : "Upozornenie")}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1381,13 +1419,66 @@ export default function EmailClientPage() {
                     <p className="text-muted-foreground text-xs mt-1">
                       {format(new Date(selectedSms.sentAt || selectedSms.createdAt), "d. MMMM yyyy, HH:mm")}
                     </p>
-                    {selectedSms.customer && (
+                    {selectedSms.customer?.id && (
                       <Link href={`/customers/${selectedSms.customer.id}`} className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1">
                         <User className="h-3 w-3" />
                         Zobraziť zákazníka: {selectedSms.customer.firstName} {selectedSms.customer.lastName}
                       </Link>
                     )}
                   </div>
+                  
+                  {/* AI Analysis Alert for SMS */}
+                  {selectedSms.aiAnalyzed && selectedSms.aiAlertLevel && selectedSms.aiAlertLevel !== "none" && (
+                    <div 
+                      className={`flex items-start gap-3 mt-3 p-3 rounded-md border ${
+                        selectedSms.aiAlertLevel === "critical" 
+                          ? "bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-800" 
+                          : "bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-800"
+                      }`}
+                      data-testid="sms-ai-analysis-alert"
+                    >
+                      {selectedSms.aiAlertLevel === "critical" ? (
+                        <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold">
+                            {selectedSms.aiAlertLevel === "critical" ? "Kritické upozornenie" : "Upozornenie"}
+                          </span>
+                          {selectedSms.aiHasAngryTone && (
+                            <Badge variant="outline" className="text-xs border-orange-400 text-orange-600">
+                              <Flame className="h-3 w-3 mr-1" />Nahnevaný
+                            </Badge>
+                          )}
+                          {selectedSms.aiHasRudeExpressions && (
+                            <Badge variant="outline" className="text-xs border-purple-400 text-purple-600">
+                              Hrubé výrazy
+                            </Badge>
+                          )}
+                          {selectedSms.aiWantsToCancel && (
+                            <Badge variant="outline" className="text-xs border-red-500 text-red-600">
+                              Zrušenie zmluvy
+                            </Badge>
+                          )}
+                          {selectedSms.aiWantsConsent && (
+                            <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                              Súhlas
+                            </Badge>
+                          )}
+                          {selectedSms.aiDoesNotAcceptContract && (
+                            <Badge variant="outline" className="text-xs border-red-500 text-red-600">
+                              Odmietnutie zmluvy
+                            </Badge>
+                          )}
+                        </div>
+                        {selectedSms.aiAnalysisNote && (
+                          <p className="text-xs text-muted-foreground mt-1">{selectedSms.aiAnalysisNote}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-4">

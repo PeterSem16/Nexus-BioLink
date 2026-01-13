@@ -138,6 +138,76 @@ Slovak profanity: check for vulgar words like "sakra", "do riti", "kurva" and si
   }
 }
 
+// AI-powered SMS content analysis for sentiment, characteristics, and intent detection
+async function analyzeSmsContent(content: string): Promise<EmailAnalysisResult | null> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.log("[AI SMS Analysis] OpenAI API key not configured, skipping analysis");
+    return null;
+  }
+
+  try {
+    const cleanContent = content.trim().substring(0, 500);
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an SMS analyzer for a cord blood banking CRM system. Analyze customer SMS messages for sentiment and intent.
+
+SMS messages are typically short. Analyze for:
+1. sentiment: "positive", "neutral", "negative", or "angry" (frustrated/upset customer)
+2. hasInappropriateContent: true if SMS contains profanity, threats, harassment, or offensive language
+3. hasAngryTone: true if the customer sounds angry, frustrated, upset or uses aggressive language
+4. hasRudeExpressions: true if SMS contains rude, vulgar, or impolite expressions
+5. wantsToCancel: true if customer expresses intent to cancel/terminate their contract or service ("chcem zrušiť", "ukončiť", "vypovedať", "nechcem")
+6. wantsConsent: true if customer wants to give consent or sign/approve something ("súhlasím", "ok", "áno", "akceptujem")
+7. doesNotAcceptContract: true if customer explicitly refuses or rejects ("neakceptujem", "nesúhlasím", "odmietam", "nie")
+8. alertLevel: "none" (normal), "warning" (needs attention), "critical" (urgent/inappropriate)
+9. note: Brief explanation in Slovak language
+
+Respond ONLY with valid JSON:
+{"sentiment":"neutral","hasInappropriateContent":false,"hasAngryTone":false,"hasRudeExpressions":false,"wantsToCancel":false,"wantsConsent":false,"doesNotAcceptContract":false,"alertLevel":"none","note":"Stručné vysvetlenie"}
+
+Slovak anger indicators: "nahnevaný", "nespokojný", "sťažujem", "katastrofa", "okamžite", "právnik"
+Slovak profanity: check for vulgar words`
+        },
+        {
+          role: "user",
+          content: `Analyze this SMS: ${cleanContent}`
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 300,
+    });
+
+    let resultText = response.choices[0]?.message?.content?.trim();
+    if (!resultText) return null;
+
+    if (resultText.startsWith("```")) {
+      resultText = resultText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+
+    const parsed = JSON.parse(resultText);
+    console.log(`[AI SMS Analysis] Result: sentiment=${parsed.sentiment}, alert=${parsed.alertLevel}`);
+    
+    return {
+      sentiment: parsed.sentiment || "neutral",
+      hasInappropriateContent: parsed.hasInappropriateContent === true,
+      alertLevel: parsed.alertLevel || "none",
+      note: parsed.note || "",
+      hasAngryTone: parsed.hasAngryTone === true,
+      hasRudeExpressions: parsed.hasRudeExpressions === true,
+      wantsToCancel: parsed.wantsToCancel === true,
+      wantsConsent: parsed.wantsConsent === true,
+      doesNotAcceptContract: parsed.doesNotAcceptContract === true,
+    };
+  } catch (error) {
+    console.error("[AI SMS Analysis] Error analyzing SMS:", error);
+    return null;
+  }
+}
+
 // Configure multer for agreement file uploads
 const agreementStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -5851,13 +5921,39 @@ export async function registerRoutes(
         console.log(`[BulkGate DLR] Stored incoming SMS from ${webhookData.number}: ${incomingMessage.id}`);
         
         // Try to link to customer by phone number
+        let linkedCustomerId: string | undefined;
         if (webhookData.number) {
           const customers = await storage.findCustomersByPhone(webhookData.number);
           if (customers.length > 0) {
+            linkedCustomerId = customers[0].id;
             await storage.updateCommunicationMessage(incomingMessage.id, {
               customerId: customers[0].id,
             });
             console.log(`[BulkGate DLR] Linked incoming SMS to customer ${customers[0].firstName} ${customers[0].lastName}`);
+          }
+        }
+        
+        // Run AI analysis for incoming SMS
+        if (webhookData.text) {
+          try {
+            const aiResult = await analyzeSmsContent(webhookData.text);
+            if (aiResult) {
+              await storage.updateCommunicationMessage(incomingMessage.id, {
+                aiAnalyzed: true,
+                aiSentiment: aiResult.sentiment,
+                aiAlertLevel: aiResult.alertLevel,
+                aiHasAngryTone: aiResult.hasAngryTone,
+                aiHasRudeExpressions: aiResult.hasRudeExpressions,
+                aiWantsToCancel: aiResult.wantsToCancel,
+                aiWantsConsent: aiResult.wantsConsent,
+                aiDoesNotAcceptContract: aiResult.doesNotAcceptContract,
+                aiAnalysisNote: aiResult.note,
+                aiAnalyzedAt: new Date(),
+              });
+              console.log(`[BulkGate DLR] AI analysis complete for SMS ${incomingMessage.id}: sentiment=${aiResult.sentiment}, alert=${aiResult.alertLevel}`);
+            }
+          } catch (aiError) {
+            console.error("[BulkGate DLR] AI analysis failed:", aiError);
           }
         }
       }

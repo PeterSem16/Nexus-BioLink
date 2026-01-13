@@ -3638,13 +3638,13 @@ export const customerEmailNotificationsRelations = relations(customerEmailNotifi
 
 // Sender ID types for BulkGate
 export const GSM_SENDER_ID_TYPES = [
-  { value: "gSystem", label: "Systémové číslo" },
-  { value: "gShort", label: "Short Code" },
-  { value: "gText", label: "Textový odosielateľ" },
-  { value: "gMobile", label: "Mobile Connect" },
-  { value: "gPush", label: "Mobile Connect Push" },
-  { value: "gOwn", label: "Vlastné číslo (vyžaduje overenie)" },
-  { value: "gProfile", label: "BulkGate Profil ID" },
+  { value: "gSystem", label: "Systémové číslo", needsValue: false },
+  { value: "gShort", label: "Short Code", needsValue: false },
+  { value: "gText", label: "Textový odosielateľ", needsValue: true },
+  { value: "gMobile", label: "Mobile Connect", needsValue: true },
+  { value: "gPush", label: "Mobile Connect Push", needsValue: false },
+  { value: "gOwn", label: "Vlastné číslo (vyžaduje overenie)", needsValue: true },
+  { value: "gProfile", label: "BulkGate Profil ID", needsValue: true },
 ] as const;
 
 export type GsmSenderIdType = typeof GSM_SENDER_ID_TYPES[number]["value"];

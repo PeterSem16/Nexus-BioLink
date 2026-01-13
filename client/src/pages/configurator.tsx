@@ -9568,7 +9568,10 @@ function GsmSenderTab() {
     gsmConfigs.find(c => c.countryCode === countryCode);
 
   // Check if sender type needs a value
-  const needsValue = (type: string) => ["gText", "gOwn", "gProfile"].includes(type);
+  const needsValue = (type: string) => {
+    const senderType = GSM_SENDER_ID_TYPES.find(t => t.value === type);
+    return senderType?.needsValue ?? false;
+  };
 
   return (
     <div className="space-y-6">

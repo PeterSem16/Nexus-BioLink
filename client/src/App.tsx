@@ -18,6 +18,7 @@ import { QuickCreate } from "@/components/quick-create";
 import { EmailNotifications } from "@/components/email-notifications";
 import { ChatProvider } from "@/contexts/chat-context";
 import { ChatContainer } from "@/components/chat-container";
+import { NotificationBell } from "@/components/notification-center";
 import Dashboard from "@/pages/dashboard";
 import UsersPage from "@/pages/users";
 import CustomersPage from "@/pages/customers";
@@ -118,6 +119,7 @@ function AuthenticatedApp() {
                   <GlobalSearch />
                   <QuickCreate />
                   <EmailNotifications />
+                  <NotificationBell />
                   <SipPhoneHeaderButton user={user} />
                   <TourTrigger />
                   <ThemeToggle />

@@ -9501,6 +9501,8 @@ function EmailRouterTab() {
   const [rulePriority, setRulePriority] = useState(0);
   const [ruleMatchMode, setRuleMatchMode] = useState<"all" | "any">("all");
   const [ruleStopProcessing, setRuleStopProcessing] = useState(false);
+  const [ruleAutoAssignCustomer, setRuleAutoAssignCustomer] = useState(true);
+  const [ruleEnableAiAnalysis, setRuleEnableAiAnalysis] = useState(false);
   const [ruleConditions, setRuleConditions] = useState<{type: string; operator: string; value: string}[]>([]);
   const [ruleActions, setRuleActions] = useState<{type: string; value: string}[]>([]);
 
@@ -9633,6 +9635,8 @@ function EmailRouterTab() {
     setRulePriority(0);
     setRuleMatchMode("all");
     setRuleStopProcessing(false);
+    setRuleAutoAssignCustomer(true);
+    setRuleEnableAiAnalysis(false);
     setRuleConditions([]);
     setRuleActions([]);
   };
@@ -9652,6 +9656,8 @@ function EmailRouterTab() {
       setRulePriority(rule.priority);
       setRuleMatchMode(rule.matchMode as "all" | "any");
       setRuleStopProcessing(rule.stopProcessing);
+      setRuleAutoAssignCustomer(rule.autoAssignCustomer ?? true);
+      setRuleEnableAiAnalysis(rule.enableAiAnalysis ?? false);
       setRuleConditions((rule.conditions as any[]) || []);
       setRuleActions((rule.actions as any[]) || []);
     } else {
@@ -9679,6 +9685,8 @@ function EmailRouterTab() {
       priority: rulePriority,
       matchMode: ruleMatchMode,
       stopProcessing: ruleStopProcessing,
+      autoAssignCustomer: ruleAutoAssignCustomer,
+      enableAiAnalysis: ruleEnableAiAnalysis,
       conditions: ruleConditions,
       actions: ruleActions,
       isActive: true,
@@ -9895,7 +9903,7 @@ function EmailRouterTab() {
               />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Label>Režim zhody:</Label>
                 <Select value={ruleMatchMode} onValueChange={(v) => setRuleMatchMode(v as "all" | "any")}>
@@ -9915,6 +9923,41 @@ function EmailRouterTab() {
                   data-testid="switch-stop-processing"
                 />
                 <Label>Zastaviť po tomto pravidle</Label>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Customer Assignment & AI Analysis */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Automatizácia</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                  <Switch
+                    checked={ruleAutoAssignCustomer}
+                    onCheckedChange={setRuleAutoAssignCustomer}
+                    data-testid="switch-auto-assign-customer"
+                  />
+                  <div className="space-y-1">
+                    <Label className="font-medium">Automatické priradenie zákazníkovi</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Emaily sa automaticky priradia do histórie zákazníka podľa emailovej adresy
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                  <Switch
+                    checked={ruleEnableAiAnalysis}
+                    onCheckedChange={setRuleEnableAiAnalysis}
+                    data-testid="switch-enable-ai-analysis"
+                  />
+                  <div className="space-y-1">
+                    <Label className="font-medium">AI analýza obsahu</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Detekcia nahnevaného tónu a nevhodných slov pomocou AI
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 

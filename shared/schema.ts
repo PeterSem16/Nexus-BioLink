@@ -3568,6 +3568,7 @@ export const emailMetadata = pgTable("email_metadata", {
   // Pipeline automation result
   aiPipelineActionTaken: boolean("ai_pipeline_action_taken").notNull().default(false),
   aiPipelineStageId: varchar("ai_pipeline_stage_id"), // Stage ID where customer was moved
+  aiPipelineStageName: varchar("ai_pipeline_stage_name"), // Full stage name (Pipeline → Stage)
   aiPipelineActionReason: text("ai_pipeline_action_reason"), // Reason for the move
   
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

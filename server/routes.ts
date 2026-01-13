@@ -2838,22 +2838,43 @@ export async function registerRoutes(
                   
                   if (pipelineAction) {
                     try {
+                      // Get stage details for logging
+                      const targetStage = await storage.getPipelineStage(pipelineAction.stageId);
+                      const targetPipeline = targetStage ? await storage.getPipeline(targetStage.pipelineId) : null;
+                      const stageName = targetStage?.name || "Neznáma fáza";
+                      const pipelineName = targetPipeline?.name || "Neznámy pipeline";
+                      const fullStageName = `${pipelineName} → ${stageName}`;
+                      
                       // Find deals for this customer and move them to the designated stage
                       const customerDeals = await storage.getDealsByCustomer(linkedCustomer.id);
-                      if (customerDeals.length > 0) {
+                      const openDeals = customerDeals.filter(d => d.status === "open");
+                      
+                      if (openDeals.length > 0) {
                         // Move all open deals for this customer to the new stage
-                        for (const deal of customerDeals) {
-                          if (deal.status === "open") {
-                            await storage.moveDealToStage(deal.id, pipelineAction.stageId);
-                            console.log(`[EmailRouter] Pipeline automation: Moved deal ${deal.id} to stage ${pipelineAction.stageId}`);
-                          }
+                        for (const deal of openDeals) {
+                          await storage.moveDealToStage(deal.id, pipelineAction.stageId);
+                          console.log(`[EmailRouter] Pipeline automation: Moved deal ${deal.id} to stage ${pipelineAction.stageId}`);
                         }
+                        
                         metadataData.aiPipelineActionTaken = true;
                         metadataData.aiPipelineStageId = pipelineAction.stageId;
                         metadataData.aiPipelineActionReason = pipelineAction.reason;
-                        console.log(`[EmailRouter] Pipeline automation: Moved ${customerDeals.filter(d => d.status === "open").length} deal(s) for customer ${linkedCustomer.id} - ${pipelineAction.reason}`);
+                        metadataData.aiPipelineStageName = fullStageName;
+                        
+                        // Log to customer activity history
+                        await storage.createActivityLog({
+                          id: crypto.randomUUID(),
+                          userId: "system",
+                          action: "pipeline_stage_changed",
+                          entityType: "customer",
+                          entityId: linkedCustomer.id,
+                          details: `AI automatizácia: ${pipelineAction.reason}. Presun ${openDeals.length} obchod(ov) do fázy "${fullStageName}"`,
+                          createdAt: new Date(),
+                        });
+                        
+                        console.log(`[EmailRouter] Pipeline automation: Moved ${openDeals.length} deal(s) for customer ${linkedCustomer.id} to "${fullStageName}" - ${pipelineAction.reason}`);
                       } else {
-                        console.log(`[EmailRouter] Pipeline automation: No deals found for customer ${linkedCustomer.id}, skipping stage move`);
+                        console.log(`[EmailRouter] Pipeline automation: No open deals found for customer ${linkedCustomer.id}, skipping stage move`);
                       }
                     } catch (pipelineError) {
                       console.error("[EmailRouter] Pipeline automation error:", pipelineError);
@@ -2899,6 +2920,7 @@ export async function registerRoutes(
               doesNotAcceptContract: metadata.aiDoesNotAcceptContract || false,
               pipelineActionTaken: metadata.aiPipelineActionTaken || false,
               pipelineStageId: metadata.aiPipelineStageId || null,
+              pipelineStageName: metadata.aiPipelineStageName || null,
               pipelineActionReason: metadata.aiPipelineActionReason || null,
             };
           }

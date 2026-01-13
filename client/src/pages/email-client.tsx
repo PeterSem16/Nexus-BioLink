@@ -831,6 +831,18 @@ export default function EmailClientPage() {
                             {(emailDetail as any).aiAnalysis.note}
                           </p>
                         )}
+                        {(emailDetail as any).aiAnalysis.pipelineActionTaken && (emailDetail as any).aiAnalysis.pipelineStageName && (
+                          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                            <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                              Automatický presun do fázy: {(emailDetail as any).aiAnalysis.pipelineStageName}
+                            </p>
+                            {(emailDetail as any).aiAnalysis.pipelineActionReason && (
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                {(emailDetail as any).aiAnalysis.pipelineActionReason}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

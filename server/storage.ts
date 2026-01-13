@@ -128,6 +128,7 @@ export interface IStorage {
   getCustomer(id: string): Promise<Customer | undefined>;
   getAllCustomers(): Promise<Customer[]>;
   getCustomersByCountry(countryCodes: string[]): Promise<Customer[]>;
+  findCustomersByEmail(email: string): Promise<Customer[]>; // Search by email or email2
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
@@ -827,6 +828,17 @@ export class DatabaseStorage implements IStorage {
   async getCustomersByCountry(countryCodes: string[]): Promise<Customer[]> {
     const allCustomers = await db.select().from(customers);
     return allCustomers.filter(c => countryCodes.includes(c.country));
+  }
+  
+  async findCustomersByEmail(email: string): Promise<Customer[]> {
+    const normalizedEmail = email.toLowerCase().trim();
+    return db.select().from(customers)
+      .where(
+        or(
+          sql`LOWER(${customers.email}) = ${normalizedEmail}`,
+          sql`LOWER(${customers.email2}) = ${normalizedEmail}`
+        )
+      );
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {

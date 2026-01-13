@@ -2626,7 +2626,53 @@ export async function registerRoutes(
         await markEmailAsRead(tokenResult.accessToken, emailId, true, mailboxEmail === "personal" ? undefined : mailboxEmail);
       }
       
-      res.json(email);
+      // Auto-link inbound email to customer based on sender email
+      let linkedCustomer = null;
+      try {
+        const senderEmail = email.from?.emailAddress?.address;
+        const receivedDateTime = email.receivedDateTime ? new Date(email.receivedDateTime) : new Date();
+        const actualMailbox = mailboxEmail === "personal" ? ms365Connection.email : mailboxEmail;
+        
+        if (senderEmail && actualMailbox) {
+          // Search for customer by sender email
+          const matchingCustomers = await storage.findCustomersByEmail(senderEmail);
+          
+          if (matchingCustomers.length > 0) {
+            const customer = matchingCustomers[0]; // Take first match
+            linkedCustomer = {
+              id: customer.id,
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+              email: customer.email
+            };
+            
+            // Check if notification already exists for this email
+            const existingNotifications = await storage.getCustomerEmailNotifications(customer.id);
+            const alreadyLinked = existingNotifications.some(n => n.messageId === emailId);
+            
+            if (!alreadyLinked) {
+              // Add to customer's email history (personal communication tracking)
+              await storage.createCustomerEmailNotification({
+                customerId: customer.id,
+                messageId: emailId,
+                mailboxEmail: actualMailbox,
+                subject: email.subject || "(bez predmetu)",
+                senderEmail: senderEmail,
+                senderName: email.from?.emailAddress?.name || senderEmail,
+                receivedAt: receivedDateTime,
+                priority: email.importance === "high" ? "high" : "normal",
+                isRead: false
+              });
+              console.log(`[EmailRouter] Linked email ${emailId} to customer ${customer.firstName} ${customer.lastName} (${customer.email})`);
+            }
+          }
+        }
+      } catch (linkError) {
+        console.error("[EmailRouter] Error linking email to customer:", linkError);
+        // Don't fail the request, just log the error
+      }
+      
+      res.json({ ...email, linkedCustomer });
     } catch (error) {
       console.error("Error fetching email:", error);
       res.status(500).json({ error: "Failed to fetch email" });

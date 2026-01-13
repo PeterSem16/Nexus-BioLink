@@ -50,6 +50,7 @@ import {
   Settings,
   User,
   Search,
+  UserCheck,
 } from "lucide-react";
 import Editor from "react-simple-wysiwyg";
 
@@ -718,6 +719,26 @@ export default function EmailClientPage() {
                       {format(new Date(emailDetail.receivedDateTime), "d. MMMM yyyy, HH:mm")}
                     </p>
                   </div>
+                  
+                  {/* Linked Customer Banner */}
+                  {emailDetail.linkedCustomer && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                      <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        Priradené k zákazníkovi:
+                      </span>
+                      <a 
+                        href={`/customers/${emailDetail.linkedCustomer.id}`}
+                        className="text-sm font-medium text-green-700 dark:text-green-300 hover:underline"
+                        data-testid="link-customer"
+                      >
+                        {emailDetail.linkedCustomer.firstName} {emailDetail.linkedCustomer.lastName}
+                      </a>
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        ({emailDetail.linkedCustomer.email})
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 {replyMode ? (

@@ -5980,6 +5980,41 @@ export async function registerRoutes(
                 aiAnalyzedAt: new Date(),
               });
               console.log(`[BulkGate DLR] AI analysis complete for SMS ${incomingMessage.id}: sentiment=${aiResult.sentiment}, alert=${aiResult.alertLevel}`);
+              
+              // Trigger notification for negative sentiment SMS
+              if (aiResult.sentiment === "negative" || aiResult.sentiment === "angry" || aiResult.hasAngryTone) {
+                try {
+                  let customerName: string | null = null;
+                  let countryCode: string | undefined;
+                  if (linkedCustomerId) {
+                    const customer = await storage.getCustomer(linkedCustomerId);
+                    if (customer) {
+                      customerName = `${customer.firstName} ${customer.lastName}`;
+                      countryCode = customer.country;
+                    }
+                  }
+                  
+                  await notificationService.triggerNotification("sentiment_negative", {
+                    title: `Negatívna SMS od ${customerName || webhookData.number}`,
+                    message: aiResult.note || `SMS obsahuje negatívny sentiment`,
+                    entityType: "sms",
+                    entityId: incomingMessage.id,
+                    countryCode: countryCode,
+                    priority: aiResult.alertLevel === "critical" ? "urgent" : aiResult.alertLevel === "warning" ? "high" : "normal",
+                    metadata: {
+                      sentiment: aiResult.sentiment,
+                      alertLevel: aiResult.alertLevel,
+                      hasAngryTone: aiResult.hasAngryTone,
+                      wantsToCancel: aiResult.wantsToCancel,
+                      customerName: customerName,
+                      senderPhone: webhookData.number,
+                    }
+                  });
+                  console.log(`[BulkGate DLR] Notification triggered for negative sentiment SMS ${incomingMessage.id}`);
+                } catch (notifError) {
+                  console.error("[BulkGate DLR] Error triggering notification:", notifError);
+                }
+              }
             }
           } catch (aiError) {
             console.error("[BulkGate DLR] AI analysis failed:", aiError);

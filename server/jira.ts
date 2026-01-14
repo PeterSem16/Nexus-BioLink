@@ -117,35 +117,54 @@ export async function getJiraProjects() {
 
 export async function getJiraUsers() {
   const client = await getJiraClient();
+  console.log('[Jira] getJiraUsers called');
+  
+  // Method 1: Try getAllUsers
   try {
-    // Try to get users by searching for all with startAt=0
     const users = await client.users.getAllUsers({ startAt: 0, maxResults: 100 });
+    console.log('[Jira] getAllUsers returned', users?.length || 0, 'users');
     if (users && users.length > 0) {
       return users;
     }
   } catch (e1) {
-    console.log('[Jira] getAllUsers failed, trying findUsers:', (e1 as Error).message);
+    console.log('[Jira] getAllUsers failed:', (e1 as Error).message);
   }
   
+  // Method 2: Try findUsers with empty query
   try {
-    // Fallback: search users with a broad query
     const users = await client.userSearch.findUsers({
       maxResults: 100,
       query: ''
     });
+    console.log('[Jira] findUsers (empty query) returned', users?.length || 0, 'users');
     if (users && users.length > 0) {
       return users;
     }
   } catch (e2) {
-    console.log('[Jira] findUsers failed, trying myself:', (e2 as Error).message);
+    console.log('[Jira] findUsers failed:', (e2 as Error).message);
   }
   
+  // Method 3: Try findUsers with wildcard query
   try {
-    // Last resort: at least return current user
-    const myself = await client.myself.getCurrentUser();
-    return [myself];
+    const users = await client.userSearch.findUsers({
+      maxResults: 100,
+      query: 'a'
+    });
+    console.log('[Jira] findUsers (query=a) returned', users?.length || 0, 'users');
+    if (users && users.length > 0) {
+      return users;
+    }
   } catch (e3) {
-    console.log('[Jira] getCurrentUser failed:', (e3 as Error).message);
+    console.log('[Jira] findUsers (query=a) failed:', (e3 as Error).message);
+  }
+  
+  // Method 4: Get current user as last resort
+  try {
+    const myself = await client.myself.getCurrentUser();
+    console.log('[Jira] getCurrentUser returned:', myself?.displayName || 'unknown');
+    return [myself];
+  } catch (e4) {
+    console.log('[Jira] getCurrentUser failed:', (e4 as Error).message);
     return [];
   }
 }

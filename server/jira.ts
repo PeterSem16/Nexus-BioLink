@@ -22,21 +22,23 @@ async function getAccessToken() {
   }
 
   try {
-    const response = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=jira',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X_REPLIT_TOKEN': xReplitToken
-        }
+    const url = 'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=jira';
+    console.log('[Jira] Fetching connection from:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'X_REPLIT_TOKEN': xReplitToken
       }
-    );
+    });
     
     if (!response.ok) {
+      console.error('[Jira] Response not OK:', response.status, response.statusText);
       throw new Error(`Failed to fetch Jira connection: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log('[Jira] Connection response:', JSON.stringify(data, null, 2));
     connectionSettings = data.items?.[0];
   } catch (error: any) {
     console.error('[Jira] Error fetching connection:', error.message);

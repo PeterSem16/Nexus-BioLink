@@ -203,9 +203,15 @@ export async function syncTaskToJira(task: {
 
 export async function checkJiraConnection(): Promise<{ connected: boolean; error?: string; siteUrl?: string }> {
   try {
-    const { accessToken, hostName } = await getAccessToken();
-    if (accessToken && hostName) {
-      return { connected: true, siteUrl: hostName };
+    const creds = await getAccessToken();
+    if (creds.useBasicAuth) {
+      if (creds.email && creds.apiToken && creds.hostName) {
+        return { connected: true, siteUrl: creds.hostName };
+      }
+    } else {
+      if (creds.accessToken && creds.hostName) {
+        return { connected: true, siteUrl: creds.hostName };
+      }
     }
     return { connected: false, error: 'Missing credentials' };
   } catch (error: any) {

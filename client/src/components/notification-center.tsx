@@ -228,9 +228,6 @@ export function NotificationBell() {
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
-          {!isConnected && (
-            <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-yellow-500" title="Odpojené" />
-          )}
         </Button>
       </PopoverTrigger>
       

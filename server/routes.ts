@@ -1769,12 +1769,20 @@ export async function registerRoutes(
   // Store PKCE verifiers temporarily (in production, use Redis or session)
   const ms365PkceStore = new Map<string, { codeVerifier: string; createdAt: Date }>();
   
+  // Store for system MS365 PKCE verifiers with country code
+  const systemMs365PkceStore = new Map<string, { codeVerifier: string; countryCode: string; userId: string; createdAt: Date }>();
+  
   // Cleanup old PKCE codes (older than 10 minutes)
   setInterval(() => {
     const now = Date.now();
-    for (const [state, data] of ms365PkceStore) {
+    for (const [state, data] of Array.from(ms365PkceStore.entries())) {
       if (now - data.createdAt.getTime() > 10 * 60 * 1000) {
         ms365PkceStore.delete(state);
+      }
+    }
+    for (const [state, data] of Array.from(systemMs365PkceStore.entries())) {
+      if (now - data.createdAt.getTime() > 10 * 60 * 1000) {
+        systemMs365PkceStore.delete(state);
       }
     }
   }, 60000);
@@ -1818,7 +1826,7 @@ export async function registerRoutes(
     }
   });
   
-  // OAuth callback from Microsoft
+  // OAuth callback from Microsoft (handles both user and system connections)
   app.get("/api/auth/microsoft/callback", async (req, res) => {
     try {
       const { code, state, error: authError, error_description } = req.query;
@@ -1832,15 +1840,54 @@ export async function registerRoutes(
         return res.redirect("/?ms365_error=Missing%20authorization%20code%20or%20state");
       }
       
+      const stateStr = String(state);
+      
+      // Check if this is a system connection (state starts with "system:")
+      const systemPkceData = systemMs365PkceStore.get(stateStr);
+      if (systemPkceData) {
+        // Handle system email connection
+        const { acquireTokenByCode, getUserProfile } = await import("./lib/ms365");
+        const { encryptTokenWithMarker } = await import("./lib/token-crypto");
+        
+        const tokenResult = await acquireTokenByCode(String(code), systemPkceData.codeVerifier);
+        systemMs365PkceStore.delete(stateStr);
+        
+        const profile = await getUserProfile(tokenResult.accessToken);
+        const { countryCode, userId } = systemPkceData;
+        
+        const existing = await storage.getSystemMs365Connection(countryCode);
+        const connectionData = {
+          countryCode,
+          accessToken: encryptTokenWithMarker(tokenResult.accessToken),
+          refreshToken: tokenResult.refreshToken ? encryptTokenWithMarker(tokenResult.refreshToken) : null,
+          tokenExpiresAt: tokenResult.expiresOn,
+          accountId: null,
+          email: profile.mail || profile.userPrincipalName,
+          displayName: profile.displayName,
+          isConnected: true,
+          connectedByUserId: userId,
+        };
+        
+        if (existing) {
+          await storage.updateSystemMs365Connection(countryCode, connectionData);
+        } else {
+          await storage.createSystemMs365Connection(connectionData);
+        }
+        
+        console.log(`[MS365] System email connected for country ${countryCode}: ${profile.mail || profile.userPrincipalName}`);
+        return res.redirect(`/configurator?tab=countries&subtab=system-settings&ms365_connected=true&country=${countryCode}`);
+      }
+      
+      // Handle regular user connection
       // SECURITY: Validate state matches the one stored in user's session (CSRF protection)
       const sessionState = (req.session as any)?.ms365State;
-      if (!sessionState || sessionState !== String(state)) {
+      if (!sessionState || sessionState !== stateStr) {
         console.error("MS365 auth error: State mismatch - possible CSRF attack");
         return res.redirect("/?ms365_error=Invalid%20session%20state%20-%20please%20try%20again");
       }
       
       // Retrieve PKCE verifier
-      const pkceData = ms365PkceStore.get(String(state));
+      const pkceData = ms365PkceStore.get(stateStr);
       if (!pkceData) {
         return res.redirect("/?ms365_error=Invalid%20or%20expired%20state");
       }
@@ -1851,7 +1898,7 @@ export async function registerRoutes(
       const tokenResult = await acquireTokenByCode(String(code), pkceData.codeVerifier);
       
       // Clean up PKCE store and session state
-      ms365PkceStore.delete(String(state));
+      ms365PkceStore.delete(stateStr);
       delete (req.session as any).ms365State;
       
       // Get user profile from Microsoft Graph
@@ -6184,6 +6231,165 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting country system settings:", error);
       res.status(500).json({ error: "Failed to delete country system settings" });
+    }
+  });
+
+  // ========== SYSTEM MS365 CONNECTIONS (per-country system email) ==========
+
+  // Get all system MS365 connections
+  app.get("/api/config/system-ms365-connections", requireAuth, async (req, res) => {
+    try {
+      const connections = await storage.getAllSystemMs365Connections();
+      // Don't expose tokens, just connection status
+      const safeConnections = connections.map(conn => ({
+        id: conn.id,
+        countryCode: conn.countryCode,
+        email: conn.email,
+        displayName: conn.displayName,
+        isConnected: conn.isConnected,
+        lastSyncAt: conn.lastSyncAt,
+        connectedByUserId: conn.connectedByUserId,
+        createdAt: conn.createdAt,
+        hasTokens: !!conn.accessToken,
+      }));
+      res.json(safeConnections);
+    } catch (error) {
+      console.error("Error fetching system MS365 connections:", error);
+      res.status(500).json({ error: "Failed to fetch system MS365 connections" });
+    }
+  });
+
+  // Get system MS365 connection for a country
+  app.get("/api/config/system-ms365-connections/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const connection = await storage.getSystemMs365Connection(req.params.countryCode);
+      if (!connection) {
+        return res.json(null);
+      }
+      // Don't expose tokens
+      res.json({
+        id: connection.id,
+        countryCode: connection.countryCode,
+        email: connection.email,
+        displayName: connection.displayName,
+        isConnected: connection.isConnected,
+        lastSyncAt: connection.lastSyncAt,
+        connectedByUserId: connection.connectedByUserId,
+        createdAt: connection.createdAt,
+        hasTokens: !!connection.accessToken,
+      });
+    } catch (error) {
+      console.error("Error fetching system MS365 connection:", error);
+      res.status(500).json({ error: "Failed to fetch system MS365 connection" });
+    }
+  });
+
+  // Initiate MS365 auth for system email (stores country code in state)
+  app.post("/api/config/system-ms365-connections/:countryCode/auth", requireAuth, async (req, res) => {
+    try {
+      const countryCode = req.params.countryCode;
+      const userId = req.session.user!.id;
+      
+      const { getAuthorizationUrl, isConfigured } = await import("./lib/ms365");
+      
+      if (!isConfigured()) {
+        return res.status(400).json({ error: "MS365 integration not configured" });
+      }
+      
+      // Generate auth URL with system email state prefix
+      const { url, codeVerifier, state } = await getAuthorizationUrl(`system:${countryCode}`, false);
+      
+      // Store PKCE verifier in shared store for callback to retrieve
+      systemMs365PkceStore.set(state, {
+        codeVerifier,
+        countryCode,
+        userId,
+        createdAt: new Date()
+      });
+      
+      res.json({ authUrl: url });
+    } catch (error) {
+      console.error("Error initiating system MS365 auth:", error);
+      res.status(500).json({ error: "Failed to initiate MS365 authentication" });
+    }
+  });
+
+  // Save system MS365 connection (called after OAuth callback)
+  app.post("/api/config/system-ms365-connections/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const countryCode = req.params.countryCode;
+      const userId = req.session.user!.id;
+      const { email, displayName, accessToken, refreshToken, tokenExpiresAt, accountId } = req.body;
+      
+      // Check if connection already exists
+      const existing = await storage.getSystemMs365Connection(countryCode);
+      
+      if (existing) {
+        // Update existing connection
+        const updated = await storage.updateSystemMs365Connection(countryCode, {
+          email,
+          displayName,
+          accessToken,
+          refreshToken,
+          tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : undefined,
+          accountId,
+          isConnected: true,
+          connectedByUserId: userId,
+        });
+        await logActivity(userId, "update", "system_ms365_connection", existing.id, `Updated system email for ${countryCode}`);
+        res.json({
+          id: updated!.id,
+          countryCode: updated!.countryCode,
+          email: updated!.email,
+          displayName: updated!.displayName,
+          isConnected: updated!.isConnected,
+          hasTokens: true,
+        });
+      } else {
+        // Create new connection
+        const created = await storage.createSystemMs365Connection({
+          countryCode,
+          email,
+          displayName,
+          accessToken,
+          refreshToken,
+          tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : undefined,
+          accountId,
+          isConnected: true,
+          connectedByUserId: userId,
+        });
+        await logActivity(userId, "create", "system_ms365_connection", created.id, `Connected system email for ${countryCode}`);
+        res.json({
+          id: created.id,
+          countryCode: created.countryCode,
+          email: created.email,
+          displayName: created.displayName,
+          isConnected: created.isConnected,
+          hasTokens: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving system MS365 connection:", error);
+      res.status(500).json({ error: "Failed to save system MS365 connection" });
+    }
+  });
+
+  // Disconnect system MS365 for a country
+  app.delete("/api/config/system-ms365-connections/:countryCode", requireAuth, async (req, res) => {
+    try {
+      const countryCode = req.params.countryCode;
+      const userId = req.session.user!.id;
+      
+      const deleted = await storage.deleteSystemMs365Connection(countryCode);
+      if (!deleted) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      
+      await logActivity(userId, "delete", "system_ms365_connection", countryCode, `Disconnected system email for ${countryCode}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error disconnecting system MS365:", error);
+      res.status(500).json({ error: "Failed to disconnect system MS365" });
     }
   });
 

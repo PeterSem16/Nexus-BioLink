@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard, TrendingUp, Bell } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Settings, Layout, Loader2, Palette, Package, Search, Shield, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, Check, Hash, Info, X, DollarSign, Percent, Calculator, CreditCard, TrendingUp, Bell, CheckCircle2, XCircle } from "lucide-react";
 import { COUNTRIES, CURRENCIES, getCurrencySymbol } from "@shared/schema";
 import { InvoiceDesigner, InvoiceDesignerConfig } from "@/components/invoice-designer";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11928,6 +11928,65 @@ function CountrySystemSettingsTab() {
     queryKey: ["/api/config/gsm-sender-configs"],
   });
 
+  // MS365 connection for selected country
+  const { data: ms365Connection, isLoading: ms365Loading, refetch: refetchMs365 } = useQuery<{
+    id: string;
+    countryCode: string;
+    email: string;
+    displayName: string | null;
+    isConnected: boolean;
+    hasTokens: boolean;
+  } | null>({
+    queryKey: ["/api/config/system-ms365-connections", selectedCountry],
+    queryFn: async () => {
+      if (!selectedCountry) return null;
+      const res = await fetch(`/api/config/system-ms365-connections/${selectedCountry}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: !!selectedCountry,
+  });
+
+  const connectMs365Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/config/system-ms365-connections/${selectedCountry}/auth`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to initiate auth');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    },
+    onError: () => {
+      toast({ title: t.common.error, description: "Nepodarilo sa iniciovať MS365 autentifikáciu", variant: "destructive" });
+    },
+  });
+
+  const disconnectMs365Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/config/system-ms365-connections/${selectedCountry}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to disconnect');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMs365();
+      queryClient.invalidateQueries({ queryKey: ["/api/config/system-ms365-connections"] });
+      toast({ title: t.common.success, description: "MS365 účet odpojený" });
+    },
+    onError: () => {
+      toast({ title: t.common.error, description: "Nepodarilo sa odpojiť MS365", variant: "destructive" });
+    },
+  });
+
   const currentSettings = systemSettings.find(s => s.countryCode === selectedCountry);
   const currentGsmConfig = gsmConfigs.find(g => g.countryCode === selectedCountry);
 
@@ -11984,9 +12043,12 @@ function CountrySystemSettingsTab() {
       toast({ title: t.common.error, description: "Vyberte krajinu", variant: "destructive" });
       return;
     }
+    // Use MS365 connection email if available
+    const emailAddress = ms365Connection?.email || formData.systemEmailAddress;
     saveMutation.mutate({
       countryCode: selectedCountry,
       ...formData,
+      systemEmailAddress: emailAddress,
     });
   };
 
@@ -12047,27 +12109,70 @@ function CountrySystemSettingsTab() {
               
               {formData.systemEmailEnabled && (
                 <>
-                  <div className="space-y-2">
-                    <Label>Email adresa (MS365)</Label>
-                    <Input
-                      value={formData.systemEmailAddress}
-                      onChange={(e) => setFormData({...formData, systemEmailAddress: e.target.value})}
-                      placeholder="system@vasadomena.sk"
-                      data-testid="input-system-email-address"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Tento email musí byť pripojený cez MS365 integráciu
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Zobrazované meno odosielateľa</Label>
-                    <Input
-                      value={formData.systemEmailDisplayName}
-                      onChange={(e) => setFormData({...formData, systemEmailDisplayName: e.target.value})}
-                      placeholder="INDEXUS Systém"
-                      data-testid="input-system-email-display-name"
-                    />
-                  </div>
+                  {ms365Loading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : ms365Connection?.isConnected ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                            MS365 pripojený
+                          </p>
+                          <p className="text-xs text-green-600 dark:text-green-400">
+                            {ms365Connection.email}
+                            {ms365Connection.displayName && ` (${ms365Connection.displayName})`}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => disconnectMs365Mutation.mutate()}
+                          disabled={disconnectMs365Mutation.isPending}
+                          data-testid="button-disconnect-system-ms365"
+                        >
+                          {disconnectMs365Mutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-4 w-4 mr-1" />
+                          )}
+                          Odpojiť
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Zobrazované meno odosielateľa</Label>
+                        <Input
+                          value={formData.systemEmailDisplayName}
+                          onChange={(e) => setFormData({...formData, systemEmailDisplayName: e.target.value})}
+                          placeholder="INDEXUS Systém"
+                          data-testid="input-system-email-display-name"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Pre odosielanie systémových emailov je potrebné pripojiť MS365 účet.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={() => connectMs365Mutation.mutate()}
+                        disabled={connectMs365Mutation.isPending}
+                        data-testid="button-connect-system-ms365"
+                      >
+                        {connectMs365Mutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4 mr-2" />
+                        )}
+                        Pripojiť Microsoft 365
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>

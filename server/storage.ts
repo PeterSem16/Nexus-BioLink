@@ -103,6 +103,7 @@ import {
   type CustomerEmailNotification, type InsertCustomerEmailNotification,
   gsmSenderConfigs, type GsmSenderConfig, type InsertGsmSenderConfig,
   countrySystemSettings, type CountrySystemSettings, type InsertCountrySystemSettings,
+  systemMs365Connections, type SystemMs365Connection, type InsertSystemMs365Connection,
   notifications, notificationRules,
   type Notification, type InsertNotification,
   type NotificationRule, type InsertNotificationRule
@@ -304,6 +305,13 @@ export interface IStorage {
   getCountrySystemSettingsByCountry(countryCode: string): Promise<CountrySystemSettings | undefined>;
   upsertCountrySystemSettings(data: InsertCountrySystemSettings): Promise<CountrySystemSettings>;
   deleteCountrySystemSettings(id: string): Promise<boolean>;
+
+  // System MS365 Connections (per-country system email)
+  getSystemMs365Connection(countryCode: string): Promise<SystemMs365Connection | undefined>;
+  getAllSystemMs365Connections(): Promise<SystemMs365Connection[]>;
+  createSystemMs365Connection(data: InsertSystemMs365Connection): Promise<SystemMs365Connection>;
+  updateSystemMs365Connection(countryCode: string, data: Partial<InsertSystemMs365Connection>): Promise<SystemMs365Connection | undefined>;
+  deleteSystemMs365Connection(countryCode: string): Promise<boolean>;
 
   // Complaint Types
   getAllComplaintTypes(): Promise<ComplaintType[]>;
@@ -1808,6 +1816,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCountrySystemSettings(id: string): Promise<boolean> {
     const result = await db.delete(countrySystemSettings).where(eq(countrySystemSettings.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // System MS365 Connections (per-country system email)
+  async getSystemMs365Connection(countryCode: string): Promise<SystemMs365Connection | undefined> {
+    const [connection] = await db.select().from(systemMs365Connections)
+      .where(eq(systemMs365Connections.countryCode, countryCode));
+    return connection || undefined;
+  }
+
+  async getAllSystemMs365Connections(): Promise<SystemMs365Connection[]> {
+    return db.select().from(systemMs365Connections).orderBy(systemMs365Connections.countryCode);
+  }
+
+  async createSystemMs365Connection(data: InsertSystemMs365Connection): Promise<SystemMs365Connection> {
+    const [created] = await db.insert(systemMs365Connections).values(data).returning();
+    return created;
+  }
+
+  async updateSystemMs365Connection(countryCode: string, data: Partial<InsertSystemMs365Connection>): Promise<SystemMs365Connection | undefined> {
+    const [updated] = await db.update(systemMs365Connections)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(systemMs365Connections.countryCode, countryCode))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSystemMs365Connection(countryCode: string): Promise<boolean> {
+    const result = await db.delete(systemMs365Connections).where(eq(systemMs365Connections.countryCode, countryCode)).returning();
     return result.length > 0;
   }
 

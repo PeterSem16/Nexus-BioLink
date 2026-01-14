@@ -63,6 +63,7 @@ class NotificationService {
     const clients = this.clients.get(userId) || [];
     clients.push({ ws, userId, connectedAt: new Date() });
     this.clients.set(userId, clients);
+    console.log(`[Notifications] User ${userId} connected. Total clients: ${this.getConnectedClientsCount()}`);
   }
 
   private removeClient(userId: string, ws: WebSocket) {
@@ -121,11 +122,14 @@ class NotificationService {
   }
 
   async sendNotificationToUsers(userIds: string[], notification: Omit<InsertNotification, "userId">) {
+    console.log(`[Notifications] Sending notification to ${userIds.length} users:`, userIds);
     for (const userId of userIds) {
       const created = await storage.createNotification({
         ...notification,
         userId
       });
+      const isConnected = this.isUserConnected(userId);
+      console.log(`[Notifications] Created notification ${created.id} for user ${userId}. Connected: ${isConnected}`);
       await this.sendNotification(created);
     }
   }

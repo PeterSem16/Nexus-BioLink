@@ -3713,6 +3713,31 @@ export const insertCountrySystemSettingsSchema = createInsertSchema(countrySyste
 export type InsertCountrySystemSettings = z.infer<typeof insertCountrySystemSettingsSchema>;
 export type CountrySystemSettings = typeof countrySystemSettings.$inferSelect;
 
+// System MS365 connections - each country can have its own MS365 account for system emails
+export const systemMs365Connections = pgTable("system_ms365_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 10 }).notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  accountId: text("account_id"),
+  email: text("email").notNull(),
+  displayName: text("display_name"),
+  isConnected: boolean("is_connected").notNull().default(true),
+  lastSyncAt: timestamp("last_sync_at"),
+  connectedByUserId: varchar("connected_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertSystemMs365ConnectionSchema = createInsertSchema(systemMs365Connections).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertSystemMs365Connection = z.infer<typeof insertSystemMs365ConnectionSchema>;
+export type SystemMs365Connection = typeof systemMs365Connections.$inferSelect;
+
 // ==================== NOTIFICATION CENTER ====================
 // Real-time notifications for users
 

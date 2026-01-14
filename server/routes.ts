@@ -1816,6 +1816,7 @@ export async function registerRoutes(
   
   // OAuth callback from Microsoft (handles both user and system connections)
   app.get("/api/auth/microsoft/callback", async (req, res) => {
+    console.log("[MS365 Callback] Request received with query:", JSON.stringify(req.query));
     try {
       const { code, state, error: authError, error_description } = req.query;
       

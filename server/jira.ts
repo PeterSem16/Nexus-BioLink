@@ -118,23 +118,35 @@ export async function getJiraProjects() {
 export async function getJiraUsers() {
   const client = await getJiraClient();
   try {
-    const users = await client.userSearch.findAssignableUsers({
-      project: '',
+    // Try to get users by searching for all with startAt=0
+    const users = await client.users.getAllUsers({ startAt: 0, maxResults: 100 });
+    if (users && users.length > 0) {
+      return users;
+    }
+  } catch (e1) {
+    console.log('[Jira] getAllUsers failed, trying findUsers:', (e1 as Error).message);
+  }
+  
+  try {
+    // Fallback: search users with a broad query
+    const users = await client.userSearch.findUsers({
       maxResults: 100,
       query: ''
     });
-    return users;
-  } catch (e1) {
-    try {
-      const users = await client.userSearch.findUsers({
-        maxResults: 100,
-        query: ''
-      });
+    if (users && users.length > 0) {
       return users;
-    } catch (e2) {
-      const myself = await client.myself.getCurrentUser();
-      return [myself];
     }
+  } catch (e2) {
+    console.log('[Jira] findUsers failed, trying myself:', (e2 as Error).message);
+  }
+  
+  try {
+    // Last resort: at least return current user
+    const myself = await client.myself.getCurrentUser();
+    return [myself];
+  } catch (e3) {
+    console.log('[Jira] getCurrentUser failed:', (e3 as Error).message);
+    return [];
   }
 }
 

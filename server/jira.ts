@@ -8,6 +8,8 @@ function getEnvCredentials(): { host: string; email: string; apiToken: string } 
   const email = process.env.JIRA_EMAIL;
   const apiToken = process.env.JIRA_API_TOKEN;
   
+  console.log('[Jira] Checking env vars - JIRA_HOST:', !!host, 'JIRA_EMAIL:', !!email, 'JIRA_API_TOKEN:', !!apiToken);
+  
   if (host && email && apiToken) {
     return { host, email, apiToken };
   }

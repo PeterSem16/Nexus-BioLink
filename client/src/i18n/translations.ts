@@ -1248,7 +1248,7 @@ export interface Translations {
     currencyCode: string;
     currencyName: string;
     rate: string;
-    validFrom: string;
+    rateValidFrom: string;
     updated: string;
   };
   auth: {
@@ -2716,7 +2716,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Code',
       currencyName: 'Currency Name',
       rate: 'Rate (EUR)',
-      validFrom: 'Valid From',
+      rateValidFrom: 'Valid From',
       updated: 'Updated',
     },
     auth: {
@@ -4182,7 +4182,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Kód',
       currencyName: 'Názov meny',
       rate: 'Kurz (EUR)',
-      validFrom: 'Platný od',
+      rateValidFrom: 'Platný od',
       updated: 'Aktualizované',
     },
     auth: {
@@ -5648,7 +5648,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Kód',
       currencyName: 'Název měny',
       rate: 'Kurz (EUR)',
-      validFrom: 'Platný od',
+      rateValidFrom: 'Platný od',
       updated: 'Aktualizováno',
     },
     auth: {
@@ -7077,7 +7077,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Kód',
       currencyName: 'Pénznem neve',
       rate: 'Árfolyam (EUR)',
-      validFrom: 'Érvényes',
+      rateValidFrom: 'Érvényes',
       updated: 'Frissítve',
     },
     auth: {
@@ -8506,7 +8506,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Cod',
       currencyName: 'Numele monedei',
       rate: 'Curs (EUR)',
-      validFrom: 'Valabil de la',
+      rateValidFrom: 'Valabil de la',
       updated: 'Actualizat',
     },
     auth: {
@@ -9935,7 +9935,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Codice',
       currencyName: 'Nome valuta',
       rate: 'Tasso (EUR)',
-      validFrom: 'Valido da',
+      rateValidFrom: 'Valido da',
       updated: 'Aggiornato',
     },
     auth: {
@@ -11364,7 +11364,7 @@ export const translations: Record<Locale, Translations> = {
       currencyCode: 'Code',
       currencyName: 'Währungsname',
       rate: 'Kurs (EUR)',
-      validFrom: 'Gültig ab',
+      rateValidFrom: 'Gültig ab',
       updated: 'Aktualisiert',
     },
     auth: {

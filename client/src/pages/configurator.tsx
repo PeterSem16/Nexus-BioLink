@@ -11914,6 +11914,43 @@ function CountrySystemSettingsTab() {
   const { t } = useI18n();
   const { user } = useAuth();
   const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [ms365JustConnected, setMs365JustConnected] = useState(false);
+
+  // Handle URL params from OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const countryFromUrl = params.get('country');
+    const ms365Connected = params.get('ms365_connected');
+    const ms365Error = params.get('ms365_error');
+    
+    if (countryFromUrl) {
+      setSelectedCountry(countryFromUrl);
+    }
+    
+    if (ms365Connected === 'true') {
+      setMs365JustConnected(true);
+      toast({ 
+        title: "Úspech", 
+        description: "MS365 účet bol úspešne pripojený",
+      });
+      // Clean URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('ms365_connected');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+    
+    if (ms365Error) {
+      toast({ 
+        title: "Chyba", 
+        description: decodeURIComponent(ms365Error),
+        variant: "destructive",
+      });
+      // Clean URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('ms365_error');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [toast]);
 
   const userCountryCodes = user?.assignedCountries && user.assignedCountries.length > 0 ? user.assignedCountries : null;
   const availableCountries = userCountryCodes 
@@ -11947,7 +11984,17 @@ function CountrySystemSettingsTab() {
       return res.json();
     },
     enabled: !!selectedCountry,
+    refetchOnMount: true,
+    staleTime: 0,
   });
+
+  // Refetch after OAuth redirect
+  useEffect(() => {
+    if (ms365JustConnected && selectedCountry) {
+      refetchMs365();
+      setMs365JustConnected(false);
+    }
+  }, [ms365JustConnected, selectedCountry, refetchMs365]);
 
   const connectMs365Mutation = useMutation({
     mutationFn: async () => {

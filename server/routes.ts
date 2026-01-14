@@ -1216,100 +1216,8 @@ export async function registerRoutes(
     }
   });
 
-  // MS365 login callback - handles authentication for users with authMethod = ms365
-  app.get("/api/auth/microsoft/callback", async (req, res) => {
-    try {
-      const { code, error: authError, error_description } = req.query;
-      
-      if (authError) {
-        console.error("MS365 auth error:", authError, error_description);
-        return res.redirect("/?error=ms365_auth_failed");
-      }
-      
-      if (!code || typeof code !== "string") {
-        return res.redirect("/?error=missing_code");
-      }
-      
-      const pendingUserId = req.session.pendingMs365UserId;
-      if (!pendingUserId) {
-        return res.redirect("/?error=session_expired");
-      }
-      
-      // Exchange code for token
-      const clientId = process.env.MS365_CLIENT_ID!;
-      const clientSecret = process.env.MS365_CLIENT_SECRET!;
-      const tenantId = process.env.MS365_TENANT_ID!;
-      // Always use HTTPS for redirect URI (Replit runs behind a proxy)
-      const redirectUri = `https://${req.get("host")}/api/auth/microsoft/callback`;
-      
-      const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          code,
-          redirect_uri: redirectUri,
-          grant_type: "authorization_code",
-          scope: "openid profile email User.Read",
-        }),
-      });
-      
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error("Token exchange failed:", errorText);
-        return res.redirect("/?error=token_exchange_failed");
-      }
-      
-      const tokens = await tokenResponse.json();
-      
-      // Get user info from Microsoft Graph
-      const graphResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      
-      if (!graphResponse.ok) {
-        console.error("Graph API failed");
-        return res.redirect("/?error=graph_api_failed");
-      }
-      
-      const msUser = await graphResponse.json();
-      
-      // Verify the MS365 email matches the user's email
-      const user = await storage.getUser(pendingUserId);
-      if (!user) {
-        return res.redirect("/?error=user_not_found");
-      }
-      
-      if (!user.isActive) {
-        return res.redirect("/?error=account_deactivated");
-      }
-      
-      // Verify email matches (case insensitive)
-      const msEmail = (msUser.mail || msUser.userPrincipalName || "").toLowerCase();
-      const userEmail = user.email.toLowerCase();
-      
-      if (msEmail !== userEmail && !msEmail.includes(userEmail.split("@")[0])) {
-        console.error(`Email mismatch: MS365=${msEmail}, CRM=${userEmail}`);
-        return res.redirect("/?error=email_mismatch");
-      }
-      
-      // Login successful - set session
-      const { passwordHash, ...safeUser } = user;
-      req.session.user = safeUser;
-      delete req.session.pendingMs365UserId;
-      
-      // Log login activity with MS365 auth method
-      console.log(`[Auth] User logged in via MS365: ${user.username} (${user.fullName})`);
-      await logActivity(user.id, "login", "user", user.id, `${user.fullName} (MS365 auth)`, JSON.stringify({ method: "ms365", msEmail }), req.ip);
-      
-      // Redirect to main app
-      res.redirect("/");
-    } catch (error) {
-      console.error("MS365 login callback error:", error);
-      res.redirect("/?error=login_failed");
-    }
-  });
+  // NOTE: MS365 callback is handled by a unified handler later in this file
+  // This ensures both login (state=login) and connection flows (PKCE state) work correctly
 
   app.post("/api/auth/logout", async (req, res) => {
     const userId = req.session.user?.id;
@@ -1814,7 +1722,7 @@ export async function registerRoutes(
     }
   });
   
-  // OAuth callback from Microsoft (handles both user and system connections)
+  // OAuth callback from Microsoft (handles login, user connection, and system connections)
   app.get("/api/auth/microsoft/callback", async (req, res) => {
     console.log("[MS365 Callback] Request received with query:", JSON.stringify(req.query));
     try {
@@ -1825,12 +1733,95 @@ export async function registerRoutes(
         return res.redirect(`/?ms365_error=${encodeURIComponent(String(error_description || authError))}`);
       }
       
-      if (!code || !state) {
-        return res.redirect("/?ms365_error=Missing%20authorization%20code%20or%20state");
+      if (!code) {
+        return res.redirect("/?ms365_error=Missing%20authorization%20code");
       }
       
-      const stateStr = String(state);
+      const stateStr = String(state || "");
       console.log("[MS365 Callback] Processing state:", stateStr);
+      
+      // Handle login flow (state="login") - for users with authMethod = ms365
+      if (stateStr === "login") {
+        console.log("[MS365 Callback] Login flow detected");
+        const pendingUserId = req.session.pendingMs365UserId;
+        if (!pendingUserId) {
+          return res.redirect("/?error=session_expired");
+        }
+        
+        // Exchange code for token
+        const clientId = process.env.MS365_CLIENT_ID!;
+        const clientSecret = process.env.MS365_CLIENT_SECRET!;
+        const tenantId = process.env.MS365_TENANT_ID!;
+        const redirectUri = `https://${req.get("host")}/api/auth/microsoft/callback`;
+        
+        const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: String(code),
+            redirect_uri: redirectUri,
+            grant_type: "authorization_code",
+            scope: "openid profile email User.Read",
+          }),
+        });
+        
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error("Token exchange failed:", errorText);
+          return res.redirect("/?error=token_exchange_failed");
+        }
+        
+        const tokens = await tokenResponse.json();
+        
+        // Get user info from Microsoft Graph
+        const graphResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        
+        if (!graphResponse.ok) {
+          console.error("Graph API failed");
+          return res.redirect("/?error=graph_api_failed");
+        }
+        
+        const msUser = await graphResponse.json();
+        
+        // Verify the MS365 email matches the user's email
+        const user = await storage.getUser(pendingUserId);
+        if (!user) {
+          return res.redirect("/?error=user_not_found");
+        }
+        
+        if (!user.isActive) {
+          return res.redirect("/?error=account_deactivated");
+        }
+        
+        // Verify email matches (case insensitive)
+        const msEmail = (msUser.mail || msUser.userPrincipalName || "").toLowerCase();
+        const userEmail = user.email.toLowerCase();
+        
+        if (msEmail !== userEmail && !msEmail.includes(userEmail.split("@")[0])) {
+          console.error(`Email mismatch: MS365=${msEmail}, CRM=${userEmail}`);
+          return res.redirect("/?error=email_mismatch");
+        }
+        
+        // Login successful - set session
+        const { passwordHash, ...safeUser } = user;
+        req.session.user = safeUser;
+        delete req.session.pendingMs365UserId;
+        
+        // Log login activity with MS365 auth method
+        console.log(`[Auth] User logged in via MS365: ${user.username} (${user.fullName})`);
+        await logActivity(user.id, "login", "user", user.id, `${user.fullName} (MS365 auth)`, JSON.stringify({ method: "ms365", msEmail }), req.ip);
+        
+        return res.redirect("/");
+      }
+      
+      // For non-login flows, we need a state parameter
+      if (!stateStr) {
+        return res.redirect("/?ms365_error=Missing%20state%20parameter");
+      }
       
       // Get PKCE data from database (persisted across server restarts)
       const pkceData = await storage.getPkceEntry(stateStr);
